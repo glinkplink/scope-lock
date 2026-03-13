@@ -1,0 +1,104 @@
+---
+alwaysApply: true
+---
+
+# ScopeLock Project Rules
+
+## Core principles
+- Keep the codebase small, boring, and easy to inspect manually.
+- Prefer the simplest implementation that satisfies the requirement.
+- Do not add features, files, abstractions, dependencies, or configuration unless explicitly required.
+- Do not "future-proof" by adding speculative architecture.
+- Do not refactor unrelated code.
+
+## Instruction discipline
+- Follow the exact task requested and nothing more.
+- If a requirement is ambiguous, choose the simpler interpretation.
+- Do not silently expand scope.
+- Do not replace existing patterns unless there is a clear bug or explicit instruction.
+
+## File discipline
+- Do not create new files unless they are necessary to complete the requested task.
+- Before creating a new file, check whether the logic belongs in an existing file.
+- Prefer fewer files over more files when reasonable.
+- Do not rename, move, or split files unless explicitly requested.
+- Do not leave behind unused files, duplicate files, or placeholder files.
+
+## Dependency discipline
+- Do not add packages unless absolutely necessary.
+- Prefer built-in platform/browser/TypeScript/React capabilities first.
+- If a package seems useful but is not strictly required, do not add it.
+- If adding a dependency is unavoidable, explain why.
+
+## Architecture discipline
+- Keep domain logic separate from UI logic.
+- Business/domain logic must be reusable and must not depend on React components.
+- Agreement/document generation must exist as a pure function.
+- Keep data types/schema definitions centralized and consistent.
+- Prefer plain functions and simple components over elaborate patterns.
+
+## State management
+- Use simple local state by default.
+- Do not introduce Redux, Zustand, context-heavy patterns, or custom state frameworks unless explicitly requested.
+- Avoid unnecessary indirection in state flow.
+
+## UI discipline
+- Optimize for mobile-first usability.
+- Keep UI components simple, readable, and easy to edit.
+- Do not add visual complexity, animation libraries, or design systems unless explicitly requested.
+- Prioritize function over polish.
+
+## Type safety and consistency
+- Do not invent fields not present in the canonical schema.
+- Keep field names consistent across:
+  - types
+  - form state
+  - sample data
+  - generator logic
+  - rendered output
+- Do not leave dead fields, unused props, or mismatched names.
+- Prefer explicit TypeScript types over loose typing.
+
+## Hallucination prevention
+- Do not claim code works unless it is consistent with the visible codebase.
+- Do not invent files, imports, functions, routes, APIs, or dependencies that do not exist.
+- Do not reference environment variables, backend services, or persistence layers unless they are actually implemented.
+- Do not assume hidden infrastructure.
+
+## Editing behavior
+- Make the minimum necessary change.
+- Prefer surgical diffs over broad rewrites.
+- Preserve working code unless there is a concrete reason to change it.
+- When fixing something, avoid incidental cleanup outside the task unless it is directly relevant.
+
+## Output behavior
+- Summarize what changed clearly.
+- Call out any assumptions.
+- If something could not be completed exactly as requested, say so directly.
+- Do not pretend uncertainty does not exist.
+
+## Quality checks before finishing
+Before concluding any task, verify:
+- no unnecessary files were added
+- no unnecessary dependencies were added
+- no unrelated code was changed
+- no field names are inconsistent
+- no broken imports were introduced
+- no dead code or placeholder code remains
+- architecture rules were preserved
+- output matches the requested scope
+
+## Product-specific rules
+- This product is a mobile-first welder job agreement generator.
+- Agreements must remain short, plain-language, and practical.
+- Do not turn the agreement into a large corporate subcontract.
+- Do not add legal-advice features.
+- Keep generated agreements focused on:
+  - scope of work
+  - exclusions
+  - hidden damage
+  - third-party responsibility
+  - change orders
+  - payment terms
+  - completion and liability transfer
+  - workmanship warranty

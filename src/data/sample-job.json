@@ -1,0 +1,31 @@
+{
+  "customer_name": "John Smith",
+  "customer_phone": "(555) 123-4567",
+  "job_location": "123 Main Street, Austin, TX 78701",
+  "job_type": "repair",
+  "asset_or_item_description": "Steel deck railing with loose connections",
+  "requested_work": "Repair cracked weld joints and reinforce connections",
+  "materials_provided_by": "welder",
+  "installation_included": true,
+  "grinding_included": true,
+  "paint_or_coating_included": false,
+  "removal_or_disassembly_included": false,
+  "hidden_damage_possible": true,
+  "price_type": "fixed",
+  "price": 450,
+  "deposit_required": true,
+  "payment_terms": "50% deposit required, balance due upon completion",
+  "target_completion_date": "2026-03-20",
+  "exclusions": [
+    "Painting or powder coating",
+    "Replacement of rusted sections beyond repair area",
+    "Permit acquisition"
+  ],
+  "assumptions": [
+    "Customer will provide clear access to work area",
+    "Weather conditions will allow outdoor welding",
+    "No hazardous materials present"
+  ],
+  "change_order_required": true,
+  "workmanship_warranty_days": 30
+}

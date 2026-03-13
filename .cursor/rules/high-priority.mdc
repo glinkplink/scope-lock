@@ -1,0 +1,15 @@
+---
+description: 
+alwaysApply: true
+---
+
+# High-Priority Rules
+- Do exactly what was requested. Nothing extra.
+- Keep changes minimal and local.
+- Do not add files, dependencies, or abstractions unless strictly necessary.
+- Do not refactor unrelated code.
+- Keep domain logic separate from UI.
+- Keep field names consistent everywhere.
+- Do not hallucinate files, imports, APIs, or infrastructure.
+- Prefer simple, boring solutions.
+- Keep the product mobile-first, short-form, and practical.
