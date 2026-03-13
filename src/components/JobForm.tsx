@@ -299,7 +299,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
         <p className="help-text">List what is NOT included in this job</p>
 
         {job.exclusions.map((exclusion, index) => (
-          <div key={`exclusion-${index}-${exclusion}`} className="list-item">
+          <div key={`exclusion-${index}`} className="list-item">
             <input
               type="text"
               value={exclusion}
@@ -327,7 +327,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
         <p className="help-text">List assumptions about the job conditions</p>
 
         {job.assumptions.map((assumption, index) => (
-          <div key={`assumption-${index}-${assumption}`} className="list-item">
+          <div key={`assumption-${index}`} className="list-item">
             <input
               type="text"
               value={assumption}
