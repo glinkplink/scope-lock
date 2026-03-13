@@ -47,7 +47,7 @@ export function AgreementPreview({ job }: AgreementPreviewProps) {
 
       <div className="agreement-document">
         {sections.map((section, index) => {
-          const isSignature = section.title === 'CLIENT ACKNOWLEDGMENT';
+          const isSignature = !!section.signatureData;
           const sig = section.signatureData;
           return (
             <div
@@ -64,7 +64,7 @@ export function AgreementPreview({ job }: AgreementPreviewProps) {
                 {sig && (
                   <div className="signature-blocks">
                     <div className="signature-block">
-                      <div className="signature-block-identifier">{sig.clientIdentifier}</div>
+                      <div className="signature-block-identifier">{sig.clientName}</div>
                       <div className="signature-field">
                         <span className="signature-field-label">Name</span>
                         <div className="signature-field-value">{sig.clientName}</div>

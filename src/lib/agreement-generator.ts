@@ -87,15 +87,18 @@ export function generateAgreement(job: WelderJob): AgreementSection[] {
   return sections;
 }
 
-function getSignatureBlockData(job: WelderJob): SignatureBlockData {
+// Shared helper to get contractor name with fallback
+function getContractorName(job: WelderJob): string {
   const raw = job.contractor_name?.trim();
-  const welderIdentifier =
-    raw && raw !== '[Your Business Name]' ? raw : 'Contractor';
+  return raw && raw !== '[Your Business Name]' ? raw : 'Contractor';
+}
+
+function getSignatureBlockData(job: WelderJob): SignatureBlockData {
+  const welderIdentifier = getContractorName(job);
   const d = new Date();
   const welderDate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 
   return {
-    clientIdentifier: job.customer_name,
     clientName: job.customer_name,
     welderIdentifier,
     welderDate,
@@ -108,9 +111,7 @@ function generateHeader(job: WelderJob): string {
     month: 'long',
     day: 'numeric',
   });
-  const raw = job.contractor_name?.trim();
-  const contractorName =
-    raw && raw !== '[Your Business Name]' ? raw : 'Contractor';
+  const contractorName = getContractorName(job);
 
   return `Date: ${today}
 
@@ -248,7 +249,7 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
       let text = `${section.title}\n${'='.repeat(section.title.length)}\n\n${section.content}`;
       if (section.signatureData) {
         const s = section.signatureData;
-        text += `\n\n${s.clientIdentifier}\n\nName: ${s.clientName}\nSignature: _________________________\nDate: _________________________\n\n${s.welderIdentifier}\n\nName: _________________________\nSignature: _________________________\nDate: ${s.welderDate}`;
+        text += `\n\n${s.clientName}\n\nName: ${s.clientName}\nSignature: _________________________\nDate: _________________________\n\n${s.welderIdentifier}\n\nName: _________________________\nSignature: _________________________\nDate: ${s.welderDate}`;
       }
       return text;
     })
