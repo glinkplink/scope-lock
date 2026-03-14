@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { signUp, signIn } from '../lib/auth';
 
 export function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -13,15 +13,19 @@ export function AuthPage() {
     setError('');
     setLoading(true);
 
-    const { error } = isSignUp
+    const result = isSignUp
       ? await signUp(email, password)
       : await signIn(email, password);
 
-    if (error) {
-      setError(error.message);
+    if (result.error) {
+      setError(result.error.message);
       setLoading(false);
+    } else {
+      setLoading(false);
+      if (!result.data.session) {
+        setError('Check your email to confirm your account');
+      }
     }
-    // On success, useAuth will update and App will re-render
   };
 
   return (
