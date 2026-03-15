@@ -1,16 +1,20 @@
 import type { WelderJob, AgreementSection, SignatureBlockData } from '../types';
+import type { BusinessProfile } from '../types/db';
 
 // Section content uses plain text with \n line breaks and • bullets.
 // A future structured content model would separate data from formatting,
 // which would be necessary for proper HTML rendering or PDF generation.
 
-export function generateAgreement(job: WelderJob): AgreementSection[] {
+export function generateAgreement(job: WelderJob, profile: BusinessProfile | null): AgreementSection[] {
   const sections: AgreementSection[] = [];
+
+  const businessName = profile?.business_name || 'Contractor';
+  const customerName = job.customer_name;
 
   // 1. Agreement Header
   sections.push({
     title: 'WELDING SERVICES AGREEMENT',
-    content: generateHeader(job),
+    content: generateHeader(job, businessName, customerName),
   });
 
   // 2. Project Overview
@@ -28,7 +32,7 @@ export function generateAgreement(job: WelderJob): AgreementSection[] {
   // 4. Materials
   sections.push({
     title: 'MATERIALS',
-    content: generateMaterialsSection(job),
+    content: generateMaterialsSection(job, businessName, customerName),
   });
 
   // 5. Exclusions
@@ -41,21 +45,21 @@ export function generateAgreement(job: WelderJob): AgreementSection[] {
   if (job.hidden_damage_possible) {
     sections.push({
       title: 'HIDDEN DAMAGE CLAUSE',
-      content: generateHiddenDamageClause(),
+      content: generateHiddenDamageClause(businessName, customerName),
     });
   }
 
   // 7. Third-Party Work Clause
   sections.push({
     title: 'THIRD-PARTY WORK',
-    content: generateThirdPartyClause(),
+    content: generateThirdPartyClause(businessName),
   });
 
   // 8. Change Orders
   if (job.change_order_required) {
     sections.push({
       title: 'CHANGE ORDERS',
-      content: generateChangeOrderClause(),
+      content: generateChangeOrderClause(businessName, customerName),
     });
   }
 
@@ -68,59 +72,47 @@ export function generateAgreement(job: WelderJob): AgreementSection[] {
   // 10. Completion and Responsibility Transfer
   sections.push({
     title: 'COMPLETION AND RESPONSIBILITY',
-    content: generateCompletionClause(),
+    content: generateCompletionClause(businessName, customerName),
   });
 
   // 11. Workmanship Warranty
   sections.push({
     title: 'WORKMANSHIP WARRANTY',
-    content: generateWarrantySection(job),
+    content: generateWarrantySection(job, businessName),
   });
 
   // 12. Client Acknowledgment
   sections.push({
-    title: 'CLIENT ACKNOWLEDGMENT',
-    content: generateClientAcknowledgment(),
-    signatureData: getSignatureBlockData(job),
+    title: `${customerName.toUpperCase()} ACKNOWLEDGMENT`,
+    content: generateClientAcknowledgment(customerName),
+    signatureData: getSignatureBlockData(job, profile),
   });
 
   return sections;
 }
 
-// Shared helper to get contractor name with fallback
-function getContractorName(job: WelderJob): string {
-  const raw = job.contractor_name?.trim();
-  return raw && raw !== '[Your Business Name]' ? raw : 'Contractor';
-}
-
-function getSignatureBlockData(job: WelderJob): SignatureBlockData {
-  const welderIdentifier = getContractorName(job);
+function getSignatureBlockData(job: WelderJob, profile: BusinessProfile | null): SignatureBlockData {
   const d = new Date();
-  const welderDate = d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const ownerDate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 
   return {
-    clientName: job.customer_name,
-    welderIdentifier,
-    welderDate,
+    customerName: job.customer_name,
+    ownerName: profile?.owner_name || profile?.business_name || '',
+    ownerDate,
   };
 }
 
-function generateHeader(job: WelderJob): string {
+function generateHeader(job: WelderJob, businessName: string, customerName: string): string {
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
-  const contractorName = getContractorName(job);
 
   return `Date: ${today}
 
-Contractor: ${contractorName}
-Client: ${job.customer_name}
+${businessName}
+${customerName}
 Job Location: ${job.job_location}
 Phone: ${job.customer_phone}`;
 }
@@ -159,12 +151,12 @@ function generateScopeOfWork(job: WelderJob): string {
   return items.map((item) => `• ${item}`).join('\n');
 }
 
-function generateMaterialsSection(job: WelderJob): string {
+function generateMaterialsSection(job: WelderJob, businessName: string, customerName: string): string {
   const providerText =
     job.materials_provided_by === 'welder'
-      ? 'All materials will be provided by the Contractor (welder).'
+      ? `All materials will be provided by ${businessName}.`
       : job.materials_provided_by === 'customer'
-        ? 'All materials will be provided by the Client (customer).'
+        ? `All materials will be provided by ${customerName}.`
         : 'Materials will be provided by both parties as agreed.';
 
   return providerText;
@@ -178,20 +170,20 @@ function generateExclusions(job: WelderJob): string {
   return job.exclusions.map((exclusion) => `• ${exclusion}`).join('\n');
 }
 
-function generateHiddenDamageClause(): string {
-  return `If hidden damage is discovered during repair work that was not visible during initial inspection, the Contractor will notify the Client before proceeding. Additional work required to address hidden damage may result in additional charges and will require Client approval.`;
+function generateHiddenDamageClause(businessName: string, customerName: string): string {
+  return `If hidden damage is discovered during repair work that was not visible during initial inspection, ${businessName} will notify ${customerName} before proceeding. Additional work required to address hidden damage may result in additional charges and will require ${customerName} approval.`;
 }
 
-function generateThirdPartyClause(): string {
-  return `The Contractor is not responsible for:
+function generateThirdPartyClause(businessName: string): string {
+  return `${businessName} is not responsible for:
 • Work performed by other contractors
 • Modifications made after completion of this agreement
 • Issues arising from prior repairs or work by others
 • Damage caused by misuse after work completion`;
 }
 
-function generateChangeOrderClause(): string {
-  return `Any work outside the agreed scope requires written or verbal approval from the Client before proceeding. Change orders may result in additional charges and timeline adjustments. The Contractor will provide an estimate for any additional work before proceeding.`;
+function generateChangeOrderClause(businessName: string, customerName: string): string {
+  return `Any work outside the agreed scope requires written or verbal approval from ${customerName} before proceeding. Change orders may result in additional charges and timeline adjustments. ${businessName} will provide an estimate for any additional work before proceeding.`;
 }
 
 function generatePricingSection(job: WelderJob): string {
@@ -213,12 +205,12 @@ Payment Terms: ${job.payment_terms}
 Target Completion: ${completionDate}`;
 }
 
-function generateCompletionClause(): string {
-  return `Upon completion of the work and Client approval, responsibility for the repaired/fabricated item transfers back to the Client. The Contractor is only responsible for workmanship defects as outlined in the Workmanship Warranty section.`;
+function generateCompletionClause(businessName: string, customerName: string): string {
+  return `Upon completion of the work and ${customerName} approval, responsibility for the repaired/fabricated item transfers back to ${customerName}. ${businessName} is only responsible for workmanship defects as outlined in the Workmanship Warranty section.`;
 }
 
-function generateWarrantySection(job: WelderJob): string {
-  return `The Contractor guarantees the welding workmanship for ${job.workmanship_warranty_days} days from completion date.
+function generateWarrantySection(job: WelderJob, businessName: string): string {
+  return `${businessName} guarantees the welding workmanship for ${job.workmanship_warranty_days} days from completion date.
 
 This warranty covers:
 • Defects in welding workmanship
@@ -233,8 +225,8 @@ This warranty DOES NOT cover:
 • Structural failures unrelated to the weld repair`;
 }
 
-function generateClientAcknowledgment(): string {
-  return `By signing below, the Client confirms:
+function generateClientAcknowledgment(customerName: string): string {
+  return `By signing below, ${customerName} confirms:
 
 ✓ Agreement to the scope of work outlined above
 ✓ Understanding of exclusions and limitations
@@ -253,8 +245,7 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
       let text = `${section.title}\n${'='.repeat(section.title.length)}\n\n${section.content}`;
       if (section.signatureData) {
         const s = section.signatureData;
-        // TODO: Contractor signature could use cursive/signature-style font for DocuSign-like look
-        text += `\n\nClient\n\nName: ${s.clientName}\nSignature: _________________________\nDate: _________________________\n\n${s.welderIdentifier}\n\nSignature: ${s.welderIdentifier}\nDate: ${s.welderDate}`;
+        text += `\n\nName: ${s.customerName}\nSignature: _________________________\nDate: _________________________\n\nName: ${s.ownerName}\nSignature: _________________________\nDate: ${s.ownerDate}`;
       }
       return text;
     })

@@ -255,7 +255,7 @@ function App() {
         ) : view === 'form' ? (
           <JobForm job={job} onChange={setJob} />
         ) : (
-          <AgreementPreview job={job} />
+          <AgreementPreview job={job} profile={profile} />
         )}
       </main>
 

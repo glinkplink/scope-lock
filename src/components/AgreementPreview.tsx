@@ -1,9 +1,11 @@
 import { jsPDF } from 'jspdf';
 import type { WelderJob } from '../types';
+import type { BusinessProfile } from '../types/db';
 import { generateAgreement, formatAgreementAsText } from '../lib/agreement-generator';
 
 interface AgreementPreviewProps {
   job: WelderJob;
+  profile: BusinessProfile | null;
 }
 
 function getPdfFilename(customerName: string): string {
@@ -15,8 +17,8 @@ function getPdfFilename(customerName: string): string {
   return `${sanitized}${m}-${day}-${yy}.pdf`;
 }
 
-export function AgreementPreview({ job }: AgreementPreviewProps) {
-  const sections = generateAgreement(job);
+export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
+  const sections = generateAgreement(job, profile);
   const plainText = formatAgreementAsText(sections);
 
   const handlePrint = () => {
@@ -82,10 +84,9 @@ export function AgreementPreview({ job }: AgreementPreviewProps) {
                 {sig && (
                   <div className="signature-blocks">
                     <div className="signature-block">
-                      <div className="signature-block-identifier">Client</div>
                       <div className="signature-field">
                         <span className="signature-field-label">Name</span>
-                        <div className="signature-field-value">{sig.clientName}</div>
+                        <div className="signature-field-value">{sig.customerName}</div>
                       </div>
                       <div className="signature-field">
                         <span className="signature-field-label">Signature</span>
@@ -97,16 +98,19 @@ export function AgreementPreview({ job }: AgreementPreviewProps) {
                       </div>
                     </div>
                     <div className="signature-block">
-                      <div className="signature-block-identifier">{sig.welderIdentifier}</div>
                       <div className="signature-field">
-                        <span className="signature-field-label">Signature</span>
+                        <span className="signature-field-label">Name</span>
                         <div className="signature-field-value signature-typed-autofill">
-                          {sig.welderIdentifier}
+                          {sig.ownerName}
                         </div>
                       </div>
                       <div className="signature-field">
+                        <span className="signature-field-label">Signature</span>
+                        <div className="signature-field-value" />
+                      </div>
+                      <div className="signature-field">
                         <span className="signature-field-label">Date</span>
-                        <div className="signature-field-value">{sig.welderDate}</div>
+                        <div className="signature-field-value">{sig.ownerDate}</div>
                       </div>
                     </div>
                   </div>

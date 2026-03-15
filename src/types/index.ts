@@ -49,9 +49,9 @@ export interface WelderJob {
 }
 
 export interface SignatureBlockData {
-  clientName: string;
-  welderIdentifier: string;
-  welderDate: string;
+  customerName: string;
+  ownerName: string;
+  ownerDate: string;
 }
 
 export interface AgreementSection {
