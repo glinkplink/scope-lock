@@ -68,6 +68,14 @@ function App() {
     }
   }, [profile?.business_name, view]);
 
+  // Reset auth page state and view when user signs in successfully
+  useEffect(() => {
+    if (user && showAuthPage) {
+      setShowAuthPage(false);
+      setView('home');
+    }
+  }, [user, showAuthPage]);
+
   useEffect(() => {
     if (user) {
       const loadProfile = async () => {
@@ -175,7 +183,7 @@ function App() {
 
   // Returning user sign in
   if (!user && showAuthPage) {
-    return <AuthPage />;
+    return <AuthPage initialMode="signin" />;
   }
 
   // Authenticated user without profile

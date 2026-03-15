@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { signUp, signIn } from '../lib/auth';
 
-export function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(true);
+interface AuthPageProps {
+  initialMode?: 'signup' | 'signin';
+}
+
+export function AuthPage({ initialMode = 'signup' }: AuthPageProps) {
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
