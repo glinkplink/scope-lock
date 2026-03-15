@@ -335,8 +335,8 @@ body {
 }
 
 .agreement-section {
-  margin-bottom: var(--space-xl);
-  padding-bottom: var(--space-xl);
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-lg);
   border-bottom: 1px solid var(--border);
 }
 
@@ -351,8 +351,7 @@ body {
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--space-md);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
 }
 
 /* Center the main agreement title */
@@ -386,7 +385,9 @@ body {
 }
 
 .signature-blocks {
-  margin-top: var(--space-lg);
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--text-primary);
 }
 
 .signature-block {
@@ -408,10 +409,12 @@ body {
 }
 
 .signature-block-identifier {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1rem;
   color: var(--text-primary);
   margin-bottom: var(--space-md);
-  font-size: 0.9375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .signature-field {
@@ -431,6 +434,24 @@ body {
   padding-bottom: 2px;
   font-size: 0.9375rem;
   color: var(--text-primary);
+}
+
+/* Auto-generated Service Provider signature */
+.signature-autofill-name {
+  font-family: 'Dancing Script', cursive;
+  font-size: 28px;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin-bottom: -4px;
+}
+
+/* Print support for Dancing Script font */
+@media print {
+  .signature-autofill-name {
+    font-family: 'Dancing Script', cursive;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 /* Loading */
@@ -1166,6 +1187,16 @@ body {
 
   .agreement-section {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .section-title {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .signature-section {
+    margin-top: 2rem;
   }
 }
 

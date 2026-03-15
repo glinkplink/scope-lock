@@ -32,6 +32,8 @@ const BOLD_LABELS = [
   'Deposit Required:',
   'Payment Terms:',
   'Target Completion:',
+  'Name:',
+  'Signature:',
 ];
 
 // Parse a line and return label/value parts if it matches a known label
@@ -76,6 +78,7 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
     const margin = 20;
     const maxWidth = pageWidth - (margin * 2);       // ~170mm
     const baseLineHeight = 6;                        // Base line height
+    const usableHeight = pageHeight - (margin * 2);  // Usable page height
 
     let yPosition = margin;
     const lines = doc.splitTextToSize(plainText, maxWidth);
@@ -87,6 +90,7 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
       'Scope of Work',
       'Materials',
       'Exclusions',
+      'Assumptions',
       'Hidden Damage Clause',
       'Third-Party Work',
       'Change Orders',
@@ -96,34 +100,91 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
       'Agreement and Acknowledgment',
     ];
 
-    lines.forEach((line: string) => {
+    // Signature block party labels
+    const signaturePartyLabels = ['Customer', 'Service Provider'];
+
+    // Pre-calculate section boundaries for smart page breaks
+    const sectionStartIndices: number[] = [];
+    lines.forEach((line: string, index: number) => {
+      if (sectionHeaders.includes(line.trim())) {
+        sectionStartIndices.push(index);
+      }
+    });
+
+    // Calculate height needed for content from startIdx to next section (or end)
+    const getContentHeightUntilNextSection = (startIdx: number): number => {
+      const nextSectionIdx = sectionStartIndices.find(i => i > startIdx) ?? lines.length;
+      let height = 0;
+      for (let i = startIdx; i < nextSectionIdx; i++) {
+        const trimmed = lines[i].trim();
+        if (trimmed === '') {
+          height += 3;
+        } else if (sectionHeaders.includes(trimmed)) {
+          height += baseLineHeight + 2 + 4; // header height + spacing
+        } else {
+          height += baseLineHeight;
+        }
+      }
+      return height;
+    };
+
+    lines.forEach((line: string, index: number) => {
       const trimmedLine = line.trim();
       const isMainTitle = trimmedLine === 'WELDING SERVICES AGREEMENT';
       const isSectionHeader = sectionHeaders.includes(trimmedLine);
+      const isSignaturePartyLabel = signaturePartyLabels.includes(trimmedLine);
       const isEmptyLine = trimmedLine === '';
+
+      // Track if we're in Service Provider section
+      const previousLines = lines.slice(0, index).map((l: string) => l.trim());
+      const isAfterServiceProvider = previousLines.includes('Service Provider');
+      const isBeforeCustomer = !previousLines.includes('Customer') ||
+                               previousLines.lastIndexOf('Service Provider') > previousLines.lastIndexOf('Customer');
+
+      // Check if this is the Service Provider's signature line
+      const isProviderSignatureLine =
+        isAfterServiceProvider &&
+        isBeforeCustomer &&
+        trimmedLine.startsWith('Signature:');
 
       // Determine line height and spacing
       let lineHeight = baseLineHeight;
       if (isEmptyLine) {
-        lineHeight = 3; // Reduced spacing for empty lines
+        lineHeight = 3;
       } else if (isSectionHeader) {
-        lineHeight = baseLineHeight + 2; // Extra space after headers
+        lineHeight = baseLineHeight + 2;
       }
 
-      // Check if adding this line would exceed page height
+      // Add extra space before "Customer" signature label
+      if (trimmedLine === 'Customer') {
+        yPosition += 15;
+      }
+
+      // Smart page break: when hitting a section header, check if section fits
+      if (isSectionHeader && !isMainTitle) {
+        const sectionHeight = getContentHeightUntilNextSection(index);
+        const spaceRemaining = usableHeight - (yPosition - margin);
+
+        // If less than 40% of section fits, start new page
+        if (sectionHeight > spaceRemaining && spaceRemaining < sectionHeight * 0.6) {
+          doc.addPage();
+          yPosition = margin;
+        }
+      }
+
+      // Basic overflow check
       if (yPosition + lineHeight > pageHeight - margin) {
         doc.addPage();
         yPosition = margin;
       }
 
-      // Add extra space before section headers (except main title)
-      if (isSectionHeader && !isMainTitle) {
+      // Add spacing before section headers (except main title and if not at page top)
+      if (isSectionHeader && !isMainTitle && yPosition > margin + 5) {
         yPosition += 4;
       }
 
-      // Skip rendering empty lines, just add spacing
+      // Render the line
       if (!isEmptyLine) {
-        // Set font style for headers
         if (isMainTitle) {
           doc.setFontSize(16);
           doc.setFont('helvetica', 'bold');
@@ -132,12 +193,30 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
           doc.setFontSize(12);
           doc.setFont('helvetica', 'bold');
           doc.text(line, margin, yPosition);
-        } else {
+        } else if (isSignaturePartyLabel) {
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text(line, margin, yPosition);
+        } else if (isProviderSignatureLine) {
+          // Render Service Provider signature with label in bold, value in italic
           doc.setFontSize(10);
-          // Check if this line has a bold label
           const parsed = parseLabeledLine(trimmedLine);
           if (parsed) {
-            // Render label in bold, value in normal
+            doc.setFont('helvetica', 'bold');
+            doc.text(parsed.label, margin, yPosition);
+            const labelWidth = doc.getTextWidth(parsed.label + ' ');
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(14);
+            doc.text(parsed.value, margin + labelWidth, yPosition);
+            doc.setFontSize(10); // Reset font size
+          } else {
+            doc.setFont('helvetica', 'normal');
+            doc.text(line, margin, yPosition);
+          }
+        } else {
+          doc.setFontSize(10);
+          const parsed = parseLabeledLine(trimmedLine);
+          if (parsed) {
             doc.setFont('helvetica', 'bold');
             doc.text(parsed.label, margin, yPosition);
             const labelWidth = doc.getTextWidth(parsed.label + ' ');
@@ -186,6 +265,7 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
                 {sig && (
                   <div className="signature-blocks">
                     <div className="signature-block">
+                      <div className="signature-block-identifier">Customer</div>
                       <div className="signature-field">
                         <span className="signature-field-label">Name</span>
                         <div className="signature-field-value">{sig.customerName}</div>
@@ -200,15 +280,16 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
                       </div>
                     </div>
                     <div className="signature-block">
+                      <div className="signature-block-identifier">Service Provider</div>
                       <div className="signature-field">
                         <span className="signature-field-label">Name</span>
-                        <div className="signature-field-value signature-typed-autofill">
-                          {sig.ownerName}
-                        </div>
+                        <div className="signature-field-value">{sig.ownerName}</div>
                       </div>
                       <div className="signature-field">
                         <span className="signature-field-label">Signature</span>
-                        <div className="signature-field-value" />
+                        <div className="signature-field-value">
+                          <div className="signature-autofill-name">{sig.ownerName}</div>
+                        </div>
                       </div>
                       <div className="signature-field">
                         <span className="signature-field-label">Date</span>
