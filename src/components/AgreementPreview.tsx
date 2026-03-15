@@ -31,19 +31,64 @@ export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
     const pageWidth = doc.internal.pageSize.width;   // ~210mm for A4
     const margin = 20;
     const maxWidth = pageWidth - (margin * 2);       // ~170mm
-    const lineHeight = 7;                            // ~7mm per line
+    const baseLineHeight = 6;                        // Base line height
 
     let yPosition = margin;
     const lines = doc.splitTextToSize(plainText, maxWidth);
 
+    // Section headers to detect for special formatting
+    const sectionHeaders = [
+      'WELDING SERVICES AGREEMENT',
+      'Project Overview',
+      'Scope of Work',
+      'Materials',
+      'Exclusions',
+      'Hidden Damage Clause',
+      'Third-Party Work',
+      'Change Orders',
+      'Pricing and Payment',
+      'Completion and Responsibility',
+      'Workmanship Warranty',
+      'Client Acknowledgment',
+    ];
+
     lines.forEach((line: string) => {
-      // Check if adding this line would exceed page height
-      if (yPosition + lineHeight > pageHeight - margin) {
-        doc.addPage();           // Create new page
-        yPosition = margin;       // Reset Y position to top of new page
+      const trimmedLine = line.trim();
+      const isMainTitle = trimmedLine === 'WELDING SERVICES AGREEMENT';
+      const isSectionHeader = sectionHeaders.includes(trimmedLine);
+      const isEmptyLine = trimmedLine === '';
+
+      // Determine line height and spacing
+      let lineHeight = baseLineHeight;
+      if (isEmptyLine) {
+        lineHeight = 3; // Reduced spacing for empty lines
+      } else if (isSectionHeader) {
+        lineHeight = baseLineHeight + 2; // Extra space after headers
       }
 
-      doc.text(line, margin, yPosition);
+      // Check if adding this line would exceed page height
+      if (yPosition + lineHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+
+      // Skip rendering empty lines, just add spacing
+      if (!isEmptyLine) {
+        // Set font style for headers
+        if (isMainTitle) {
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+        } else if (isSectionHeader) {
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+        } else {
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+        }
+
+        doc.text(line, margin, yPosition);
+      }
+
       yPosition += lineHeight;
     });
 

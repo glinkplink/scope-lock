@@ -19,71 +19,71 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
 
   // 2. Project Overview
   sections.push({
-    title: 'PROJECT OVERVIEW',
+    title: 'Project Overview',
     content: generateProjectOverview(job),
   });
 
   // 3. Scope of Work
   sections.push({
-    title: 'SCOPE OF WORK',
+    title: 'Scope of Work',
     content: generateScopeOfWork(job),
   });
 
   // 4. Materials
   sections.push({
-    title: 'MATERIALS',
+    title: 'Materials',
     content: generateMaterialsSection(job, businessName, customerName),
   });
 
   // 5. Exclusions
   sections.push({
-    title: 'EXCLUSIONS',
+    title: 'Exclusions',
     content: generateExclusions(job),
   });
 
   // 6. Hidden Damage Clause
   if (job.hidden_damage_possible) {
     sections.push({
-      title: 'HIDDEN DAMAGE CLAUSE',
+      title: 'Hidden Damage Clause',
       content: generateHiddenDamageClause(businessName, customerName),
     });
   }
 
   // 7. Third-Party Work Clause
   sections.push({
-    title: 'THIRD-PARTY WORK',
+    title: 'Third-Party Work',
     content: generateThirdPartyClause(businessName),
   });
 
   // 8. Change Orders
   if (job.change_order_required) {
     sections.push({
-      title: 'CHANGE ORDERS',
+      title: 'Change Orders',
       content: generateChangeOrderClause(businessName, customerName),
     });
   }
 
   // 9. Pricing and Payment Terms
   sections.push({
-    title: 'PRICING AND PAYMENT',
+    title: 'Pricing and Payment',
     content: generatePricingSection(job),
   });
 
   // 10. Completion and Responsibility Transfer
   sections.push({
-    title: 'COMPLETION AND RESPONSIBILITY',
+    title: 'Completion and Responsibility',
     content: generateCompletionClause(businessName, customerName),
   });
 
   // 11. Workmanship Warranty
   sections.push({
-    title: 'WORKMANSHIP WARRANTY',
+    title: 'Workmanship Warranty',
     content: generateWarrantySection(job, businessName),
   });
 
   // 12. Client Acknowledgment
   sections.push({
-    title: `${customerName.toUpperCase()} ACKNOWLEDGMENT`,
+    title: 'Client Acknowledgment',
     content: generateClientAcknowledgment(customerName),
     signatureData: getSignatureBlockData(job, profile),
   });
@@ -109,12 +109,11 @@ function generateHeader(job: WelderJob, businessName: string, customerName: stri
     day: 'numeric',
   });
 
-  return `Date: ${today}
-
-${businessName}
-${customerName}
-Job Location: ${job.job_location}
-Phone: ${job.customer_phone}`;
+  return `Date:                ${today}
+Contractor:          ${businessName}
+Client:              ${customerName}
+Job Location:        ${job.job_location}
+Phone:               ${job.customer_phone}`;
 }
 
 function generateProjectOverview(job: WelderJob): string {
@@ -241,13 +240,22 @@ function capitalizeFirst(str: string): string {
 
 export function formatAgreementAsText(sections: AgreementSection[]): string {
   return sections
-    .map((section) => {
-      let text = `${section.title}\n${'='.repeat(section.title.length)}\n\n${section.content}`;
+    .map((section, index) => {
+      // Special formatting for the header section
+      if (index === 0 && section.title === 'WELDING SERVICES AGREEMENT') {
+        return `${section.title}\n\n${section.content}`;
+      }
+
+      // Regular sections with clean formatting (no ASCII dividers)
+      let text = `${section.title}\n\n${section.content}`;
+
+      // Format signature section
       if (section.signatureData) {
         const s = section.signatureData;
-        text += `\n\nName: ${s.customerName}\nSignature: _________________________\nDate: _________________________\n\nName: ${s.ownerName}\nSignature: _________________________\nDate: ${s.ownerDate}`;
+        text += `\n\n\nName: ${s.customerName}\nSignature: _________________________\nDate: _________________________\n\n\nName: ${s.ownerName}\nSignature: _________________________\nDate: ${s.ownerDate}`;
       }
+
       return text;
     })
-    .join('\n\n');
+    .join('\n\n\n');
 }
