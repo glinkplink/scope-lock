@@ -37,6 +37,8 @@ export function BusinessProfileForm({
       email: email || null,
       address: address || null,
       google_business_profile_url: googleUrl || null,
+      default_exclusions: initialProfile?.default_exclusions ?? [],
+      default_assumptions: initialProfile?.default_assumptions ?? [],
     });
 
     setLoading(false);

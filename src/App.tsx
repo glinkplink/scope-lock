@@ -5,6 +5,7 @@ import { AgreementPreview } from './components/AgreementPreview';
 import { AuthPage } from './components/AuthPage';
 import { BusinessProfileForm } from './components/BusinessProfileForm';
 import { HomePage } from './components/HomePage';
+import { EditProfilePage } from './components/EditProfilePage';
 import { useAuth } from './hooks/useAuth';
 import { signOut } from './lib/auth';
 import { getProfile } from './lib/db/profile';
@@ -16,18 +17,38 @@ function App() {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [view, setView] = useState<'home' | 'form' | 'preview'>('home');
+  const [view, setView] = useState<'home' | 'form' | 'preview' | 'profile'>('home');
   const [job, setJob] = useState<WelderJob>(() => ({
     ...(sampleJob as WelderJob),
     contractor_name: '',
   }));
 
+  // Populate job with profile defaults when creating a new Work Agreement
+  const createNewAgreement = () => {
+    const defaults = profile
+      ? {
+          contractor_name: profile.business_name,
+          exclusions: profile.default_exclusions?.length ? profile.default_exclusions : sampleJob.exclusions,
+          assumptions: profile.default_assumptions?.length ? profile.default_assumptions : sampleJob.assumptions,
+        }
+      : {};
+
+    setJob({
+      ...(sampleJob as WelderJob),
+      contractor_name: '',
+      exclusions: [],
+      assumptions: [],
+      ...defaults,
+    });
+    setView('form');
+  };
+
   useEffect(() => {
-    if (profile && !editingProfile) {
+    if (profile && view !== 'profile') {
+      // Only update contractor_name, not exclusions/assumptions (preserves user edits)
       setJob((prev) => ({ ...prev, contractor_name: profile.business_name }));
     }
-  }, [profile?.business_name, editingProfile]);
+  }, [profile?.business_name, view]);
 
   useEffect(() => {
     if (user) {
@@ -50,7 +71,6 @@ function App() {
     const data = await getProfile(user.id);
     setProfile(data);
     setProfileLoading(false);
-    setEditingProfile(false);
   };
 
   if (authLoading || profileLoading) {
@@ -61,12 +81,23 @@ function App() {
     return <AuthPage />;
   }
 
-  if (!profile || editingProfile) {
+  if (!profile) {
     return (
       <BusinessProfileForm
         userId={user.id}
-        initialProfile={profile}
+        initialProfile={null}
         onSave={loadProfile}
+      />
+    );
+  }
+
+  // Show EditProfilePage when view === 'profile'
+  if (view === 'profile') {
+    return (
+      <EditProfilePage
+        profile={profile}
+        onSave={loadProfile}
+        onCancel={() => setView('home')}
       />
     );
   }
@@ -90,7 +121,7 @@ function App() {
           <button
             type="button"
             className="btn-edit-profile"
-            onClick={() => setEditingProfile(true)}
+            onClick={() => setView('profile')}
           >
             Edit Profile
           </button>
@@ -124,7 +155,7 @@ function App() {
       <main className="app-main">
         {view === 'home' ? (
           <HomePage
-            onCreateAgreement={() => setView('form')}
+            onCreateAgreement={createNewAgreement}
             businessName={profile?.business_name}
           />
         ) : view === 'form' ? (
