@@ -1,14 +1,37 @@
+import { useEffect } from 'react';
+
 interface HomePageProps {
   onCreateAgreement: () => void;
-  businessName?: string;
+  ownerName?: string;
+  showSuccessBanner?: boolean;
+  onDismissBanner?: () => void;
 }
 
-export function HomePage({ onCreateAgreement, businessName }: HomePageProps) {
+export function HomePage({
+  onCreateAgreement,
+  ownerName,
+  showSuccessBanner,
+  onDismissBanner,
+}: HomePageProps) {
+  // Auto-dismiss banner after 5 seconds
+  useEffect(() => {
+    if (showSuccessBanner && onDismissBanner) {
+      const timer = setTimeout(() => {
+        onDismissBanner();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessBanner, onDismissBanner]);
+
   return (
     <div className="home-page">
       <div className="home-content">
-        {businessName && (
-          <p className="home-greeting">Welcome back, {businessName}</p>
+        {showSuccessBanner ? (
+          <div className="success-banner home-success-banner">
+            Business profile created successfully
+          </div>
+        ) : (
+          ownerName && <p className="home-greeting">Welcome back, {ownerName}</p>
         )}
         <h1>Create clear job agreements and protect your work</h1>
         <p className="home-description">

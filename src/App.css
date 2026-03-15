@@ -860,6 +860,40 @@ body {
   padding: var(--space-xl) var(--space-md);
 }
 
+.business-profile-form .sign-in-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+}
+
+.business-profile-form .sign-in-prompt span {
+  color: var(--text-secondary);
+}
+
+.business-profile-form .btn-sign-in {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--primary);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.business-profile-form .btn-sign-in:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 .business-profile-form h1 {
   font-size: 1.75rem;
   font-weight: 700;
@@ -943,6 +977,150 @@ body {
   font-size: 0.875rem;
   margin-top: var(--space-md);
   text-align: center;
+}
+
+/* Password Creation Page */
+.password-creation-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
+  min-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.password-creation-content {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.password-creation-page h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.password-creation-page .email-display {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  margin-bottom: var(--space-xl);
+  padding: var(--space-md);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+}
+
+.password-creation-page .email-display strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.password-creation-page .form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.password-creation-page label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.password-creation-page input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.password-creation-page input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.password-creation-page input::placeholder {
+  color: var(--text-muted);
+}
+
+.password-creation-page .form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.password-creation-page .btn-primary {
+  width: 100%;
+  background: var(--primary);
+  color: white;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.password-creation-page .btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.password-creation-page .btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.password-creation-page .btn-secondary {
+  width: 100%;
+  background: white;
+  color: var(--text-primary);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.password-creation-page .btn-secondary:hover:not(:disabled) {
+  background: var(--gray-50);
+}
+
+.password-creation-page .error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: var(--space-md);
+}
+
+/* Home Page Success Banner */
+.home-success-banner {
+  background: #dcfce7;
+  color: #166534;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: var(--space-lg);
+  font-size: 1rem;
 }
 
 /* Footer */
