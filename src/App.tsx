@@ -183,7 +183,7 @@ function App() {
 
   // Returning user sign in
   if (!user && showAuthPage) {
-    return <AuthPage initialMode="signin" />;
+    return <AuthPage onSignUpClick={() => setShowAuthPage(false)} />;
   }
 
   // Authenticated user without profile

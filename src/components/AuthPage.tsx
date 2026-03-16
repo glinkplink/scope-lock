@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { signUp, signIn } from '../lib/auth';
+import { signIn } from '../lib/auth';
 
 interface AuthPageProps {
-  initialMode?: 'signup' | 'signin';
+  onSignUpClick?: () => void;
 }
 
-export function AuthPage({ initialMode = 'signup' }: AuthPageProps) {
-  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
+export function AuthPage({ onSignUpClick }: AuthPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,24 +16,19 @@ export function AuthPage({ initialMode = 'signup' }: AuthPageProps) {
     setError('');
     setLoading(true);
 
-    const result = isSignUp
-      ? await signUp(email, password)
-      : await signIn(email, password);
+    const result = await signIn(email, password);
 
     if (result.error) {
       setError(result.error.message);
       setLoading(false);
     } else {
       setLoading(false);
-      if (!result.data.session) {
-        setError('Check your email to confirm your account');
-      }
     }
   };
 
   return (
     <div className="auth-page">
-      <h1>{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
+      <h1>Sign In</h1>
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -52,13 +46,15 @@ export function AuthPage({ initialMode = 'signup' }: AuthPageProps) {
           minLength={6}
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+          {loading ? 'Loading...' : 'Sign In'}
         </button>
         {error && <p className="error">{error}</p>}
       </form>
-      <button onClick={() => setIsSignUp(!isSignUp)}>
-        {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-      </button>
+      {onSignUpClick && (
+        <button onClick={onSignUpClick}>
+          Don't have an account? Sign up
+        </button>
+      )}
     </div>
   );
 }
