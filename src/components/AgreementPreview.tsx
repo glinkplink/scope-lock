@@ -69,11 +69,40 @@ function buildPdfHtml(previewMarkup: string): string {
       }
 
       .agreement-document {
+        border: none;
+        border-radius: 0;
         box-shadow: none;
+        padding: 0;
       }
 
-      .agreement-document-header {
-        display: none;
+      /* Match on-screen tables: borders + row shading for PDF */
+      .content-table {
+        border: 1px solid #cccccc;
+        border-collapse: collapse;
+      }
+
+      .content-table td {
+        border-bottom: 1px solid #cccccc;
+        padding: 0.7rem 0.8rem;
+      }
+
+      .content-table tr:nth-child(odd) {
+        background: #f7f7f5;
+      }
+
+      .content-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .content-bullets {
+        list-style-type: disc;
+        list-style-position: outside;
+        padding-left: 1.35rem;
+        margin-left: 0;
+      }
+
+      .content-bullets li {
+        display: list-item;
       }
 
       @media print {
@@ -194,10 +223,6 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
 
       <div ref={documentRef} className="agreement-document">
         <div className="agreement-document-header">
-          <div className="agreement-document-meta">
-            <span>{`Work Order #${String(job.wo_number).padStart(4, '0')}`}</span>
-            <span>Confidential</span>
-          </div>
           <h2 className="agreement-document-title">Work Order</h2>
         </div>
         {sections.map((section, si) => (
@@ -213,6 +238,13 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                 if (block.type === 'paragraph') {
                   return (
                     <p key={bi} className="content-paragraph">
+                      {block.text}
+                    </p>
+                  );
+                }
+                if (block.type === 'note') {
+                  return (
+                    <p key={bi} className="content-note">
                       {block.text}
                     </p>
                   );

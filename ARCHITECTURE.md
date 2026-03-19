@@ -34,6 +34,19 @@ A welder signs up, sets up their business profile (saved to the database), then 
   The frontend sends the rendered agreement HTML to the app's `/api/pdf` route so Chrome can
   render the file with much closer parity to the on-screen preview.
 
+### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
+- **Header and footer** (Work Order #, Confidential, Service Provider line, page numbers) use
+  Puppeteer `displayHeaderFooter` with `headerTemplate` / `footerTemplate` — they are **not**
+  duplicated in the document body HTML.
+- **Body** includes the centered **Work Order** title, numbered sections, tables, and signatures
+  only. Section 1 **Service Provider / SP Phone / SP Email** rows come from `business_profiles`,
+  not from per–work-order contractor fields on the edit form.
+- **Optional sections**: Exclusions (4) and Customer Obligations (5) are omitted entirely when
+  there are no non-empty bullet items; section numbers for remaining sections stay fixed (e.g.
+  Pricing remains section 6).
+- **Governing state** is not collected on the work order form; dispute copy uses generic
+  “applicable state” language.
+
 ## Folder Structure
 
 ```
@@ -141,7 +154,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Business profile | Yes | Supabase DB |
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
-| Work Agreement (current job) | No | In-memory only; DB helpers exist |
+| Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
 | Clients | No | DB helpers exist, UI not yet built |
 | Change orders | No | Schema only |
 | Completion signoffs | No | Schema only |

@@ -89,16 +89,13 @@ function buildHeaderTemplate(workOrderNumber) {
   const safeWorkOrderNumber = escapeHtml(workOrderNumber || 'Work Order');
 
   return `
-    <div style="width:100%; padding:0 18px; box-sizing:border-box; font-family: Barlow, 'DIN 2014', Bahnschrift, 'D-DIN', Arial, sans-serif; color:#9ca3af; font-size:8px;">
-      <div style="border-bottom:1px solid #bfd7ee; padding:6px 0 5px;">
-        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
-          <tr>
-            <td style="width:40%; text-align:left; white-space:nowrap; letter-spacing:0.04em;">${safeWorkOrderNumber}</td>
-            <td style="width:20%; text-align:center; white-space:nowrap; letter-spacing:0.12em; text-transform:uppercase;">Confidential</td>
-            <td style="width:40%; text-align:right;">&nbsp;</td>
-          </tr>
-        </table>
+    <div style="width:100%; padding:0 40px; box-sizing:border-box; font-family: Arial, sans-serif; color:#aaaaaa; font-size:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #bdd7ee; padding:0 0 4px; width:100%;">
+        <span style="flex:1; text-align:left; white-space:nowrap;">${safeWorkOrderNumber}</span>
+        <span style="flex:1; text-align:center; white-space:nowrap; text-transform:uppercase;">Confidential</span>
+        <span style="flex:1; text-align:right; white-space:nowrap; opacity:0;">placeholder</span>
       </div>
+      <div style="height:10px;"></div>
     </div>
   `;
 }
@@ -111,14 +108,11 @@ function buildFooterTemplate(providerName, providerPhone) {
     : `Service Provider: ${safeProviderName}`;
 
   return `
-    <div style="width:100%; padding:0 18px; box-sizing:border-box; font-family: Barlow, 'DIN 2014', Bahnschrift, 'D-DIN', Arial, sans-serif; color:#9ca3af; font-size:8px;">
-      <div style="border-top:1px solid #bfd7ee; padding:5px 0 6px;">
-        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
-          <tr>
-            <td style="text-align:left; white-space:nowrap;">${providerText}</td>
-            <td style="text-align:right; white-space:nowrap;">Page <span class="pageNumber"></span></td>
-          </tr>
-        </table>
+    <div style="width:100%; padding:0 40px; box-sizing:border-box; font-family: Arial, sans-serif; color:#aaaaaa; font-size:8px;">
+      <div style="height:10px;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #bdd7ee; padding:4px 0 0; width:100%;">
+        <span style="white-space:nowrap;">${providerText}</span>
+        <span style="white-space:nowrap;">Page <span class="pageNumber"></span></span>
       </div>
     </div>
   `;
@@ -153,10 +147,10 @@ async function handlePdfRequest(req, res) {
       headerTemplate: buildHeaderTemplate(workOrderNumber),
       footerTemplate: buildFooterTemplate(providerName, providerPhone),
       margin: {
-        top: '56px',
-        right: '18px',
-        bottom: '56px',
-        left: '18px',
+        top: '80px',
+        right: '60px',
+        bottom: '80px',
+        left: '60px',
       },
     });
 

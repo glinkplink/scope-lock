@@ -54,7 +54,6 @@ export const saveWorkOrder = async (
     customer_phone: job.customer_phone,
     customer_email: job.customer_email,
     job_location: job.job_location,
-    governing_state: job.governing_state,
     job_type: job.job_classification,
     job_classification: job.job_classification,
     asset_or_item_description: job.asset_or_item_description,
@@ -93,17 +92,31 @@ export const saveWorkOrder = async (
     return { data: null, error: new Error(result.error.message) };
   }
 
-  // Upsert client by name (idempotent via unique constraint)
+  // Match or create client by name (no unique constraint on user_id+name)
   if (job.customer_name) {
-    await supabase.from('clients').upsert(
-      {
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', job.customer_name)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase
+        .from('clients')
+        .update({
+          phone: job.customer_phone || null,
+          email: job.customer_email || null,
+        })
+        .eq('id', existing.id);
+    } else {
+      await supabase.from('clients').insert({
         user_id: userId,
         name: job.customer_name,
         phone: job.customer_phone || null,
         email: job.customer_email || null,
-      },
-      { onConflict: 'user_id,name' }
-    );
+      });
+    }
   }
 
   return { data: result.data, error: null };

@@ -254,6 +254,12 @@ body {
   letter-spacing: 0.01em;
 }
 
+.help-text-italic {
+  font-style: italic;
+  margin-top: var(--space-md);
+  margin-bottom: 0;
+}
+
 /* ─── List Items (exclusions/assumptions) ───────────── */
 
 .list-item {
@@ -392,18 +398,6 @@ body {
   border-bottom: 2px solid var(--border);
 }
 
-.agreement-document-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-md);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: var(--space-sm);
-}
-
 .agreement-document-title {
   margin: 0;
   text-align: center;
@@ -432,7 +426,9 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-primary);
-  margin-bottom: var(--space-md);
+  margin: 0 0 var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid #bdd7ee;
 }
 
 .section-content {
@@ -451,10 +447,24 @@ body {
   margin-bottom: 0;
 }
 
+.content-note {
+  margin: -0.2rem 0 var(--space-md);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .content-bullets {
   margin: 0 0 var(--space-md);
-  padding-left: 1.2rem;
+  padding-left: 1.35rem;
+  list-style-type: disc;
+  list-style-position: outside;
   color: var(--text-primary);
+}
+
+.content-bullets li {
+  display: list-item;
 }
 
 .content-bullets li + li {
@@ -464,23 +474,19 @@ body {
 .content-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--border);
+  border: 1px solid #cccccc;
   margin-bottom: var(--space-md);
   table-layout: fixed;
 }
 
 .content-table tr:nth-child(odd) {
-  background: var(--surface);
+  background: #f7f7f5;
 }
 
 .content-table td {
   padding: 0.7rem 0.8rem;
   vertical-align: top;
-  border-bottom: 1px solid #e7e2da;
-}
-
-.content-table tr:last-child td {
-  border-bottom: none;
+  border: 1px solid #cccccc;
 }
 
 .table-label {
@@ -522,7 +528,7 @@ body {
 .signature-block-identifier {
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: var(--space-md);
@@ -536,7 +542,7 @@ body {
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: normal;
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 2px;

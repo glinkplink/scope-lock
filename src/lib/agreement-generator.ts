@@ -6,7 +6,7 @@ const SERVICE_PROVIDER_CAP = 'The Service Provider';
 const CUSTOMER = 'the Customer';
 
 function formatDate(iso: string): string {
-  if (!iso) return '—';
+  if (!iso) return '';
   const [year, month, day] = iso.split('-').map(Number);
   return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -23,14 +23,9 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function extractCountyFromAddress(address: string, state: string): string {
-  if (!address) return '';
-  // Try to find pattern: ", COUNTY, ST" or ", COUNTY ST ZIP"
-  const match = address.match(/,\s*([^,]+),\s*([A-Z]{2})/i);
-  if (match && match[2].toUpperCase() === state.toUpperCase()) {
-    return match[1].trim();
-  }
-  return '';
+/** Trim and drop blanks so profile/job lists with only empty strings count as empty. */
+function normalizeBulletList(items: string[]): string[] {
+  return items.map((s) => s.trim()).filter(Boolean);
 }
 
 function getSignatureBlockData(job: WelderJob, profile: BusinessProfile | null): SignatureBlockData {
@@ -53,14 +48,16 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
 
   const balanceDue = Math.max(0, job.price - job.deposit_amount);
 
-  // 1. Parties & Project Information
+  // 1. Parties & Project Information — Service Provider from profile (not editable on WO form)
   const partiesRows: [string, string][] = [
     ['Agreement Date', formatDate(job.agreement_date)],
+    ['Service Provider', profile?.business_name ?? ''],
+    ['SP Phone', profile?.phone ?? ''],
+    ['SP Email', profile?.email ?? ''],
     ['Customer Name', job.customer_name],
     ['Customer Phone', job.customer_phone],
     ['Customer Email', job.customer_email || ''],
     ['Job Site Address', job.job_location],
-    ['Governing State', job.governing_state || ''],
   ];
   sections.push({
     title: 'Parties & Project Information',
@@ -100,60 +97,60 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
       ? `All materials will be provided by ${CUSTOMER}.`
       : 'Materials will be provided by both parties as agreed.';
 
-  // 3. Scope of Work - omit section entirely if no scope items
+  const scopeBlocks: SectionContentBlock[] = [];
   if (scopeItems.length > 0) {
-    const scopeBlocks: SectionContentBlock[] = [
-      { type: 'bullets', items: scopeItems },
-      { type: 'paragraph', text: materialsText },
-    ];
-    sections.push({ title: 'Scope of Work', number: 3, blocks: scopeBlocks });
+    scopeBlocks.push({ type: 'bullets', items: scopeItems });
+  }
+  scopeBlocks.push({ type: 'paragraph', text: materialsText });
+  sections.push({ title: 'Scope of Work', number: 3, blocks: scopeBlocks });
+
+  // 4. Exclusions — omit entire section if no non-empty items (stable section numbers: still "4." when present)
+  const rawExclusions =
+    job.exclusions.length > 0 ? job.exclusions : (profile?.default_exclusions ?? []);
+  const effectiveExclusions = normalizeBulletList(rawExclusions);
+  if (effectiveExclusions.length > 0) {
+    sections.push({
+      title: 'Exclusions',
+      number: 4,
+      blocks: [{ type: 'bullets', items: effectiveExclusions }],
+    });
   }
 
-  // 4. Exclusions - use job exclusions, fall back to profile defaults
-  const effectiveExclusions = job.exclusions.length > 0
-    ? job.exclusions
-    : (profile?.default_exclusions?.length ? profile.default_exclusions : []);
-  const exclusionBlocks: SectionContentBlock[] =
-    effectiveExclusions.length > 0
-      ? [{ type: 'bullets', items: effectiveExclusions }]
-      : [{ type: 'paragraph', text: 'None specified.' }];
-  sections.push({ title: 'Exclusions', number: 4, blocks: exclusionBlocks });
-
-  // 5. Customer Obligations & Site Conditions - use job obligations, fall back to profile defaults
-  const effectiveObligations = job.customer_obligations.length > 0
-    ? job.customer_obligations
-    : (profile?.default_assumptions?.length ? profile.default_assumptions : []);
-  const obligationBlocks: SectionContentBlock[] = [];
+  // 5. Customer Obligations — omit entire section (including mobilization note) if no bullets
+  const rawObligations =
+    job.customer_obligations.length > 0
+      ? job.customer_obligations
+      : (profile?.default_assumptions ?? []);
+  const effectiveObligations = normalizeBulletList(rawObligations);
   if (effectiveObligations.length > 0) {
-    obligationBlocks.push({ type: 'bullets', items: effectiveObligations });
+    sections.push({
+      title: 'Customer Obligations & Site Conditions',
+      number: 5,
+      blocks: [
+        { type: 'bullets', items: effectiveObligations },
+        {
+          type: 'note',
+          text: 'Failure to meet site conditions may result in rescheduling and/or a mobilization fee.',
+        },
+      ],
+    });
   }
-  obligationBlocks.push({
-    type: 'paragraph',
-    text: 'Failure to meet site conditions may result in rescheduling and/or a mobilization fee.',
-  });
-  sections.push({ title: 'Customer Obligations & Site Conditions', number: 5, blocks: obligationBlocks });
 
   // 6. Pricing & Payment Terms
   const pricingRows: [string, string][] = [
     ['Price Type', priceTypeLabel],
-    ['Total', formatPrice(job.price)],
+    ['Total Contract Price', formatPrice(job.price)],
     ['Deposit Required', job.deposit_amount > 0 ? formatPrice(job.deposit_amount) : 'None'],
     ['Balance Due', formatPrice(balanceDue)],
   ];
-  const pricingBlocks: SectionContentBlock[] = [
-    { type: 'table', rows: pricingRows },
-    { type: 'paragraph', text: job.late_payment_terms },
-  ];
-  if (profile?.default_card_fee_note) {
-    pricingBlocks.push({
-      type: 'paragraph',
-      text: 'Payments made by credit or debit card are subject to a processing fee of up to 3.5%.',
-    });
+  const pricingBlocks: SectionContentBlock[] = [{ type: 'table', rows: pricingRows }];
+  const salesTaxNote =
+    'Note: Customers are subject to applicable state and local sales tax on labor and materials as required by law. Service Provider will include applicable taxes on the final invoice.';
+  pricingBlocks.push({ type: 'note', text: salesTaxNote });
+  const lateTerms = job.late_payment_terms?.trim();
+  if (lateTerms) {
+    pricingBlocks.push({ type: 'note', text: lateTerms });
   }
-  const salesTaxNote = job.governing_state
-    ? `Sales tax applicability is governed by ${job.governing_state} state law. ${SERVICE_PROVIDER_CAP} will collect applicable taxes where required.`
-    : `${SERVICE_PROVIDER_CAP} will collect applicable sales tax where required by state law.`;
-  pricingBlocks.push({ type: 'paragraph', text: salesTaxNote });
   sections.push({ title: 'Pricing & Payment Terms', number: 6, blocks: pricingBlocks });
 
   // 7. Change Orders
@@ -177,44 +174,42 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   });
 
   // 9. Completion & Acceptance
+  const completionText =
+    job.workmanship_warranty_days > 0
+      ? `Upon completion of the work and ${CUSTOMER} approval, responsibility for the repaired/fabricated item transfers back to ${CUSTOMER}. ${SERVICE_PROVIDER_CAP} is only responsible for workmanship defects as outlined in the Workmanship Warranty section.`
+      : `Upon completion of the work and ${CUSTOMER} approval, responsibility for the repaired/fabricated item transfers back to ${CUSTOMER}.`;
   sections.push({
     title: 'Completion & Acceptance',
     number: 9,
-    blocks: [{
-      type: 'paragraph',
-      text: `Upon completion of the work and ${CUSTOMER} approval, responsibility for the repaired/fabricated item transfers back to ${CUSTOMER}. ${SERVICE_PROVIDER_CAP} is only responsible for workmanship defects as outlined in the Workmanship Warranty section.`,
-    }],
+    blocks: [{ type: 'paragraph', text: completionText }],
   });
 
-  // 10. Workmanship Warranty
-  sections.push({
-    title: 'Workmanship Warranty',
-    number: 10,
-    blocks: [
-      {
-        type: 'paragraph',
-        text: `${SERVICE_PROVIDER_CAP} guarantees the welding workmanship for ${job.workmanship_warranty_days} days from the completion date.`,
-      },
-      {
-        type: 'bullets',
-        items: [
-          'Covers: Defects in welding workmanship',
-          'Covers: Failure of weld joints under normal use',
-        ],
-      },
-      {
-        type: 'bullets',
-        items: [
-          'Does NOT cover: Misuse or abuse of the repaired item',
-          'Does NOT cover: Modifications made after completion',
-          'Does NOT cover: Damage from accidents, impacts, or overloading',
-          'Does NOT cover: Normal wear and tear',
-          'Does NOT cover: Rust or corrosion (unless specifically coated)',
-          'Does NOT cover: Structural failures unrelated to the weld repair',
-        ],
-      },
-    ],
-  });
+  // 10. Workmanship Warranty (omitted if warranty days is 0)
+  if (job.workmanship_warranty_days > 0) {
+    sections.push({
+      title: 'Workmanship Warranty',
+      number: 10,
+      blocks: [
+        {
+          type: 'paragraph',
+          text: `${SERVICE_PROVIDER_CAP} guarantees the welding workmanship for ${job.workmanship_warranty_days} days from the completion date.`,
+        },
+        {
+          type: 'bullets',
+          items: [
+            'Covers: Defects in welding workmanship',
+            'Covers: Failure of weld joints under normal use',
+            'Does NOT cover: Misuse or abuse of the repaired item',
+            'Does NOT cover: Modifications made after completion',
+            'Does NOT cover: Damage from accidents, impacts, or overloading',
+            'Does NOT cover: Normal wear and tear',
+            'Does NOT cover: Rust or corrosion (unless specifically coated)',
+            'Does NOT cover: Structural failures unrelated to the weld repair',
+          ],
+        },
+      ],
+    });
+  }
 
   // 11. Liability & Indemnification
   const priceText = job.price > 0 ? formatPrice(job.price) : 'the Total Contract Price';
@@ -247,18 +242,17 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
     }],
   });
 
-  // 14. Dispute Resolution
-  const disputeState = job.governing_state || 'the governing state';
-  const county = extractCountyFromAddress(job.job_location, disputeState);
-  const mediationLocation = county ? `${county}, ${disputeState}` : disputeState;
-  sections.push({
-    title: 'Dispute Resolution',
-    number: 14,
-    blocks: [{
-      type: 'paragraph',
-      text: `The parties agree to attempt to resolve any dispute arising under this Agreement through good-faith negotiation first. If negotiation fails within ${job.negotiation_period} days, the parties agree to non-binding mediation in ${mediationLocation} before pursuing litigation. This Agreement shall be governed by and construed under the laws of the State of ${disputeState}.`,
-    }],
-  });
+  // 14. Dispute Resolution (omitted if negotiation period is 0)
+  if (job.negotiation_period > 0) {
+    sections.push({
+      title: 'Dispute Resolution',
+      number: 14,
+      blocks: [{
+        type: 'paragraph',
+        text: `The parties agree to attempt to resolve any dispute arising under this Agreement through good-faith negotiation first. If negotiation fails within ${job.negotiation_period} days, the parties agree to non-binding mediation before pursuing litigation. This Agreement shall be governed by and construed under the laws of the applicable state.`,
+      }],
+    });
+  }
 
   // 15. Entire Agreement
   sections.push({
@@ -291,6 +285,7 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
       const body = section.blocks
         .map((block) => {
           if (block.type === 'paragraph') return block.text;
+          if (block.type === 'note') return block.text;
           if (block.type === 'bullets') return block.items.map((i) => `• ${i}`).join('\n');
           if (block.type === 'table') return block.rows.map(([k, v]) => `${k}: ${v}`).join('\n');
           if (block.type === 'signature') {

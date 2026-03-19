@@ -18,7 +18,6 @@ export interface WelderJob {
   customer_phone: string;
   customer_email: string;
   job_location: string;
-  governing_state: string;
 
   // Job Details
   job_classification: JobClassification;
@@ -66,6 +65,7 @@ export interface SignatureBlockData {
 
 export type SectionContentBlock =
   | { type: 'paragraph'; text: string }
+  | { type: 'note'; text: string }
   | { type: 'bullets'; items: string[] }
   | { type: 'table'; rows: [string, string][] }
   | { type: 'signature' };

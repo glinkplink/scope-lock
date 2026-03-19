@@ -17,7 +17,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
   );
 
   const skipSyncRef = useRef(false);
-  const wasStateAutoDetectedRef = useRef(true);
 
   useEffect(() => {
     if (skipSyncRef.current) {
@@ -35,16 +34,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
       setRawNegotiation(nextNegotiation);
     });
   }, [job.price, job.deposit_amount, job.workmanship_warranty_days, job.negotiation_period]);
-
-  // Auto-detect governing state from job_location
-  useEffect(() => {
-    if (!wasStateAutoDetectedRef.current) return;
-    const match = job.job_location.match(/,\s*([A-Z]{2})\s*\d{5}|,\s*([A-Z]{2})\s*$/);
-    const detected = match ? (match[1] || match[2]) : null;
-    if (detected && detected !== job.governing_state) {
-      onChange({ ...job, governing_state: detected });
-    }
-  }, [job.job_location]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateField = <K extends keyof WelderJob>(field: K, value: WelderJob[K]) => {
     onChange({ ...job, [field]: value });
@@ -76,11 +65,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
     setRawNegotiation(raw);
     skipSyncRef.current = true;
     updateField('negotiation_period', parseInt(raw) || 0);
-  };
-
-  const handleGoverningStateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    wasStateAutoDetectedRef.current = false;
-    updateField('governing_state', e.target.value.toUpperCase().slice(0, 2));
   };
 
   const addExclusion = () => updateField('exclusions', [...job.exclusions, '']);
@@ -157,18 +141,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
             required
             placeholder="123 Main Street, Austin, TX 78701"
             rows={2}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="governing_state">Governing State</label>
-          <input
-            id="governing_state"
-            type="text"
-            value={job.governing_state}
-            onChange={handleGoverningStateChange}
-            placeholder="TX"
-            maxLength={2}
-            style={{ textTransform: 'uppercase', maxWidth: '80px' }}
           />
         </div>
       </section>
@@ -464,12 +436,15 @@ export function JobForm({ job, onChange }: JobFormProps) {
               type="number"
               value={rawNegotiation}
               onChange={handleNegotiationChange}
-              min="1"
+              min="0"
               placeholder="10"
             />
             <p className="help-text">Good-faith negotiation window before formal dispute process</p>
           </div>
         </div>
+        <p className="help-text help-text-italic">
+          If either of these fields are 0, the relevant sections will be removed from the work order.
+        </p>
       </section>
     </form>
   );
