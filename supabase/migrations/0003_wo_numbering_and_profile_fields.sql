@@ -22,7 +22,3 @@ ALTER TABLE jobs
   ADD COLUMN IF NOT EXISTS late_payment_terms text,
   ADD COLUMN IF NOT EXISTS negotiation_period integer,
   ADD COLUMN IF NOT EXISTS customer_obligations text[] NOT NULL DEFAULT '{}';
-
--- Allow upsert by name for client auto-create (MVP: name-based deduplication)
-ALTER TABLE clients
-  ADD CONSTRAINT IF NOT EXISTS clients_user_id_name_unique UNIQUE (user_id, name);
