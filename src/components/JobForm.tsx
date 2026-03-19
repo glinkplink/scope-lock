@@ -420,6 +420,9 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
             <label htmlFor="workmanship_warranty_days">
               Workmanship Warranty (Days)
             </label>
+            <p className="help-text help-text-italic help-text-below-label">
+              If no warranty, enter 0 and the section will be omitted.
+            </p>
             <input
               id="workmanship_warranty_days"
               type="number"
@@ -428,14 +431,14 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
               min="0"
               placeholder="30"
             />
-            <p className="help-text help-text-italic">
-              If no warranty, enter 0 and the section will be omitted.
-            </p>
           </div>
           <div className="form-group">
             <label htmlFor="negotiation_period">
               Negotiation Period (Days)
             </label>
+            <p className="help-text help-text-italic help-text-below-label">
+              If no negotiations, enter 0 and the section will be omitted.
+            </p>
             <input
               id="negotiation_period"
               type="number"
@@ -445,9 +448,6 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
               placeholder="10"
             />
             <p className="help-text">Good-faith negotiation window before formal dispute process</p>
-            <p className="help-text help-text-italic">
-              If no negotiations, enter 0 and the section will be omitted.
-            </p>
           </div>
         </div>
       </section>

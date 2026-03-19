@@ -1,9 +1,12 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
 import { generateAgreement } from '../lib/agreement-generator';
 import { saveWorkOrder } from '../lib/db/jobs';
 import appCss from '../App.css?raw';
+
+/** Letter width at 96dpi — preview layout matches PDF viewport. */
+const PREVIEW_LETTER_WIDTH_PX = 816;
 
 interface AgreementPreviewProps {
   job: WelderJob;
@@ -172,8 +175,43 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
   const [saveError, setSaveError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
   const documentRef = useRef<HTMLDivElement | null>(null);
+  const previewViewportRef = useRef<HTMLDivElement | null>(null);
+  const previewSheetRef = useRef<HTMLDivElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [previewContentHeight, setPreviewContentHeight] = useState(0);
 
   const sections = generateAgreement(job, profile);
+
+  /* Scale: mount + window resize only — avoid ResizeObserver on scroll parent (scrollbar ↔ clientWidth jitter). */
+  useLayoutEffect(() => {
+    const viewport = previewViewportRef.current;
+    if (!viewport) return;
+
+    const updateScale = () => {
+      const w = viewport.getBoundingClientRect().width;
+      if (w <= 0) return;
+      setPreviewScale(Math.min(1, w / PREVIEW_LETTER_WIDTH_PX));
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  /* Spacer height: sheet content only — ResizeObserver here does not track scroll container size. */
+  useLayoutEffect(() => {
+    const sheet = previewSheetRef.current;
+    if (!sheet) return;
+
+    const updateHeight = () => {
+      setPreviewContentHeight(sheet.scrollHeight);
+    };
+
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(sheet);
+    return () => ro.disconnect();
+  }, [job, profile]);
 
   const handleDownloadAndSave = async () => {
     setSaving(true);
@@ -237,20 +275,37 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
         {renderDownloadButton()}
       </div>
 
-      <div ref={documentRef} className="agreement-document">
-        <div className="agreement-document-header">
-          <h2 className="agreement-document-title">Work Order</h2>
-        </div>
-        {sections.map((section, si) => (
+      <div ref={previewViewportRef} className="agreement-preview-scale-viewport">
+        <div
+          className="agreement-preview-scale-spacer"
+          style={{
+            width: PREVIEW_LETTER_WIDTH_PX * previewScale,
+            height: previewContentHeight * previewScale,
+          }}
+        >
           <div
-            key={si}
-            className={`agreement-section ${section.signatureData ? 'signature-section' : ''}`}
+            ref={previewSheetRef}
+            className="agreement-preview-scale-sheet"
+            style={{
+              width: PREVIEW_LETTER_WIDTH_PX,
+              transform: `scale(${previewScale})`,
+              transformOrigin: 'top left',
+            }}
           >
-            <h3 className="section-title">
-              {section.number > 0 ? `${section.number}. ${section.title}` : section.title}
-            </h3>
-            <div className="section-content">
-              {section.blocks.map((block, bi) => {
+            <div ref={documentRef} className="agreement-document">
+              <div className="agreement-document-header">
+                <h2 className="agreement-document-title">Work Order</h2>
+              </div>
+              {sections.map((section, si) => (
+                <div
+                  key={si}
+                  className={`agreement-section ${section.signatureData ? 'signature-section' : ''}`}
+                >
+                  <h3 className="section-title">
+                    {section.number > 0 ? `${section.number}. ${section.title}` : section.title}
+                  </h3>
+                  <div className="section-content">
+                    {section.blocks.map((block, bi) => {
                 if (block.type === 'paragraph') {
                   return (
                     <p key={bi} className="content-paragraph">
@@ -383,9 +438,12 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                 }
                 return null;
               })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
       </div>
 
       <div className="preview-actions preview-actions-bottom">

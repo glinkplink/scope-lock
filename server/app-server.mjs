@@ -139,6 +139,8 @@ async function handlePdfRequest(req, res) {
 
     const browser = await getBrowser();
     page = await browser.newPage();
+    /* Letter width at 96dpi — layout matches desktop PDF regardless of client screen */
+    await page.setViewport({ width: 816, height: 1056 });
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.emulateMediaType('screen');
     await page.evaluate(async () => {

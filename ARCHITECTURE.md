@@ -38,6 +38,13 @@ A welder signs up, sets up their business profile (saved to the database), then 
 - **Web fonts**: PDF HTML includes the same Google Fonts `<link>`s as `index.html` (Barlow + **Dancing
   Script** for the Service Provider signature). The server waits for `document.fonts.ready`, loads
   Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders.
+- **Viewport**: PDF generation uses **`page.setViewport({ width: 816, height: 1056 })`** (Letter at
+  96dpi) so layout is consistent regardless of client screen size.
+- **Preview (fit-to-width)**: Layout at **816px**; **`scale = min(1, viewportWidth / 816)`** on mount and
+  **`window.resize` only** (no **`ResizeObserver`** on the scroll parent — avoids scrollbar/width
+  feedback jitter). Sheet **`ResizeObserver`** updates spacer height only. Outer preview uses
+  **`position: relative`**, **`overflow-y: visible`** (page scrolls in **`app-main`**); scaled sheet uses
+  **`will-change: transform`**.
 - **Header and footer** (Work Order #, Confidential, footer `Service Provider - [business name]`,
   phone when present, page numbers) use Puppeteer `displayHeaderFooter` with `headerTemplate` /
   `footerTemplate` — they are **not** duplicated in the document body HTML. Footer uses

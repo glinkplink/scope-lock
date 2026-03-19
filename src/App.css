@@ -273,6 +273,12 @@ body {
   margin-bottom: 0;
 }
 
+/* Italic hint directly under label (before input) — no extra top gap */
+.help-text.help-text-italic.help-text-below-label {
+  margin-top: 0;
+  margin-bottom: var(--space-sm);
+}
+
 /* ─── List Items (exclusions/assumptions) ───────────── */
 
 .list-item {
@@ -393,6 +399,24 @@ body {
 .btn-action:hover {
   background: var(--surface);
   border-color: var(--border-strong);
+}
+
+/* Preview: scale Letter-width sheet — scroll is on page/app-main, not this node (avoids repaint fight) */
+.agreement-preview-scale-viewport {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.agreement-preview-scale-spacer {
+  margin: 0 auto;
+}
+
+.agreement-preview-scale-sheet {
+  box-sizing: border-box;
+  will-change: transform;
 }
 
 /* ─── Agreement Document ────────────────────────────── */
@@ -1531,6 +1555,21 @@ body {
     box-shadow: none;
     border: none;
     padding: 0;
+  }
+
+  .agreement-preview-scale-viewport {
+    overflow: visible;
+  }
+
+  .agreement-preview-scale-sheet {
+    transform: none !important;
+    width: 100% !important;
+    will-change: auto;
+  }
+
+  .agreement-preview-scale-spacer {
+    width: 100% !important;
+    height: auto !important;
   }
 
   .agreement-document {
