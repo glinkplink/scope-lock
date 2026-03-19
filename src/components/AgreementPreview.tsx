@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { jsPDF } from 'jspdf';
 import type { WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
 import { generateAgreement } from '../lib/agreement-generator';
 import { saveWorkOrder } from '../lib/db/jobs';
+import appCss from '../App.css?raw';
 
 interface AgreementPreviewProps {
   job: WelderJob;
@@ -17,25 +17,93 @@ function getPdfFilename(woNumber: number, customerName: string): string {
   return `WO-${String(woNumber).padStart(4, '0')}_${sanitized}.pdf`;
 }
 
-async function buildPdf(job: WelderJob, previewElement: HTMLElement) {
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const horizontalMargin = 24;
+function buildPdfHtml(previewMarkup: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      ${appCss}
 
-  await doc.html(previewElement, {
-    x: horizontalMargin,
-    y: horizontalMargin,
-    width: pageWidth - horizontalMargin * 2,
-    windowWidth: previewElement.scrollWidth,
-    margin: [horizontalMargin, horizontalMargin, horizontalMargin, horizontalMargin],
-    autoPaging: 'text',
-    html2canvas: {
-      scale: 0.75,
-      backgroundColor: '#ffffff',
+      :root {
+        color-scheme: light;
+      }
+
+      @page {
+        size: Letter;
+        margin: 0.35in;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+      }
+
+      body {
+        font-family: 'Barlow', 'DIN 2014', 'Bahnschrift', 'D-DIN', system-ui, sans-serif;
+        letter-spacing: normal;
+        word-spacing: normal;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      p {
+        text-align: left;
+        line-height: 1.4;
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
+
+      .pdf-render-root {
+        padding: 0;
+        background: #ffffff;
+      }
+
+      .agreement-document {
+        box-shadow: none;
+      }
+
+      @media print {
+        body {
+          -webkit-font-smoothing: antialiased;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pdf-render-root">${previewMarkup}</div>
+  </body>
+</html>`;
+}
+
+async function buildPdf(job: WelderJob, previewElement: HTMLElement) {
+  const response = await fetch('/api/pdf', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      filename: getPdfFilename(job.wo_number, job.customer_name),
+      html: buildPdfHtml(previewElement.outerHTML),
+    }),
   });
 
-  doc.save(getPdfFilename(job.wo_number, job.customer_name));
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Failed to generate PDF.');
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = getPdfFilename(job.wo_number, job.customer_name);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }: AgreementPreviewProps) {

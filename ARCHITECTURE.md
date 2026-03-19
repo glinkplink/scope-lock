@@ -20,20 +20,19 @@ A welder signs up, sets up their business profile (saved to the database), then 
 - **React**: UI framework
 - **TypeScript**: Type safety and better DX
 - **Supabase**: Authentication (email/password) and Postgres database
-- **jsPDF**: Client-side PDF generation for the "Download PDF" feature
+- **Puppeteer Core**: Chrome-based PDF rendering on the app server
 
 ### Why This Stack?
 - Supabase provides auth + Postgres with minimal backend code
 - Row-level security enforces per-user data isolation at the DB layer
 - Fast development and hot reload with Vite
-- Easy to deploy statically (frontend only)
+- One-command local development with the app server handling both frontend delivery and PDF rendering
 - Can be packaged into iOS/Android apps later using Capacitor
 
 ### Known Trade-offs
-- **jsPDF adds ~200KB gzipped** to the main JS bundle (3× increase over the base React build).
-  This was accepted as a deliberate product decision to support named PDF downloads
-  (`CustomerNameM-D-YY.pdf`). If bundle size becomes a concern, jsPDF can be lazy-loaded
-  via dynamic `import()` so it only loads when the user clicks "Download PDF".
+- **Puppeteer requires an app server** instead of pure static hosting for PDF generation.
+  The frontend sends the rendered agreement HTML to the app's `/api/pdf` route so Chrome can
+  render the file with much closer parity to the on-screen preview.
 
 ## Folder Structure
 
@@ -46,7 +45,7 @@ scope-lock/
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
 │   │   ├── HomePage.tsx              # Post-login landing page
 │   │   ├── JobForm.tsx               # Work Agreement input form
-│   │   └── AgreementPreview.tsx      # Agreement preview + PDF/Print
+│   │   └── AgreementPreview.tsx      # Agreement preview + Puppeteer PDF handoff
 │   ├── data/
 │   │   └── sample-job.json           # Fallback defaults for new agreements
 │   ├── hooks/
@@ -64,6 +63,8 @@ scope-lock/
 │   │   └── db.ts                     # BusinessProfile, Client, Job, ChangeOrder, CompletionSignoff
 │   ├── App.tsx                       # Root component - view state machine
 │   └── main.tsx                      # Entry point
+├── server/
+│   └── app-server.mjs               # App server + /api/pdf Puppeteer route
 ├── supabase/
 │   ├── config.toml                   # Supabase CLI config
 │   └── migrations/
@@ -151,7 +152,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 - Runs in browser
 - Auth + profile persistence via Supabase
 - Job agreements are in-memory (no per-job persistence yet)
-- Static hosting compatible (frontend only)
+- Requires an app server for PDF generation
 
 ### Future (Capacitor iOS/Android)
 - Can be wrapped with Capacitor
@@ -183,7 +184,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ### Near-Term
 - [ ] Research standard welder work agreements/ contracts and edit ours to
       match
-- [ ] Make PDF output look professional
+- [ ] Deploy the app server and Puppeteer route alongside production hosting
 - [ ] Client list and client selection UI - user's clients are saved in DB so their details can we auto-filled later in future work orders.
 - [ ] Custom branding (logo)
 - [ ] Add a 'Generate Invoice' function that allows the user to easily create/ send an invoice based on their work agreement. 
@@ -248,12 +249,10 @@ npx supabase db push
 
 ## Deployment
 
-The frontend can be deployed to any static hosting:
-- Vercel
-- Netlify
-- GitHub Pages
-- Cloudflare Pages
-- AWS S3 + CloudFront
+This app now requires a Node app server for PDF generation, so deployment needs to run the server alongside Chrome/Chromium.
 
-Build command: `npm run build`
-Output directory: `dist/`
+Recommended deployment shape:
+- Run `npm run build`
+- Start the app with `npm run preview` or `node server/app-server.mjs`
+- Ensure `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` points to an installed Chrome/Chromium binary if the default path is not valid
+- Expose the same origin for both the frontend and `/api/pdf`

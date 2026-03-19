@@ -35,6 +35,8 @@ body {
   font-family: 'Barlow', 'DIN 2014', 'Bahnschrift', 'D-DIN', system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
+  letter-spacing: normal;
+  word-spacing: normal;
   color: var(--text-primary);
   background-color: var(--surface);
   -webkit-font-smoothing: antialiased;
@@ -441,6 +443,7 @@ body {
   margin: 0 0 var(--space-md);
   font-size: 0.9375rem;
   line-height: 1.7;
+  text-align: left;
   color: var(--text-primary);
 }
 

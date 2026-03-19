@@ -10,7 +10,8 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 |---|---|
 | Framework | React 19 + TypeScript + Vite |
 | Auth + DB | Supabase (email/password auth, Postgres, RLS) |
-| PDF | jsPDF |
+| App Server | Node + Vite middleware |
+| PDF | Puppeteer Core using system Chrome via `/api/pdf` |
 | Styling | Plain CSS (`App.css`, `index.css`) — no Tailwind |
 | Font | System font stack — DIN-style field notebook aesthetic |
 
@@ -19,8 +20,9 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 ## Running the app
 
 ```bash
-npm run dev       # dev server
+npm run dev       # app server + frontend + /api/pdf
 npm run build     # tsc + vite build
+npm run preview   # production app server serving dist/
 npm run lint      # eslint
 ```
 
@@ -45,7 +47,7 @@ src/
     PasswordCreationPage.tsx # New user onboarding step 2 — create password
     HomePage.tsx             # Dashboard after login
     JobForm.tsx              # Work agreement form
-    AgreementPreview.tsx     # Agreement preview + PDF export
+    AgreementPreview.tsx     # Agreement preview + PDF export handoff
     EditProfilePage.tsx      # Edit existing business profile + agreement defaults
   lib/
     supabase.ts              # Supabase client singleton
@@ -62,6 +64,8 @@ src/
     index.ts                 # WelderJob, AgreementSection, SignatureBlockData
   data/
     sample-job.json          # Default/placeholder values for new agreements
+server/
+  app-server.mjs            # App server + /api/pdf Puppeteer route
 ```
 
 ---
@@ -144,13 +148,12 @@ The UI should feel like a contractor's work log, not a SaaS product.
 - `--text-primary`, `--text-secondary`, `--text-muted`
 - `--radius` (4px), `--radius-lg` (6px)
 
-**Do not** change the PDF generator output to match the UI redesign unless explicitly asked — they are styled independently.
+The PDF renderer uses the same agreement HTML/CSS as the preview through the app server's `/api/pdf` route, so preview/PDF parity is intentional.
 
 ---
 
 ## Git
 
 - Main branch: `main`
-- Active dev branch: `UI`
-- Commit prefix convention: `UI: description`
-- Push to `UI`; merge to `main` when stable
+- Active dev branch: `output`
+- Push changes to `output`; merge to `main` when stable
