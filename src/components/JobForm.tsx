@@ -103,9 +103,9 @@ export function JobForm({ job, onChange }: JobFormProps) {
 
   return (
     <form className="job-form" onSubmit={(e) => e.preventDefault()}>
-      {/* Work Order Info */}
+      {/* 1. Parties & Project Information */}
       <section className="form-section">
-        <h2>Work Order</h2>
+        <h2>1. Parties &amp; Project Information</h2>
         <div className="form-group">
           <label htmlFor="agreement_date">Agreement Date *</label>
           <input
@@ -116,12 +116,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
             required
           />
         </div>
-      </section>
-
-
-      {/* Customer */}
-      <section className="form-section">
-        <h2>Customer Information</h2>
         <div className="form-group">
           <label htmlFor="customer_name">Customer Name *</label>
           <input
@@ -179,9 +173,9 @@ export function JobForm({ job, onChange }: JobFormProps) {
         </div>
       </section>
 
-      {/* Job Details */}
+      {/* 2. Project Overview */}
       <section className="form-section">
-        <h2>Job Details</h2>
+        <h2>2. Project Overview</h2>
         <div className="form-group">
           <label htmlFor="job_classification">Job Classification *</label>
           <select
@@ -231,24 +225,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
             rows={3}
           />
         </div>
-        <div className="form-group">
-          <label htmlFor="materials_provided_by">Materials Provided By *</label>
-          <select
-            id="materials_provided_by"
-            value={job.materials_provided_by}
-            onChange={(e) => updateField('materials_provided_by', e.target.value as MaterialsProvider)}
-            required
-          >
-            <option value="welder">Service Provider (You)</option>
-            <option value="customer">Customer</option>
-            <option value="mixed">Mixed</option>
-          </select>
-        </div>
-      </section>
-
-      {/* Scheduling */}
-      <section className="form-section">
-        <h2>Scheduling</h2>
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="target_start">Target Start Date</label>
@@ -271,9 +247,22 @@ export function JobForm({ job, onChange }: JobFormProps) {
         </div>
       </section>
 
-      {/* Included Services */}
+      {/* 3. Scope of Work */}
       <section className="form-section">
-        <h2>Included Services</h2>
+        <h2>3. Scope of Work</h2>
+        <div className="form-group">
+          <label htmlFor="materials_provided_by">Materials Provided By *</label>
+          <select
+            id="materials_provided_by"
+            value={job.materials_provided_by}
+            onChange={(e) => updateField('materials_provided_by', e.target.value as MaterialsProvider)}
+            required
+          >
+            <option value="welder">Service Provider (You)</option>
+            <option value="customer">Customer</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </div>
         <div className="checkbox-group">
           <label className="checkbox-label">
             <input
@@ -310,24 +299,63 @@ export function JobForm({ job, onChange }: JobFormProps) {
         </div>
       </section>
 
-      {/* Risk */}
+      {/* 4. Exclusions */}
       <section className="form-section">
-        <h2>Risk Assessment</h2>
-        <div className="checkbox-group">
-          <label className="checkbox-label">
+        <h2>4. Exclusions</h2>
+        <p className="help-text">List what is NOT included in this job</p>
+        {job.exclusions.map((exclusion, index) => (
+          <div key={`exclusion-${index}`} className="list-item">
             <input
-              type="checkbox"
-              checked={job.hidden_damage_possible}
-              onChange={(e) => updateField('hidden_damage_possible', e.target.checked)}
+              type="text"
+              value={exclusion}
+              onChange={(e) => updateExclusion(index, e.target.value)}
+              placeholder="e.g., Painting or powder coating"
             />
-            <span>Hidden Damage Possible</span>
-          </label>
-        </div>
+            <button
+              type="button"
+              className="btn-remove"
+              onClick={() => removeExclusion(index)}
+              aria-label="Remove exclusion"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button type="button" className="btn-add" onClick={addExclusion}>
+          + Add Exclusion
+        </button>
       </section>
 
-      {/* Pricing & Payment */}
+      {/* 5. Customer Obligations & Site Conditions */}
       <section className="form-section">
-        <h2>Pricing &amp; Payment</h2>
+        <h2>5. Customer Obligations &amp; Site Conditions</h2>
+        <p className="help-text">What the customer must provide or ensure before work begins</p>
+        {job.customer_obligations.map((obligation, index) => (
+          <div key={`obligation-${index}`} className="list-item">
+            <input
+              type="text"
+              value={obligation}
+              onChange={(e) => updateObligation(index, e.target.value)}
+              placeholder="e.g., Customer will provide clear access to work area"
+            />
+            <button
+              type="button"
+              className="btn-remove"
+              onClick={() => removeObligation(index)}
+              aria-label="Remove obligation"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button type="button" className="btn-add" onClick={addObligation}>
+          + Add Obligation
+        </button>
+      </section>
+
+      {/* 6. Pricing & Payment Terms */}
+      <section className="form-section">
+        <h2>6. Pricing &amp; Payment Terms</h2>
         <div className="form-group">
           <label htmlFor="price_type">Price Type *</label>
           <select
@@ -380,63 +408,9 @@ export function JobForm({ job, onChange }: JobFormProps) {
         </div>
       </section>
 
-      {/* Exclusions */}
+      {/* 7. Change Orders */}
       <section className="form-section">
-        <h2>Exclusions</h2>
-        <p className="help-text">List what is NOT included in this job</p>
-        {job.exclusions.map((exclusion, index) => (
-          <div key={`exclusion-${index}`} className="list-item">
-            <input
-              type="text"
-              value={exclusion}
-              onChange={(e) => updateExclusion(index, e.target.value)}
-              placeholder="e.g., Painting or powder coating"
-            />
-            <button
-              type="button"
-              className="btn-remove"
-              onClick={() => removeExclusion(index)}
-              aria-label="Remove exclusion"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        <button type="button" className="btn-add" onClick={addExclusion}>
-          + Add Exclusion
-        </button>
-      </section>
-
-      {/* Customer Obligations */}
-      <section className="form-section">
-        <h2>Customer Obligations &amp; Site Conditions</h2>
-        <p className="help-text">What the customer must provide or ensure before work begins</p>
-        {job.customer_obligations.map((obligation, index) => (
-          <div key={`obligation-${index}`} className="list-item">
-            <input
-              type="text"
-              value={obligation}
-              onChange={(e) => updateObligation(index, e.target.value)}
-              placeholder="e.g., Customer will provide clear access to work area"
-            />
-            <button
-              type="button"
-              className="btn-remove"
-              onClick={() => removeObligation(index)}
-              aria-label="Remove obligation"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        <button type="button" className="btn-add" onClick={addObligation}>
-          + Add Obligation
-        </button>
-      </section>
-
-      {/* Scope Control */}
-      <section className="form-section">
-        <h2>Scope Control</h2>
+        <h2>7. Change Orders</h2>
         <div className="checkbox-group">
           <label className="checkbox-label">
             <input
@@ -449,9 +423,24 @@ export function JobForm({ job, onChange }: JobFormProps) {
         </div>
       </section>
 
-      {/* Warranty & Dispute */}
+      {/* 8. Hidden Damage */}
       <section className="form-section">
-        <h2>Warranty &amp; Dispute Resolution</h2>
+        <h2>8. Hidden Damage</h2>
+        <div className="checkbox-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={job.hidden_damage_possible}
+              onChange={(e) => updateField('hidden_damage_possible', e.target.checked)}
+            />
+            <span>Hidden Damage Possible</span>
+          </label>
+        </div>
+      </section>
+
+      {/* 10 / 14 */}
+      <section className="form-section">
+        <h2>10. Workmanship Warranty / 14. Dispute Resolution</h2>
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="workmanship_warranty_days">

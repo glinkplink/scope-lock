@@ -84,6 +84,15 @@ function App() {
     doCreateNewAgreement(profile);
   };
 
+  const closeUnsavedModal = () => {
+    setShowUnsavedModal(false);
+  };
+
+  const continueEditingWorkOrder = () => {
+    setView('form');
+    closeUnsavedModal();
+  };
+
   const handleSaveSuccess = (savedJobId: string, isNewSave: boolean) => {
     setCurrentJobId(savedJobId);
     if (isNewSave && profile) {
@@ -285,21 +294,21 @@ function App() {
       </footer>
 
       {showUnsavedModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={closeUnsavedModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Unsaved Work Order</h3>
             <p>You have an unsaved Work Order. Continue editing or discard it?</p>
             <div className="modal-actions">
               <button
                 className="btn-secondary"
-                onClick={() => setShowUnsavedModal(false)}
+                onClick={continueEditingWorkOrder}
               >
                 Continue Editing
               </button>
               <button
                 className="btn-danger"
                 onClick={() => {
-                  setShowUnsavedModal(false);
+                  closeUnsavedModal();
                   doCreateNewAgreement(profile);
                 }}
               >

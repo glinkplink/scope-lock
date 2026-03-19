@@ -38,7 +38,7 @@ export function HomePage({
           Generate a Work Agreement, track changes, and keep a clear record of what was approved.
         </p>
         <button className="btn-primary btn-large" onClick={onCreateAgreement}>
-          Create Work Agreement
+          Create Work Order
         </button>
       </div>
     </div>
