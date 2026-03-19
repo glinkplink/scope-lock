@@ -71,20 +71,26 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
 
   const balanceDue = Math.max(0, job.price - job.deposit_amount);
 
-  // 1. Parties & Project Information — Service Provider from profile (not editable on WO form)
-  const partiesRows: [string, string][] = [
-    ['Agreement Date', formatDate(job.agreement_date)],
-    ['Service Provider', profile?.business_name ?? ''],
-    ['SP Phone', profile?.phone ?? ''],
-    ['SP Email', profile?.email ?? ''],
-    ['Customer Name', job.customer_name],
-    ['Customer Phone', job.customer_phone],
-    ['Customer Email', job.customer_email || ''],
-    ['Job Site Address', job.job_location],
-  ];
+  // 1. Parties & Project Information — two-column party grid + full-width date/address
   drafts.push({
     title: 'Parties & Project Information',
-    blocks: [{ type: 'table', rows: partiesRows }],
+    blocks: [
+      {
+        type: 'partiesLayout',
+        agreementDate: formatDate(job.agreement_date),
+        serviceProvider: {
+          businessName: profile?.business_name ?? '',
+          phone: profile?.phone ?? '',
+          email: profile?.email ?? '',
+        },
+        customer: {
+          name: job.customer_name,
+          phone: job.customer_phone,
+          email: job.customer_email || '',
+        },
+        jobSiteAddress: job.job_location,
+      },
+    ],
   });
 
   // 2. Project Overview
@@ -298,6 +304,21 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
           if (block.type === 'note') return block.text;
           if (block.type === 'bullets') return block.items.map((i) => `• ${i}`).join('\n');
           if (block.type === 'table') return block.rows.map(([k, v]) => `${k}: ${v}`).join('\n');
+          if (block.type === 'partiesLayout') {
+            const { agreementDate, serviceProvider: sp, customer: cu, jobSiteAddress } = block;
+            return [
+              `AGREEMENT DATE: ${agreementDate}`,
+              '────────────────────────────────────────────────',
+              '',
+              `SERVICE PROVIDER | CUSTOMER`,
+              `NAME | ${sp.businessName} | ${cu.name}`,
+              `PHONE | ${sp.phone} | ${cu.phone}`,
+              `EMAIL | ${sp.email} | ${cu.email}`,
+              '',
+              `JOB SITE ADDRESS: ${jobSiteAddress}`,
+              '────────────────────────────────────────────────',
+            ].join('\n');
+          }
           if (block.type === 'signature') {
             const s = section.signatureData;
             if (!s) return '';

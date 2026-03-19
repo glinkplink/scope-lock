@@ -142,10 +142,16 @@ async function handlePdfRequest(req, res) {
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.emulateMediaType('screen');
     await page.evaluate(async () => {
-      if ('fonts' in document) {
-        await document.fonts.ready;
+      if (!('fonts' in document) || !document.fonts) return;
+      await document.fonts.ready;
+      try {
+        await document.fonts.load("400 20pt 'Dancing Script'");
+      } catch {
+        /* ignore load failures; fallback glyph still renders */
       }
+      await document.fonts.ready;
     });
+    await new Promise((r) => setTimeout(r, 200));
 
     const pdf = await page.pdf({
       format: 'Letter',

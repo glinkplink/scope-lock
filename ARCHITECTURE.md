@@ -35,13 +35,18 @@ A welder signs up, sets up their business profile (saved to the database), then 
   render the file with much closer parity to the on-screen preview.
 
 ### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
+- **Web fonts**: PDF HTML includes the same Google Fonts `<link>`s as `index.html` (Barlow + **Dancing
+  Script** for the Service Provider signature). The server waits for `document.fonts.ready`, loads
+  Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders.
 - **Header and footer** (Work Order #, Confidential, footer `Service Provider - [business name]`,
   phone when present, page numbers) use Puppeteer `displayHeaderFooter` with `headerTemplate` /
   `footerTemplate` — they are **not** duplicated in the document body HTML. Footer uses
   `business_profiles.business_name` (not owner/welder name).
 - **Body** includes the centered **Work Order** title, numbered sections, tables, and signatures
-  only. Section 1 **Service Provider / SP Phone / SP Email** rows come from `business_profiles`,
-  not from per–work-order contractor fields on the edit form.
+  only. Section 1 uses **plain-text** Agreement Date and Job Site Address (blue label, black value,
+  no table box), then a **3-column party table** (row labels | Service Provider | Customer): header
+  row is all light-blue cells; **Name**, **Phone**, and **Email** label cells match other agreement
+  tables; values are white. Profile fills the SP column; the form fills the customer column.
 - **Optional sections**: Exclusions, Customer Obligations, Workmanship Warranty (when days is 0),
   and Dispute Resolution (when negotiation days is 0) are omitted when empty or zero. **Section
   numbers are assigned at render time** (1…n with no gaps); the signature block stays unnumbered.

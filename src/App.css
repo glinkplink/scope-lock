@@ -514,6 +514,79 @@ body {
   white-space: pre-wrap;
 }
 
+/* Section 1 — plain date/address (no box) + 3-col party table */
+.parties-layout {
+  margin-bottom: var(--space-md);
+}
+
+.parties-plain {
+  margin-bottom: var(--space-md);
+}
+
+.parties-plain-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+}
+
+.parties-plain-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--agreement-section-blue);
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.parties-plain-value-line {
+  flex: 1;
+  min-width: min(100%, 12rem);
+  border-bottom: 1px solid var(--text-primary);
+  padding-bottom: 2px;
+}
+
+.parties-plain-value {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.parties-layout > .parties-plain:last-child {
+  margin-bottom: 0;
+}
+
+.content-table.parties-party-table {
+  table-layout: fixed;
+}
+
+/* Header row: all three cells — full light-blue band + blue text */
+.content-table.parties-party-table tr.party-table-header-row th.party-header-cell {
+  width: 26%;
+  min-width: 4.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  vertical-align: bottom;
+  background: var(--agreement-label-column-bg);
+  color: var(--agreement-section-blue);
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--agreement-margin-line);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.content-table.parties-party-table tr.party-table-header-row th.party-header-cell:nth-child(2),
+.content-table.parties-party-table tr.party-table-header-row th.party-header-cell:nth-child(3) {
+  width: 37%;
+}
+
 .signature-blocks {
   margin-top: 2.5rem;
   padding-top: 1.5rem;
@@ -565,11 +638,12 @@ body {
   color: var(--text-primary);
 }
 
-/* Auto-generated Service Provider signature */
+/* Auto-generated Service Provider signature (~18–20pt script; preview + PDF) */
 .signature-autofill-name {
   font-family: 'Dancing Script', cursive;
-  font-size: 28px;
-  line-height: 1.2;
+  font-size: 20pt;
+  line-height: 1.15;
+  font-weight: 400;
   color: var(--text-primary);
   margin-bottom: -4px;
 }
@@ -577,6 +651,7 @@ body {
 @media print {
   .signature-autofill-name {
     font-family: 'Dancing Script', cursive;
+    font-size: 20pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

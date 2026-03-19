@@ -36,6 +36,12 @@ function buildPdfHtml(previewMarkup: string): string {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Dancing+Script:wght@400;700&amp;display=swap"
+      rel="stylesheet"
+    />
     <style>
       ${appCss}
 
@@ -87,6 +93,13 @@ function buildPdfHtml(previewMarkup: string): string {
       .content-table td {
         border: 1px solid #cccccc;
         padding: 0.7rem 0.8rem;
+      }
+
+      .content-table.parties-party-table th.party-header-cell {
+        border: 1px solid #cccccc;
+        padding: 0.7rem 0.8rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
 
       .table-label {
@@ -259,6 +272,63 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                         <li key={ii}>{item}</li>
                       ))}
                     </ul>
+                  );
+                }
+                if (block.type === 'partiesLayout') {
+                  const { agreementDate, serviceProvider: sp, customer: cu, jobSiteAddress } = block;
+                  return (
+                    <div key={bi} className="parties-layout">
+                      <div className="parties-plain">
+                        <div className="parties-plain-row">
+                          <span className="parties-plain-label">Agreement Date:</span>
+                          <div className="parties-plain-value-line">
+                            <span className="parties-plain-value">{agreementDate}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <table className="content-table parties-party-table">
+                        <tbody>
+                          <tr className="party-table-header-row">
+                            <th
+                              className="party-header-cell party-header-spacer"
+                              scope="col"
+                              aria-hidden="true"
+                            >
+                              {'\u00a0'}
+                            </th>
+                            <th scope="col" className="party-header-cell">
+                              Service Provider
+                            </th>
+                            <th scope="col" className="party-header-cell">
+                              Customer
+                            </th>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Name</td>
+                            <td className="table-value">{sp.businessName}</td>
+                            <td className="table-value">{cu.name}</td>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Phone</td>
+                            <td className="table-value">{sp.phone}</td>
+                            <td className="table-value">{cu.phone}</td>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Email</td>
+                            <td className="table-value">{sp.email}</td>
+                            <td className="table-value">{cu.email}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <div className="parties-plain">
+                        <div className="parties-plain-row">
+                          <span className="parties-plain-label">Job Site Address:</span>
+                          <div className="parties-plain-value-line">
+                            <span className="parties-plain-value">{jobSiteAddress}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 }
                 if (block.type === 'table') {

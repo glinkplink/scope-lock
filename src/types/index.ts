@@ -68,6 +68,13 @@ export type SectionContentBlock =
   | { type: 'note'; text: string }
   | { type: 'bullets'; items: string[] }
   | { type: 'table'; rows: [string, string][] }
+  | {
+      type: 'partiesLayout';
+      agreementDate: string;
+      serviceProvider: { businessName: string; phone: string; email: string };
+      customer: { name: string; phone: string; email: string };
+      jobSiteAddress: string;
+    }
   | { type: 'signature' };
 
 export interface AgreementSection {
