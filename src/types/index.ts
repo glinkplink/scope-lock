@@ -22,6 +22,7 @@ export interface WelderJob {
 
   // Job Details
   job_classification: JobClassification;
+  other_classification?: string;
   asset_or_item_description: string;
   requested_work: string;
 

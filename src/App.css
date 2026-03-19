@@ -329,10 +329,11 @@ body {
 
 .preview-actions {
   display: flex;
+  justify-content: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-lg);
   flex-wrap: wrap;
-  padding-bottom: var(--space-md);
+  padding-bottom: var(--space-lg);
   border-bottom: 2px solid var(--border);
 }
 

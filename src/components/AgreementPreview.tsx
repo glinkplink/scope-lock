@@ -55,7 +55,7 @@ function drawFooter(
 }
 
 function buildPdf(job: WelderJob, profile: BusinessProfile | null, sections: AgreementSection[]) {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const topMargin = 25;
   const sideMargin = 20;
   const bottomMargin = 22;
@@ -82,7 +82,7 @@ function buildPdf(job: WelderJob, profile: BusinessProfile | null, sections: Agr
   checkPageBreak(12);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('WORK ORDER AGREEMENT', pageWidth / 2, y, { align: 'center' });
+  doc.text('Work Order', pageWidth / 2, y, { align: 'center' });
   y += 12;
 
   for (const section of sections) {
@@ -202,6 +202,27 @@ function buildPdf(job: WelderJob, profile: BusinessProfile | null, sections: Agr
 
         y = startY + 32;
       }
+
+      // Completion Acceptance block
+      y += 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('COMPLETION ACCEPTANCE', sideMargin, y);
+      y += 8;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const completionText = 'I confirm the work described in this Agreement has been completed to my satisfaction. Remaining balance is due upon signing.';
+      const completionLines = doc.splitTextToSize(completionText, contentWidth);
+      doc.text(completionLines, sideMargin, y);
+      y += completionLines.length * 5 + 10;
+
+      doc.text('Customer Signature:', sideMargin, y);
+      doc.setDrawColor(150, 150, 150);
+      doc.line(sideMargin + 35, y + 1, sideMargin + 180, y + 1);
+      doc.text('Date:', sideMargin + 200, y);
+      doc.line(sideMargin + 220, y + 1, sideMargin + 280, y + 1);
+      doc.setDrawColor(0, 0, 0);
     }
 
     y += 5;

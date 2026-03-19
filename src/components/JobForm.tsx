@@ -6,8 +6,6 @@ interface JobFormProps {
   onChange: (job: WelderJob) => void;
 }
 
-const PAYMENT_METHOD_OPTIONS = ['Cash', 'Check', 'Zelle', 'Venmo', 'Card'];
-
 export function JobForm({ job, onChange }: JobFormProps) {
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -85,13 +83,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
     updateField('governing_state', e.target.value.toUpperCase().slice(0, 2));
   };
 
-  const togglePaymentMethod = (method: string) => {
-    const methods = job.payment_methods.includes(method)
-      ? job.payment_methods.filter((m) => m !== method)
-      : [...job.payment_methods, method];
-    updateField('payment_methods', methods);
-  };
-
   const addExclusion = () => updateField('exclusions', [...job.exclusions, '']);
   const updateExclusion = (index: number, value: string) => {
     const next = [...job.exclusions];
@@ -112,67 +103,21 @@ export function JobForm({ job, onChange }: JobFormProps) {
 
   return (
     <form className="job-form" onSubmit={(e) => e.preventDefault()}>
-      {/* WO Info */}
+      {/* Work Order Info */}
       <section className="form-section">
         <h2>Work Order</h2>
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="wo_number">WO #</label>
-            <input
-              id="wo_number"
-              type="text"
-              value={`WO-${String(job.wo_number).padStart(4, '0')}`}
-              readOnly
-              className="input-readonly"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="agreement_date">Agreement Date *</label>
-            <input
-              id="agreement_date"
-              type="date"
-              value={job.agreement_date}
-              onChange={(e) => updateField('agreement_date', e.target.value)}
-              required
-            />
-          </div>
+        <div className="form-group">
+          <label htmlFor="agreement_date">Agreement Date *</label>
+          <input
+            id="agreement_date"
+            type="date"
+            value={job.agreement_date}
+            onChange={(e) => updateField('agreement_date', e.target.value)}
+            required
+          />
         </div>
       </section>
 
-      {/* Contractor */}
-      <section className="form-section">
-        <h2>Contractor (You)</h2>
-        <div className="form-group">
-          <label htmlFor="contractor_name">Business Name</label>
-          <input
-            id="contractor_name"
-            type="text"
-            value={job.contractor_name ?? ''}
-            onChange={(e) => updateField('contractor_name', e.target.value)}
-            placeholder="ABC Welding"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="contractor_phone">Phone</label>
-          <input
-            id="contractor_phone"
-            type="tel"
-            value={job.contractor_phone ?? ''}
-            onChange={(e) => updateField('contractor_phone', e.target.value)}
-            placeholder="(555) 000-0000"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="contractor_email">Email</label>
-          <input
-            id="contractor_email"
-            type="email"
-            value={job.contractor_email ?? ''}
-            onChange={(e) => updateField('contractor_email', e.target.value)}
-            placeholder="you@example.com"
-          />
-        </div>
-      </section>
 
       {/* Customer */}
       <section className="form-section">
@@ -221,10 +166,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
           />
         </div>
         <div className="form-group">
-          <label htmlFor="governing_state">
-            Governing State
-            <span className="help-text-inline"> (auto-detected from address)</span>
-          </label>
+          <label htmlFor="governing_state">Governing State</label>
           <input
             id="governing_state"
             type="text"
@@ -255,6 +197,18 @@ export function JobForm({ job, onChange }: JobFormProps) {
             <option value="other">Other</option>
           </select>
         </div>
+        {job.job_classification === 'other' && (
+          <div className="form-group">
+            <label htmlFor="other_classification">Specify</label>
+            <input
+              id="other_classification"
+              type="text"
+              value={job.other_classification ?? ''}
+              onChange={(e) => updateField('other_classification', e.target.value)}
+              placeholder="Enter custom classification"
+            />
+          </div>
+        )}
         <div className="form-group">
           <label htmlFor="asset_or_item_description">Item / Asset Description *</label>
           <textarea
@@ -412,21 +366,6 @@ export function JobForm({ job, onChange }: JobFormProps) {
               step="0.01"
               placeholder="0.00"
             />
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Accepted Payment Methods</label>
-          <div className="checkbox-group">
-            {PAYMENT_METHOD_OPTIONS.map((method) => (
-              <label key={method} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={job.payment_methods.includes(method)}
-                  onChange={() => togglePaymentMethod(method)}
-                />
-                <span>{method}</span>
-              </label>
-            ))}
           </div>
         </div>
         <div className="form-group">

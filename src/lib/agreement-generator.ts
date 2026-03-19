@@ -5,10 +5,6 @@ const SERVICE_PROVIDER = 'the Service Provider';
 const SERVICE_PROVIDER_CAP = 'The Service Provider';
 const CUSTOMER = 'the Customer';
 
-function padWoNumber(n: number): string {
-  return String(n).padStart(4, '0');
-}
-
 function formatDate(iso: string): string {
   if (!iso) return '—';
   const [year, month, day] = iso.split('-').map(Number);
@@ -27,6 +23,16 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function extractCountyFromAddress(address: string, state: string): string {
+  if (!address) return '';
+  // Try to find pattern: ", COUNTY, ST" or ", COUNTY ST ZIP"
+  const match = address.match(/,\s*([^,]+),\s*([A-Z]{2})/i);
+  if (match && match[2].toUpperCase() === state.toUpperCase()) {
+    return match[1].trim();
+  }
+  return '';
+}
+
 function getSignatureBlockData(job: WelderJob, profile: BusinessProfile | null): SignatureBlockData {
   const d = new Date();
   const ownerDate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
@@ -39,9 +45,6 @@ function getSignatureBlockData(job: WelderJob, profile: BusinessProfile | null):
 
 export function generateAgreement(job: WelderJob, profile: BusinessProfile | null): AgreementSection[] {
   const sections: AgreementSection[] = [];
-  const businessName = profile?.business_name || job.contractor_name || 'Contractor';
-  const contractorPhone = job.contractor_phone || profile?.phone || '';
-  const contractorEmail = job.contractor_email || profile?.email || '';
 
   const priceTypeLabel =
     job.price_type === 'fixed' ? 'Fixed Price' :
@@ -52,16 +55,12 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
 
   // 1. Parties & Project Information
   const partiesRows: [string, string][] = [
-    ['Work Order #', `WO-${padWoNumber(job.wo_number)}`],
     ['Agreement Date', formatDate(job.agreement_date)],
-    ['Service Provider', businessName],
-    ['SP Phone', contractorPhone || '—'],
-    ['SP Email', contractorEmail || '—'],
-    ['Customer', job.customer_name],
+    ['Customer Name', job.customer_name],
     ['Customer Phone', job.customer_phone],
-    ['Customer Email', job.customer_email || '—'],
-    ['Job Site', job.job_location],
-    ['Governing State', job.governing_state || '—'],
+    ['Customer Email', job.customer_email || ''],
+    ['Job Site Address', job.job_location],
+    ['Governing State', job.governing_state || ''],
   ];
   sections.push({
     title: 'Parties & Project Information',
@@ -70,10 +69,13 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   });
 
   // 2. Project Overview
+  const jobClassification = job.job_classification === 'other' && job.other_classification
+    ? job.other_classification
+    : capitalizeFirst(job.job_classification);
   const overviewRows: [string, string][] = [
     ['Item / Structure', job.asset_or_item_description],
     ['Work Requested', job.requested_work],
-    ['Job Classification', capitalizeFirst(job.job_classification)],
+    ['Job Classification', jobClassification],
     ['Target Start', formatDate(job.target_start)],
     ['Target Completion', formatDate(job.target_completion_date)],
   ];
@@ -98,23 +100,32 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
       ? `All materials will be provided by ${CUSTOMER}.`
       : 'Materials will be provided by both parties as agreed.';
 
-  const scopeBlocks: SectionContentBlock[] = [
-    { type: 'bullets', items: scopeItems.length > 0 ? scopeItems : [job.requested_work || 'As described above'] },
-    { type: 'paragraph', text: materialsText },
-  ];
-  sections.push({ title: 'Scope of Work', number: 3, blocks: scopeBlocks });
+  // 3. Scope of Work - omit section entirely if no scope items
+  if (scopeItems.length > 0) {
+    const scopeBlocks: SectionContentBlock[] = [
+      { type: 'bullets', items: scopeItems },
+      { type: 'paragraph', text: materialsText },
+    ];
+    sections.push({ title: 'Scope of Work', number: 3, blocks: scopeBlocks });
+  }
 
-  // 4. Exclusions
+  // 4. Exclusions - use job exclusions, fall back to profile defaults
+  const effectiveExclusions = job.exclusions.length > 0
+    ? job.exclusions
+    : (profile?.default_exclusions?.length ? profile.default_exclusions : []);
   const exclusionBlocks: SectionContentBlock[] =
-    job.exclusions.length > 0
-      ? [{ type: 'bullets', items: job.exclusions }]
+    effectiveExclusions.length > 0
+      ? [{ type: 'bullets', items: effectiveExclusions }]
       : [{ type: 'paragraph', text: 'None specified.' }];
   sections.push({ title: 'Exclusions', number: 4, blocks: exclusionBlocks });
 
-  // 5. Customer Obligations & Site Conditions
+  // 5. Customer Obligations & Site Conditions - use job obligations, fall back to profile defaults
+  const effectiveObligations = job.customer_obligations.length > 0
+    ? job.customer_obligations
+    : (profile?.default_assumptions?.length ? profile.default_assumptions : []);
   const obligationBlocks: SectionContentBlock[] = [];
-  if (job.customer_obligations.length > 0) {
-    obligationBlocks.push({ type: 'bullets', items: job.customer_obligations });
+  if (effectiveObligations.length > 0) {
+    obligationBlocks.push({ type: 'bullets', items: effectiveObligations });
   }
   obligationBlocks.push({
     type: 'paragraph',
@@ -126,9 +137,8 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   const pricingRows: [string, string][] = [
     ['Price Type', priceTypeLabel],
     ['Total', formatPrice(job.price)],
-    ['Deposit', job.deposit_amount > 0 ? formatPrice(job.deposit_amount) : 'None'],
-    ['Balance Due at Completion', formatPrice(balanceDue)],
-    ['Accepted Payment Methods', job.payment_methods.length > 0 ? job.payment_methods.join(', ') : '—'],
+    ['Deposit Required', job.deposit_amount > 0 ? formatPrice(job.deposit_amount) : 'None'],
+    ['Balance Due', formatPrice(balanceDue)],
   ];
   const pricingBlocks: SectionContentBlock[] = [
     { type: 'table', rows: pricingRows },
@@ -207,12 +217,13 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   });
 
   // 11. Liability & Indemnification
+  const priceText = job.price > 0 ? formatPrice(job.price) : 'the Total Contract Price';
   sections.push({
     title: 'Liability & Indemnification',
     number: 11,
     blocks: [{
       type: 'paragraph',
-      text: `${SERVICE_PROVIDER_CAP}'s total liability under this agreement shall not exceed ${formatPrice(job.price)}. ${SERVICE_PROVIDER_CAP} shall not be liable for indirect, incidental, or consequential damages. ${CUSTOMER.charAt(0).toUpperCase() + CUSTOMER.slice(1)} agrees to indemnify and hold ${SERVICE_PROVIDER} harmless from claims arising from ${CUSTOMER}'s misuse or modification of the work after completion.`,
+      text: `${SERVICE_PROVIDER_CAP}'s total liability under this agreement shall not exceed ${priceText}. ${SERVICE_PROVIDER_CAP} shall not be liable for indirect, incidental, or consequential damages. ${CUSTOMER.charAt(0).toUpperCase() + CUSTOMER.slice(1)} agrees to indemnify and hold ${SERVICE_PROVIDER} harmless from claims arising from ${CUSTOMER}'s misuse or modification of the work after completion.`,
     }],
   });
 
@@ -232,18 +243,20 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
     number: 13,
     blocks: [{
       type: 'paragraph',
-      text: `Either party may cancel this agreement with written notice. If ${CUSTOMER} cancels after materials have been ordered or work has begun, ${CUSTOMER} is responsible for material costs incurred and any labor performed to date. Rescheduling requests should be made at least 48 hours in advance. Late cancellations may incur a mobilization fee.`,
+      text: `Either party may cancel this Agreement before work commences with 24 hours written notice. If ${CUSTOMER} cancels after work has commenced, ${CUSTOMER} shall pay for work completed to date plus any materials purchased. The deposit is non-refundable if the Service Provider has mobilized to the job site.`,
     }],
   });
 
   // 14. Dispute Resolution
   const disputeState = job.governing_state || 'the governing state';
+  const county = extractCountyFromAddress(job.job_location, disputeState);
+  const mediationLocation = county ? `${county}, ${disputeState}` : disputeState;
   sections.push({
     title: 'Dispute Resolution',
     number: 14,
     blocks: [{
       type: 'paragraph',
-      text: `In the event of a dispute, both parties agree to attempt good-faith negotiation for a period of ${job.negotiation_period} days before pursuing formal remedies. This agreement shall be governed by the laws of ${disputeState}. Any unresolved disputes shall be submitted to binding arbitration or small claims court in ${disputeState}.`,
+      text: `The parties agree to attempt to resolve any dispute arising under this Agreement through good-faith negotiation first. If negotiation fails within ${job.negotiation_period} days, the parties agree to non-binding mediation in ${mediationLocation} before pursuing litigation. This Agreement shall be governed by and construed under the laws of the State of ${disputeState}.`,
     }],
   });
 

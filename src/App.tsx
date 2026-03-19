@@ -253,13 +253,13 @@ function App() {
             className={`tab-button ${view === 'form' ? 'active' : ''}`}
             onClick={() => setView('form')}
           >
-            Work Agreement
+            Edit Work Order
           </button>
           <button
             className={`tab-button ${view === 'preview' ? 'active' : ''}`}
             onClick={() => setView('preview')}
           >
-            Agreement Preview
+            Preview
           </button>
         </nav>
       )}
