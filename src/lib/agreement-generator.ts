@@ -98,11 +98,11 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
     ? job.other_classification
     : capitalizeFirst(job.job_classification);
   const overviewRows: [string, string][] = [
+    ['Job Classification', jobClassification],
     ['Item / Structure', job.asset_or_item_description],
     ['Work Requested', job.requested_work],
-    ['Job Classification', jobClassification],
-    ['Target Start', formatDate(job.target_start)],
-    ['Target Completion', formatDate(job.target_completion_date)],
+    ['Target Start Date', formatDate(job.target_start)],
+    ['Target Completion Date', formatDate(job.target_completion_date)],
   ];
   drafts.push({
     title: 'Project Overview',
@@ -117,9 +117,10 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   if (job.paint_or_coating_included) scopeItems.push('Paint or coating application');
   if (job.removal_or_disassembly_included) scopeItems.push('Removal and/or disassembly of existing components');
 
+  const materialsProviderName = profile?.business_name?.trim() || 'Service Provider';
   const materialsText =
     job.materials_provided_by === 'welder'
-      ? `All materials will be provided by ${SERVICE_PROVIDER}.`
+      ? `All materials will be provided by ${materialsProviderName}.`
       : job.materials_provided_by === 'customer'
       ? `All materials will be provided by ${CUSTOMER}.`
       : 'Materials will be provided by both parties as agreed.';
@@ -308,7 +309,6 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
             const { agreementDate, serviceProvider: sp, customer: cu, jobSiteAddress } = block;
             return [
               `AGREEMENT DATE: ${agreementDate}`,
-              '────────────────────────────────────────────────',
               '',
               `SERVICE PROVIDER | CUSTOMER`,
               `NAME | ${sp.businessName} | ${cu.name}`,
@@ -316,7 +316,6 @@ export function formatAgreementAsText(sections: AgreementSection[]): string {
               `EMAIL | ${sp.email} | ${cu.email}`,
               '',
               `JOB SITE ADDRESS: ${jobSiteAddress}`,
-              '────────────────────────────────────────────────',
             ].join('\n');
           }
           if (block.type === 'signature') {

@@ -4,9 +4,12 @@ import type { WelderJob, JobClassification, MaterialsProvider, PriceType } from 
 interface JobFormProps {
   job: WelderJob;
   onChange: (job: WelderJob) => void;
+  /** Shown for the "materials provided by welder" option (profile business name). */
+  businessName?: string | null;
 }
 
-export function JobForm({ job, onChange }: JobFormProps) {
+export function JobForm({ job, onChange, businessName }: JobFormProps) {
+  const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
   const [rawWarranty, setRawWarranty] = useState(() =>
@@ -176,7 +179,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
           </div>
         )}
         <div className="form-group">
-          <label htmlFor="asset_or_item_description">Item / Asset Description *</label>
+          <label htmlFor="asset_or_item_description">Item / Structure *</label>
           <textarea
             id="asset_or_item_description"
             value={job.asset_or_item_description}
@@ -187,7 +190,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
           />
         </div>
         <div className="form-group">
-          <label htmlFor="requested_work">Requested Work *</label>
+          <label htmlFor="requested_work">Work Requested *</label>
           <textarea
             id="requested_work"
             value={job.requested_work}
@@ -230,7 +233,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
             onChange={(e) => updateField('materials_provided_by', e.target.value as MaterialsProvider)}
             required
           >
-            <option value="welder">Service Provider (You)</option>
+            <option value="welder">{materialsWelderLabel}</option>
             <option value="customer">Customer</option>
             <option value="mixed">Mixed</option>
           </select>
@@ -384,7 +387,7 @@ export function JobForm({ job, onChange }: JobFormProps) {
       <section className="form-section">
         <h2>7. Change Orders</h2>
         <div className="checkbox-group">
-          <label className="checkbox-label">
+          <label className="checkbox-label checkbox-label-nowrap">
             <input
               type="checkbox"
               checked={job.change_order_required}

@@ -281,9 +281,7 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                       <div className="parties-plain">
                         <div className="parties-plain-row">
                           <span className="parties-plain-label">Agreement Date:</span>
-                          <div className="parties-plain-value-line">
-                            <span className="parties-plain-value">{agreementDate}</span>
-                          </div>
+                          <span className="parties-plain-value">{agreementDate}</span>
                         </div>
                       </div>
                       <table className="content-table parties-party-table">
@@ -323,9 +321,7 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                       <div className="parties-plain">
                         <div className="parties-plain-row">
                           <span className="parties-plain-label">Job Site Address:</span>
-                          <div className="parties-plain-value-line">
-                            <span className="parties-plain-value">{jobSiteAddress}</span>
-                          </div>
+                          <span className="parties-plain-value">{jobSiteAddress}</span>
                         </div>
                       </div>
                     </div>

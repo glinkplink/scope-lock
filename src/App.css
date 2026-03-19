@@ -250,6 +250,14 @@ body {
   color: var(--text-primary);
 }
 
+.checkbox-label-nowrap {
+  flex-wrap: nowrap;
+}
+
+.checkbox-label-nowrap span {
+  white-space: nowrap;
+}
+
 /* ─── Help Text ─────────────────────────────────────── */
 
 .help-text {
@@ -526,8 +534,8 @@ body {
 .parties-plain-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  column-gap: 0.5rem;
+  align-items: baseline;
+  column-gap: 1rem;
   row-gap: 0.25rem;
 }
 
@@ -538,22 +546,14 @@ body {
   text-transform: uppercase;
   color: var(--agreement-section-blue);
   flex-shrink: 0;
-  padding-bottom: 2px;
-}
-
-.parties-plain-value-line {
-  flex: 1;
-  min-width: min(100%, 12rem);
-  border-bottom: 1px solid var(--text-primary);
-  padding-bottom: 2px;
 }
 
 .parties-plain-value {
-  display: block;
   font-size: 0.95rem;
   line-height: 1.55;
   color: var(--text-primary);
   white-space: pre-wrap;
+  min-width: min(100%, 12rem);
 }
 
 .parties-layout > .parties-plain:last-child {

@@ -292,7 +292,11 @@ function App() {
             onDismissBanner={() => setShowSuccessBanner(false)}
           />
         ) : view === 'form' ? (
-          <JobForm job={job} onChange={setJob} />
+          <JobForm
+            job={job}
+            onChange={setJob}
+            businessName={profile?.business_name}
+          />
         ) : (
           <AgreementPreview
             job={job}
