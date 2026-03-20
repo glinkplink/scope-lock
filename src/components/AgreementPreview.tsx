@@ -8,6 +8,9 @@ import appCss from '../App.css?raw';
 /** Letter width at 96dpi — preview layout matches PDF viewport. */
 const PREVIEW_LETTER_WIDTH_PX = 816;
 
+/** Preview upscale only applies at this breakpoint and when measure width > 816px. */
+const PREVIEW_DESKTOP_UPSCALE_MQ = '(min-width: 1024px)';
+
 interface AgreementPreviewProps {
   job: WelderJob;
   profile: BusinessProfile | null;
@@ -175,27 +178,44 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
   const [saveError, setSaveError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
   const documentRef = useRef<HTMLDivElement | null>(null);
-  const previewViewportRef = useRef<HTMLDivElement | null>(null);
+  const previewMeasureRef = useRef<HTMLDivElement | null>(null);
   const previewSheetRef = useRef<HTMLDivElement | null>(null);
-  const [previewScale, setPreviewScale] = useState(1);
   const [previewContentHeight, setPreviewContentHeight] = useState(0);
+  /**
+   * Screen preview only: scales the native 816px sheet to fit smaller containers,
+   * and may upscale modestly on desktop. PDF markup stays 816px.
+   */
+  const [previewScale, setPreviewScale] = useState(1);
 
   const sections = generateAgreement(job, profile);
 
-  /* Scale: mount + window resize only — avoid ResizeObserver on scroll parent (scrollbar ↔ clientWidth jitter). */
   useLayoutEffect(() => {
-    const viewport = previewViewportRef.current;
-    if (!viewport) return;
+    const measure = previewMeasureRef.current;
+    if (!measure) return;
+
+    const computeScale = () => {
+      const w = measure.getBoundingClientRect().width;
+      if (w <= 0) return 1;
+
+      const maxScale = window.matchMedia(PREVIEW_DESKTOP_UPSCALE_MQ).matches ? 1.5 : 1;
+      return Math.min(w / PREVIEW_LETTER_WIDTH_PX, maxScale);
+    };
 
     const updateScale = () => {
-      const w = viewport.getBoundingClientRect().width;
-      if (w <= 0) return;
-      setPreviewScale(Math.min(1, w / PREVIEW_LETTER_WIDTH_PX));
+      setPreviewScale(computeScale());
     };
 
     updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(measure);
+    const mq = window.matchMedia(PREVIEW_DESKTOP_UPSCALE_MQ);
+    mq.addEventListener('change', updateScale);
     window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener('change', updateScale);
+      window.removeEventListener('resize', updateScale);
+    };
   }, []);
 
   /* Spacer height: sheet content only — ResizeObserver here does not track scroll container size. */
@@ -275,24 +295,31 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
         {renderDownloadButton()}
       </div>
 
-      <div ref={previewViewportRef} className="agreement-preview-scale-viewport">
+      <div ref={previewMeasureRef} className="agreement-preview-measure">
         <div
-          className="agreement-preview-scale-spacer"
+          className="agreement-preview-stage"
           style={{
-            width: PREVIEW_LETTER_WIDTH_PX * previewScale,
-            height: previewContentHeight * previewScale,
+            minHeight:
+              previewContentHeight > 0
+                ? previewContentHeight * previewScale
+                : undefined,
+            maxWidth: previewScale > 1 ? 'none' : PREVIEW_LETTER_WIDTH_PX,
           }}
         >
           <div
-            ref={previewSheetRef}
-            className="agreement-preview-scale-sheet"
+            className="agreement-preview-upscale"
             style={{
               width: PREVIEW_LETTER_WIDTH_PX,
-              transform: `scale(${previewScale})`,
-              transformOrigin: 'top left',
+              transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
+              transformOrigin: 'top center',
             }}
           >
-            <div ref={documentRef} className="agreement-document">
+            <div
+              ref={previewSheetRef}
+              className="agreement-preview-native-sheet"
+              style={{ width: PREVIEW_LETTER_WIDTH_PX }}
+            >
+                <div ref={documentRef} className="agreement-document">
               <div className="agreement-document-header">
                 <h2 className="agreement-document-title">Work Order</h2>
               </div>
@@ -441,10 +468,11 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
                   </div>
                 </div>
               ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
       <div className="preview-actions preview-actions-bottom">
         {renderDownloadButton()}

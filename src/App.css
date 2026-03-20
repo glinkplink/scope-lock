@@ -224,6 +224,21 @@ body {
   gap: var(--space-sm);
 }
 
+/* Edit Profile — default payment methods: wrap, ~2/row on mobile, single row on wide desktop */
+.checkbox-group--flex-wrap {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.checkbox-group--flex-wrap .checkbox-label {
+  min-width: 120px;
+  flex: 0 1 auto;
+  padding: 6px 8px;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -401,22 +416,30 @@ body {
   border-color: var(--border-strong);
 }
 
-/* Preview: scale Letter-width sheet — scroll is on page/app-main, not this node (avoids repaint fight) */
-.agreement-preview-scale-viewport {
-  position: relative;
+/* Preview: native 816px sheet; optional JS upscale on desktop (see AgreementPreview). Page scrolls in app-main. */
+.agreement-preview-measure {
   width: 100%;
-  max-width: 100%;
   overflow-x: hidden;
   overflow-y: visible;
 }
 
-.agreement-preview-scale-spacer {
+.agreement-preview-stage {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 816px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
-.agreement-preview-scale-sheet {
+.agreement-preview-upscale {
+  flex-shrink: 0;
   box-sizing: border-box;
-  will-change: transform;
+  transform-origin: top center;
+}
+
+.agreement-preview-native-sheet {
+  box-sizing: border-box;
 }
 
 /* ─── Agreement Document ────────────────────────────── */
@@ -770,29 +793,45 @@ body {
 
 .header-actions {
   position: absolute;
-  bottom: var(--space-md);
+  top: 50%;
   right: var(--space-md);
+  transform: translateY(-50%);
   display: flex;
+  align-items: center;
   gap: var(--space-xs);
 }
 
-.btn-header-action {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.85);
-  padding: 5px var(--space-sm);
+/* Icon-only profile entry — 44×44 minimum tap target (WCAG / mobile) */
+.btn-header-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
   border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.btn-header-action:hover {
-  background: rgba(255, 255, 255, 0.18);
+.btn-header-settings:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.btn-header-settings:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.btn-header-settings-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 .btn-danger {
@@ -1557,19 +1596,24 @@ body {
     padding: 0;
   }
 
-  .agreement-preview-scale-viewport {
+  .agreement-preview-measure {
     overflow: visible;
   }
 
-  .agreement-preview-scale-sheet {
-    transform: none !important;
-    width: 100% !important;
-    will-change: auto;
+  .agreement-preview-stage {
+    min-height: 0 !important;
+    max-width: none !important;
   }
 
-  .agreement-preview-scale-spacer {
+  .agreement-preview-upscale {
+    transform: none !important;
     width: 100% !important;
-    height: auto !important;
+  }
+
+  .agreement-preview-native-sheet {
+    width: 100% !important;
+    max-width: 816px;
+    margin: 0 auto;
   }
 
   .agreement-document {
@@ -1606,6 +1650,10 @@ body {
     padding: var(--space-lg);
   }
 
+  .header-actions {
+    right: var(--space-lg);
+  }
+
   .app-header h1 {
     font-size: 2rem;
   }
@@ -1618,7 +1666,7 @@ body {
     padding: 24px;
   }
 
-  .checkbox-group {
+  .checkbox-group:not(.checkbox-group--flex-wrap) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1640,7 +1688,7 @@ body {
     padding: var(--space-xl) var(--space-lg);
   }
 
-  .checkbox-group {
+  .checkbox-group:not(.checkbox-group--flex-wrap) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
