@@ -12,6 +12,7 @@ export interface BusinessProfile {
   default_exclusions: string[];
   default_assumptions: string[];
   next_wo_number: number;
+  next_invoice_number: number;
   default_warranty_period: number;
   default_negotiation_period: number;
   default_payment_methods: string[];
@@ -72,6 +73,33 @@ export interface Job {
   late_payment_terms: string | null;
   negotiation_period: number | null;
   customer_obligations: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceLineItem {
+  kind: 'labor' | 'material';
+  description: string;
+  qty: number;
+  unit_price: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string;
+  user_id: string;
+  job_id: string;
+  invoice_number: number;
+  invoice_date: string;
+  due_date: string;
+  status: 'draft' | 'downloaded';
+  line_items: InvoiceLineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  payment_methods: string[];
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }

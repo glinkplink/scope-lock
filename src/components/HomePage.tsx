@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 interface HomePageProps {
   onCreateAgreement: () => void;
+  onWorkOrders: () => void;
   ownerName?: string;
   showSuccessBanner?: boolean;
   onDismissBanner?: () => void;
@@ -9,6 +10,7 @@ interface HomePageProps {
 
 export function HomePage({
   onCreateAgreement,
+  onWorkOrders,
   ownerName,
   showSuccessBanner,
   onDismissBanner,
@@ -26,13 +28,20 @@ export function HomePage({
   return (
     <div className="home-page">
       <div className="home-content">
-        {showSuccessBanner ? (
-          <div className="success-banner home-success-banner">
-            Business profile created successfully
+        <div className="home-content-top">
+          <div className="home-content-top-left">
+            {showSuccessBanner ? (
+              <div className="success-banner home-success-banner">
+                Business profile created successfully
+              </div>
+            ) : (
+              ownerName && <p className="home-greeting">Welcome back, {ownerName}</p>
+            )}
           </div>
-        ) : (
-          ownerName && <p className="home-greeting">Welcome back, {ownerName}</p>
-        )}
+          <button type="button" className="btn-large btn-home-work-orders" onClick={onWorkOrders}>
+            Work Orders
+          </button>
+        </div>
         <h1>Create clear job agreements and protect your work</h1>
         <p className="home-description">
           Generate a Work Agreement, track changes, and keep a clear record of what was approved.

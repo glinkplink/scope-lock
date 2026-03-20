@@ -85,12 +85,16 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-/** Puppeteer margin header: WO# top-left (no “Work Order” title in preview/PDF body). */
-function buildHeaderTemplate(workOrderNumber) {
+/**
+ * Puppeteer margin header: label top-left (WO PDF uses workOrderNumber; invoice PDF uses marginHeaderLeft).
+ */
+function buildHeaderTemplate(workOrderNumber, marginHeaderLeft) {
   const left =
-    workOrderNumber != null && String(workOrderNumber).trim() !== ''
-      ? escapeHtml(workOrderNumber)
-      : '\u00a0';
+    marginHeaderLeft != null && String(marginHeaderLeft).trim() !== ''
+      ? escapeHtml(marginHeaderLeft)
+      : workOrderNumber != null && String(workOrderNumber).trim() !== ''
+        ? escapeHtml(workOrderNumber)
+        : '\u00a0';
 
   return `
     <div style="width:100%; padding:0 40px; box-sizing:border-box; font-family: Arial, sans-serif; color:#aaaaaa; font-size:9px;">
@@ -164,7 +168,7 @@ async function handlePdfRequest(req, res) {
       printBackground: true,
       preferCSSPageSize: false,
       displayHeaderFooter: true,
-      headerTemplate: buildHeaderTemplate(workOrderNumber),
+      headerTemplate: buildHeaderTemplate(workOrderNumber, marginHeaderLeft),
       footerTemplate: buildFooterTemplate(providerName, providerPhone),
       margin: {
         top: '70px',

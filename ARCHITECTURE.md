@@ -48,10 +48,12 @@ A welder signs up, sets up their business profile (saved to the database), then 
   **`nativeHeight × scale`**. **`ResizeObserver`** on the measure node + **`matchMedia`** keep scale
   in sync. **`overflow-x: auto`** on the measure when needed; page scroll stays in **`app-main`**.
   Print CSS removes upscale and uses full-width sheet layout.
-- **Header and footer** (Work Order #, Confidential, footer `Service Provider - [business name]`,
-  phone when present, page numbers) use Puppeteer `displayHeaderFooter` with `headerTemplate` /
-  `footerTemplate` — they are **not** duplicated in the document body HTML. Footer uses
-  `business_profiles.business_name` (not owner/welder name).
+- **Header and footer** (Work Order # or optional **invoice** label, Confidential, footer
+  `Service Provider - [business name]`, phone when present, page numbers) use Puppeteer
+  `displayHeaderFooter` with `headerTemplate` / `footerTemplate` — they are **not** duplicated in
+  the document body HTML. Footer uses `business_profiles.business_name` (not owner/welder name).
+  Invoice PDFs send **`marginHeaderLeft`** (e.g. `Invoice #0001`) in the JSON body; when present it
+  replaces the left header cell. Work Order PDFs omit it and keep **`workOrderNumber`** behavior.
 - **Body** includes the centered **Work Order** title, numbered sections, tables, and signatures
   only. Section 1 uses **plain-text** Agreement Date and Job Site Address (blue label, black value,
   no table box), then a **3-column party table** (row labels | Service Provider | Customer): header
@@ -91,6 +93,10 @@ scope-lock/
 │   │   ├── BusinessProfileForm.tsx   # First-time onboarding form
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
 │   │   ├── HomePage.tsx              # Post-login landing page
+│   │   ├── WorkOrdersPage.tsx        # List WOs + invoice badge actions
+│   │   ├── InvoiceWizard.tsx         # 3-step invoice (pricing → due date → payment methods)
+│   │   ├── InvoiceFinalPage.tsx      # After create: mini preview, download, edit, notes
+│   │   ├── InvoicePreviewModal.tsx   # Full-screen invoice preview overlay
 │   │   ├── JobForm.tsx               # Work Agreement input form
 │   │   └── AgreementPreview.tsx      # Agreement preview + Puppeteer PDF handoff
 │   ├── data/
@@ -101,10 +107,12 @@ scope-lock/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
 │   │   ├── agreement-generator.ts    # Pure domain logic: agreement text generation
+│   │   ├── invoice-generator.ts      # Pure HTML for invoice body (preview + PDF)
 │   │   └── db/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
 │   │       ├── clients.ts            # listClients / upsertClient / deleteClient
-│   │       └── jobs.ts               # listJobs / createJob / updateJob / deleteJob
+│   │       ├── jobs.ts               # listJobs / createJob / updateJob / deleteJob
+│   │       └── invoices.ts           # createInvoice (RPC counter), updateInvoice, list, get, mark downloaded
 │   ├── types/
 │   │   ├── index.ts                  # WelderJob, AgreementSection, SignatureBlockData
 │   │   └── db.ts                     # BusinessProfile, Client, Job, ChangeOrder
@@ -116,7 +124,7 @@ scope-lock/
 │   ├── config.toml                   # Supabase CLI config
 │   └── migrations/
 │       ├── 0001_initial_schema.sql   # Initial tables + indexes + triggers + RLS
-│       └── 0002_add_default_exclusions_assumptions.sql
+│       └── 0002_invoices.sql         # invoices table, next_invoice_number(), profile counter column
 ├── public/
 ├── index.html
 ├── package.json
@@ -134,7 +142,9 @@ User visits app
       ↓
 [Signed in, no profile] → BusinessProfileForm (onboarding)
       ↓
-[Profile exists] → HomePage ("Create Work Agreement")
+[Profile exists] → HomePage ("Create Work Agreement" + Work Orders)
+      ↓
+Work Orders → WorkOrdersPage (badges: Invoice / Pending / Invoiced) → InvoiceWizard (3 steps) → InvoiceFinalPage → Download PDF → back to Work Orders + success banner
       ↓
 CTA button → JobForm (Work Agreement details)
       ↓
@@ -157,6 +167,8 @@ Header "Edit Profile" → EditProfilePage (edit business info + defaults)
 - `db/profile.ts`: Profile CRUD; **`updateNextWoNumber`** uses `.update()` (partial `upsert` 400s on `business_profiles` because `business_name` is NOT NULL)
 - `db/clients.ts`: Client CRUD (helpers ready, UI not yet built)
 - `db/jobs.ts`: Job CRUD (helpers ready, jobs still in-memory in UI)
+- `db/invoices.ts`: Invoice CRUD; **`createInvoice`** calls Postgres **`next_invoice_number(p_user_id)`** for atomic numbering (increments `business_profiles.next_invoice_number`); **`updateInvoice`** full-row overwrite; **`markInvoiceDownloaded`** sets `status = 'downloaded'`
+- `invoice-generator.ts`: Invoice HTML (parties table pattern, line items, tax, payment methods, notes)
 
 ### UI Components (`src/components/`)
 - React components for user interaction
@@ -165,7 +177,7 @@ Header "Edit Profile" → EditProfilePage (edit business info + defaults)
 
 ### Type Definitions (`src/types/`)
 - `index.ts`: WelderJob and agreement types (used by domain logic + UI)
-- `db.ts`: Database row types matching Supabase schema
+- `db.ts`: Database row types matching Supabase schema (`Invoice`, `InvoiceLineItem`, `BusinessProfile.next_invoice_number`)
 
 ## Database Schema
 
@@ -177,6 +189,9 @@ Four tables in Supabase Postgres, all with row-level security:
 | `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status |
 | `change_orders` | user_id, job_id, description, price_delta, time_delta, approved |
+| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, status (`draft` \| `downloaded`), line_items (jsonb), tax fields, payment_methods (jsonb snapshot), notes |
+
+**Invoice numbering:** `public.next_invoice_number(uuid)` updates `business_profiles` in one statement and returns the allocated number (pre-increment value). No separate `updateNextInvoiceNumber` in app code.
 
 All tables use `auth.uid()` RLS policies: users can only read/write their own rows.
 
@@ -188,6 +203,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
+| Invoices | Yes | Created at wizard step 3; status `draft` until **Download Invoice** sets `downloaded` |
 | Clients | Partial | Upsert on **Download & Save** (`saveWorkOrder`); list/selection UI not built |
 | Change orders | No | Schema only |
 | Completion signoffs | No | Schema only |
