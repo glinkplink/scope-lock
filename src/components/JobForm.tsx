@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types';
+import type { Client } from '../types/db';
+import { searchClients } from '../lib/db/clients';
 
 interface JobFormProps {
+  userId: string;
   job: WelderJob;
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
 }
 
-export function JobForm({ job, onChange, businessName }: JobFormProps) {
+export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -20,6 +23,173 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
   );
 
   const skipSyncRef = useRef(false);
+
+  const updateField = <K extends keyof WelderJob>(field: K, value: WelderJob[K]) => {
+    onChange({ ...job, [field]: value });
+  };
+
+  const customerNameRef = useRef(job.customer_name);
+  customerNameRef.current = job.customer_name;
+
+  const comboboxId = useId();
+  const listboxId = `${comboboxId}-client-listbox`;
+
+  const [clientMatches, setClientMatches] = useState<Client[]>([]);
+  const [clientListOpen, setClientListOpen] = useState(false);
+  const [clientHighlightIndex, setClientHighlightIndex] = useState(-1);
+  const [clientSearchLoading, setClientSearchLoading] = useState(false);
+  const [dropdownSuppressed, setDropdownSuppressed] = useState(false);
+
+  const customerNameComboboxRef = useRef<HTMLDivElement>(null);
+  const customerNameBlurCloseTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (dropdownSuppressed) {
+      setClientMatches([]);
+      setClientListOpen(false);
+      setClientHighlightIndex(-1);
+      setClientSearchLoading(false);
+      return;
+    }
+
+    const trimmed = job.customer_name.trim();
+    if (!trimmed) {
+      setClientMatches([]);
+      setClientListOpen(false);
+      setClientHighlightIndex(-1);
+      setClientSearchLoading(false);
+      return;
+    }
+
+    const id = window.setTimeout(() => {
+      const q = customerNameRef.current.trim();
+      if (!q) {
+        setClientMatches([]);
+        setClientListOpen(false);
+        setClientHighlightIndex(-1);
+        setClientSearchLoading(false);
+        return;
+      }
+
+      setClientSearchLoading(true);
+      void searchClients(userId, q).then((rows) => {
+        if (customerNameRef.current.trim() !== q) {
+          setClientSearchLoading(false);
+          return;
+        }
+        setClientSearchLoading(false);
+        setClientMatches(rows);
+        setClientListOpen(rows.length > 0);
+        setClientHighlightIndex(rows.length > 0 ? 0 : -1);
+      });
+    }, 300);
+
+    return () => window.clearTimeout(id);
+  }, [job.customer_name, userId, dropdownSuppressed]);
+
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = customerNameComboboxRef.current;
+      if (!el || !(e.target instanceof Node) || el.contains(e.target)) {
+        return;
+      }
+      setClientListOpen(false);
+      setClientMatches([]);
+      setClientHighlightIndex(-1);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (customerNameBlurCloseTimerRef.current != null) {
+        window.clearTimeout(customerNameBlurCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const applyClient = (client: Client) => {
+    const patches: Partial<WelderJob> = {};
+    const name = client.name?.trim();
+    if (name) patches.customer_name = name;
+    const phone = client.phone?.trim();
+    if (phone) patches.customer_phone = phone;
+    const email = client.email?.trim();
+    if (email) patches.customer_email = email;
+    const address = client.address?.trim();
+    if (address) patches.job_location = address;
+    onChange({ ...job, ...patches });
+    setClientListOpen(false);
+    setClientMatches([]);
+    setClientHighlightIndex(-1);
+    setDropdownSuppressed(true);
+    if (customerNameBlurCloseTimerRef.current != null) {
+      window.clearTimeout(customerNameBlurCloseTimerRef.current);
+      customerNameBlurCloseTimerRef.current = null;
+    }
+  };
+
+  const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDropdownSuppressed(false);
+    updateField('customer_name', e.target.value);
+  };
+
+  const handleCustomerNameBlur = () => {
+    if (customerNameBlurCloseTimerRef.current != null) {
+      window.clearTimeout(customerNameBlurCloseTimerRef.current);
+    }
+    customerNameBlurCloseTimerRef.current = window.setTimeout(() => {
+      customerNameBlurCloseTimerRef.current = null;
+      const root = customerNameComboboxRef.current;
+      if (root?.contains(document.activeElement)) {
+        return;
+      }
+      setClientListOpen(false);
+      setClientMatches([]);
+      setClientHighlightIndex(-1);
+    }, 120);
+  };
+
+  const handleCustomerNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!clientListOpen || clientMatches.length === 0) {
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setClientListOpen(false);
+      setClientMatches([]);
+      setClientHighlightIndex(-1);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setClientHighlightIndex((i) => {
+        const next = i < 0 ? 0 : i + 1;
+        return next >= clientMatches.length ? 0 : next;
+      });
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setClientHighlightIndex((i) => {
+        if (i <= 0) return clientMatches.length - 1;
+        return i - 1;
+      });
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      const idx = clientHighlightIndex;
+      if (idx >= 0 && idx < clientMatches.length) {
+        e.preventDefault();
+        applyClient(clientMatches[idx]);
+      }
+    }
+  };
 
   useEffect(() => {
     if (skipSyncRef.current) {
@@ -37,10 +207,6 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
       setRawNegotiation(nextNegotiation);
     });
   }, [job.price, job.deposit_amount, job.workmanship_warranty_days, job.negotiation_period]);
-
-  const updateField = <K extends keyof WelderJob>(field: K, value: WelderJob[K]) => {
-    onChange({ ...job, [field]: value });
-  };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -102,16 +268,64 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
             onChange={(e) => updateField('agreement_date', e.target.value)}
           />
         </div>
-        <div className="form-group">
+        <div className="form-group form-group-combobox" ref={customerNameComboboxRef}>
           <label htmlFor="customer_name">Customer Name *</label>
-          <input
-            id="customer_name"
-            type="text"
-            value={job.customer_name}
-            onChange={(e) => updateField('customer_name', e.target.value)}
-            required
-            placeholder="John Smith"
-          />
+          <div className="customer-name-combobox">
+            <input
+              id="customer_name"
+              type="text"
+              role="combobox"
+              aria-expanded={clientListOpen}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                clientListOpen && clientHighlightIndex >= 0 && clientMatches[clientHighlightIndex]
+                  ? `${listboxId}-option-${clientMatches[clientHighlightIndex].id}`
+                  : undefined
+              }
+              value={job.customer_name}
+              onChange={handleCustomerNameChange}
+              onBlur={handleCustomerNameBlur}
+              onKeyDown={handleCustomerNameKeyDown}
+              autoComplete="off"
+              required
+              placeholder="John Smith"
+            />
+            {clientSearchLoading && (
+              <span className="customer-name-combobox-status" aria-live="polite">
+                Searching…
+              </span>
+            )}
+            {clientListOpen && clientMatches.length > 0 && (
+              <ul id={listboxId} className="customer-name-listbox" role="listbox">
+                {clientMatches.map((c, index) => (
+                  <li
+                    key={c.id}
+                    id={`${listboxId}-option-${c.id}`}
+                    role="option"
+                    aria-selected={index === clientHighlightIndex}
+                    className={
+                      index === clientHighlightIndex
+                        ? 'customer-name-option customer-name-option-active'
+                        : 'customer-name-option'
+                    }
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyClient(c);
+                    }}
+                    onMouseEnter={() => setClientHighlightIndex(index)}
+                  >
+                    <span className="customer-name-option-name">{c.name}</span>
+                    {(c.phone || c.email) && (
+                      <span className="customer-name-option-meta">
+                        {[c.phone, c.email].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
         <div className="form-group">
           <label htmlFor="customer_phone">Customer Phone</label>

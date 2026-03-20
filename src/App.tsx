@@ -259,6 +259,10 @@ function App() {
     );
   }
 
+  if (!user) {
+    return null;
+  }
+
   const showTabs = view === 'form' || view === 'preview';
 
   return (
@@ -318,6 +322,7 @@ function App() {
           />
         ) : view === 'form' ? (
           <JobForm
+            userId={user.id}
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
