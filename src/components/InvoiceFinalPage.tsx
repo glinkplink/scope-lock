@@ -294,7 +294,7 @@ export function InvoiceFinalPage({
   };
 
   return (
-    <div className="invoice-final-page">
+    <div className={`invoice-final-page${!isReadOnly ? ' invoice-final-page--draft' : ''}`}>
       <div className="invoice-final-nav">
         <button type="button" className="invoice-final-nav-plain" onClick={onGoHome}>
           Go Home
@@ -308,6 +308,39 @@ export function InvoiceFinalPage({
         Invoice #{String(invoice.invoice_number).padStart(4, '0')}
         {isReadOnly ? '' : ' Ready'}
       </h1>
+
+      {!isReadOnly ? (
+        <div className="invoice-final-notes-heading-slot">
+          {!notesOpen ? (
+            <button type="button" className="btn-text invoice-final-notes-toggle" onClick={() => setNotesOpen(true)}>
+              Add Notes
+            </button>
+          ) : (
+            <div className="invoice-final-notes-panel">
+              <div className="form-group">
+                <label htmlFor="invoice-notes">Notes</label>
+                <input
+                  id="invoice-notes"
+                  type="text"
+                  className="invoice-final-notes-input"
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              {notesError ? <p className="invoice-notes-error">{notesError}</p> : null}
+              <button
+                type="button"
+                className="btn-primary btn-large invoice-final-notes-save"
+                disabled={savingNotes}
+                onClick={() => void handleSaveNotes()}
+              >
+                {savingNotes ? 'Saving…' : 'Save Notes'}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {downloadError ? (
         <div className="error-banner" role="alert">
@@ -366,43 +399,15 @@ export function InvoiceFinalPage({
                 : 'Download Invoice'}
         </button>
         {!isReadOnly ? (
-          <button type="button" className="btn-text invoice-final-edit-btn" onClick={onEditInvoice}>
+          <button
+            type="button"
+            className="btn-primary btn-large invoice-final-download-btn"
+            onClick={onEditInvoice}
+          >
             Edit Invoice
           </button>
         ) : null}
       </div>
-
-      {!isReadOnly ? (
-        <div className="invoice-final-notes">
-          {!notesOpen ? (
-            <button type="button" className="btn-text invoice-final-notes-toggle" onClick={() => setNotesOpen(true)}>
-              Add Notes
-            </button>
-          ) : (
-            <div className="invoice-final-notes-panel">
-              <div className="form-group">
-                <label htmlFor="invoice-notes">Notes</label>
-                <textarea
-                  id="invoice-notes"
-                  className="invoice-notes-textarea"
-                  rows={4}
-                  value={notesDraft}
-                  onChange={(e) => setNotesDraft(e.target.value)}
-                />
-              </div>
-              {notesError ? <p className="invoice-notes-error">{notesError}</p> : null}
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={savingNotes}
-                onClick={() => void handleSaveNotes()}
-              >
-                {savingNotes ? 'Saving…' : 'Save Notes'}
-              </button>
-            </div>
-          )}
-        </div>
-      ) : null}
 
       <InvoicePreviewModal
         open={modalOpen}
