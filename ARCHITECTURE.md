@@ -40,11 +40,14 @@ A welder signs up, sets up their business profile (saved to the database), then 
   Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders.
 - **Viewport**: PDF generation uses **`page.setViewport({ width: 816, height: 1056 })`** (Letter at
   96dpi) so layout is consistent regardless of client screen size.
-- **Preview (fit-to-width)**: Layout at **816px**; **`scale = min(1, viewportWidth / 816)`** on mount and
-  **`window.resize` only** (no **`ResizeObserver`** on the scroll parent — avoids scrollbar/width
-  feedback jitter). Sheet **`ResizeObserver`** updates spacer height only. Outer preview uses
-  **`position: relative`**, **`overflow-y: visible`** (page scrolls in **`app-main`**); scaled sheet uses
-  **`will-change: transform`**.
+- **Preview (native 816 + optional desktop upscale)**: Sheet HTML is **816px** wide with **no
+  shrink-to-fit transform** (matches PDF). **`.agreement-preview-stage`** is **`width: 100%`**,
+  **`max-width: 816px`**, centered. From **`min-width: 1024px`**, if **`.agreement-preview-measure`**
+  is wider than **816px**, JS sets **`transform: scale(min(parentWidth / 816, 1.5))`** on
+  **`.agreement-preview-upscale`** (`transform-origin: top center`); stage **`min-height`** =
+  **`nativeHeight × scale`**. **`ResizeObserver`** on the measure node + **`matchMedia`** keep scale
+  in sync. **`overflow-x: auto`** on the measure when needed; page scroll stays in **`app-main`**.
+  Print CSS removes upscale and uses full-width sheet layout.
 - **Header and footer** (Work Order #, Confidential, footer `Service Provider - [business name]`,
   phone when present, page numbers) use Puppeteer `displayHeaderFooter` with `headerTemplate` /
   `footerTemplate` — they are **not** duplicated in the document body HTML. Footer uses
@@ -59,6 +62,18 @@ A welder signs up, sets up their business profile (saved to the database), then 
   numbers are assigned at render time** (1…n with no gaps); the signature block stays unnumbered.
 - **Governing state** is not collected on the work order form; dispute copy uses generic
   “applicable state” language.
+
+### Download & Save (`saveWorkOrder` in `jobs.ts` + `AgreementPreview.tsx`)
+- **Order:** **`saveWorkOrder`** runs **first** (Supabase). **`fetchPdfBlob`** + **`downloadPdfBlob`**
+  run only after a successful job write. Save failure → **no** PDF request and **no** download.
+  If save succeeds but PDF fails, the user sees a **“Work order saved, but PDF failed…”** message and
+  **`onSaveSuccess`** still runs (profile **`next_wo_number`** bump for new jobs).
+- **Clients:** Before the job row is written, the app **upserts** a **`clients`** row keyed by
+  **`name_normalized`** (`lower(trim(name))`) with display **`name`** trimmed; **`jobs.client_id`**
+  is set to that client’s id. Requires migration **`0004_clients_name_normalized.sql`**.
+- **WO number:** **`wo_number`** is included only on **insert**; **updates** omit it so the stored
+  WO# cannot be overwritten from the client. **`JobForm`** shows WO# **read-only** when
+  **`currentJobId`** is set (`jobPersisted`).
 
 ## Folder Structure
 
@@ -153,7 +168,7 @@ Five tables in Supabase Postgres, all with row-level security:
 | Table | Key Columns |
 |---|---|
 | `business_profiles` | user_id (unique), business_name, owner_name, phone, email, address, google_business_profile_url, default_exclusions[], default_assumptions[] |
-| `clients` | user_id, name, phone, email, address, notes |
+| `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status |
 | `change_orders` | user_id, job_id, description, price_delta, time_delta, approved |
 | `completion_signoffs` | user_id, job_id, client_name, signed_at, notes |
@@ -168,7 +183,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
-| Clients | No | DB helpers exist, UI not yet built |
+| Clients | Partial | Upsert on **Download & Save** (`saveWorkOrder`); list/selection UI not built |
 | Change orders | No | Schema only |
 | Completion signoffs | No | Schema only |
 
@@ -208,8 +223,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 - [x] Edit Profile page
 
 ### Near-Term
-- [ ] Research standard welder work agreements/ contracts and edit ours to
-      match
+- [x] Research standard welder work agreements/ contracts and edit ours to match
 - [ ] Deploy the app server and Puppeteer route alongside production hosting
 - [ ] Client list and client selection UI - user's clients are saved in DB so their details can we auto-filled later in future work orders.
 - [ ] Custom branding (logo)
