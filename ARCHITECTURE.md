@@ -95,7 +95,9 @@ scope-lock/
 │   │   ├── BusinessProfileForm.tsx   # First-time onboarding form
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
 │   │   ├── HomePage.tsx              # Post-login landing page
-│   │   ├── WorkOrdersPage.tsx        # List WOs + invoice badge actions
+│   │   ├── WorkOrdersPage.tsx        # List WOs + invoice badge actions; row opens read-only detail
+│   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement HTML (scroll) + Download PDF
+│   │   ├── AgreementDocumentSections.tsx # Renders AgreementSection[] (preview + detail)
 │   │   ├── InvoiceWizard.tsx         # 3-step invoice (pricing → due date → payment methods)
 │   │   ├── InvoiceFinalPage.tsx      # After create: mini preview, download, edit, notes
 │   │   ├── InvoicePreviewModal.tsx   # Full-screen invoice preview overlay
@@ -109,6 +111,8 @@ scope-lock/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
 │   │   ├── agreement-generator.ts    # Pure domain logic: agreement text generation
+│   │   ├── agreement-pdf.ts          # PDF HTML wrapper + fetch/download blob (Puppeteer)
+│   │   ├── job-to-welder-job.ts      # Job row + profile → WelderJob for generator/PDF
 │   │   ├── invoice-generator.ts      # Pure HTML for invoice body (preview + PDF)
 │   │   └── db/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)

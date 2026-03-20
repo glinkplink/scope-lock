@@ -22,6 +22,7 @@ interface WorkOrdersPageProps {
   onGoHome: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
+  onOpenWorkOrderDetail: (job: Job) => void;
 }
 
 export function WorkOrdersPage({
@@ -31,6 +32,7 @@ export function WorkOrdersPage({
   onGoHome,
   onStartInvoice,
   onOpenPendingInvoice,
+  onOpenWorkOrderDetail,
 }: WorkOrdersPageProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -102,8 +104,14 @@ export function WorkOrdersPage({
             return (
               <li key={job.id} className="work-orders-row">
                 <div className="work-orders-row-main">
-                  <span className="work-orders-wo">{woLabel}</span>
-                  <span className="work-orders-customer">{job.customer_name}</span>
+                  <button
+                    type="button"
+                    className="work-orders-row-detail-hit"
+                    onClick={() => onOpenWorkOrderDetail(job)}
+                  >
+                    <span className="work-orders-wo">{woLabel}</span>
+                    <span className="work-orders-customer">{job.customer_name}</span>
+                  </button>
                   <span className="work-orders-meta">
                     {job.job_type} · {formatRowDate(job)}
                   </span>

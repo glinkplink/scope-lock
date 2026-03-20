@@ -17,6 +17,7 @@ import { Settings } from 'lucide-react';
 import { WorkOrdersPage } from './components/WorkOrdersPage';
 import { InvoiceWizard } from './components/InvoiceWizard';
 import { InvoiceFinalPage } from './components/InvoiceFinalPage';
+import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
 import './App.css';
 
 type OnboardingStep = 'profile' | 'password' | null;
@@ -69,9 +70,11 @@ function App() {
     | 'preview'
     | 'profile'
     | 'work-orders'
+    | 'work-order-detail'
     | 'invoice-wizard'
     | 'invoice-final'
   >('home');
+  const [workOrderDetailJob, setWorkOrderDetailJob] = useState<Job | null>(null);
   const [invoiceFlowJob, setInvoiceFlowJob] = useState<Job | null>(null);
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
@@ -173,6 +176,16 @@ function App() {
   };
 
   const openWorkOrders = () => {
+    setView('work-orders');
+  };
+
+  const handleOpenWorkOrderDetail = (job: Job) => {
+    setWorkOrderDetailJob(job);
+    setView('work-order-detail');
+  };
+
+  const handleBackFromWorkOrderDetail = () => {
+    setWorkOrderDetailJob(null);
     setView('work-orders');
   };
 
@@ -355,6 +368,7 @@ function App() {
             setInvoiceFlowJob(null);
             setActiveInvoice(null);
             setWizardExistingInvoice(null);
+            setWorkOrderDetailJob(null);
           }}
         >
           ScopeLock
@@ -432,6 +446,13 @@ function App() {
             onGoHome={() => setView('home')}
             onStartInvoice={handleStartInvoice}
             onOpenPendingInvoice={handleOpenPendingInvoice}
+            onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
+          />
+        ) : view === 'work-order-detail' && profile && workOrderDetailJob ? (
+          <WorkOrderDetailPage
+            job={workOrderDetailJob}
+            profile={profile}
+            onBack={handleBackFromWorkOrderDetail}
           />
         ) : view === 'invoice-wizard' && user && profile && invoiceFlowJob ? (
           <InvoiceWizard
