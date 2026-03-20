@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 
 interface HomePageProps {
   onCreateAgreement: () => void;
-  onWorkOrders: () => void;
   ownerName?: string;
   showSuccessBanner?: boolean;
   onDismissBanner?: () => void;
@@ -10,7 +9,6 @@ interface HomePageProps {
 
 export function HomePage({
   onCreateAgreement,
-  onWorkOrders,
   ownerName,
   showSuccessBanner,
   onDismissBanner,
@@ -27,18 +25,6 @@ export function HomePage({
 
   return (
     <div className="home-page">
-      <div className="home-work-orders-bar">
-        <a
-          href="#"
-          className="home-work-orders-link"
-          onClick={(e) => {
-            e.preventDefault();
-            onWorkOrders();
-          }}
-        >
-          Work Orders
-        </a>
-      </div>
       <div className="home-content">
         {showSuccessBanner ? (
           <div className="success-banner home-success-banner">

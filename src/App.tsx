@@ -404,13 +404,26 @@ function App() {
 
       <main className="app-main">
         {view === 'home' ? (
-          <HomePage
-            onCreateAgreement={createNewAgreement}
-            onWorkOrders={openWorkOrders}
-            ownerName={profile?.owner_name || profile?.business_name}
-            showSuccessBanner={showSuccessBanner}
-            onDismissBanner={() => setShowSuccessBanner(false)}
-          />
+          <>
+            <div className="home-work-orders-bar">
+              <a
+                href="#"
+                className="home-work-orders-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openWorkOrders();
+                }}
+              >
+                Work Orders
+              </a>
+            </div>
+            <HomePage
+              onCreateAgreement={createNewAgreement}
+              ownerName={profile?.owner_name || profile?.business_name}
+              showSuccessBanner={showSuccessBanner}
+              onDismissBanner={() => setShowSuccessBanner(false)}
+            />
+          </>
         ) : view === 'work-orders' && user ? (
           <WorkOrdersPage
             userId={user.id}

@@ -1758,22 +1758,19 @@ body {
   }
 }
 
-/* ─── Home: Work Orders entry (viewport-right, below header gear) ─ */
+/* ─── Home: Work Orders link (top of app-main, right-aligned under header gear) ─ */
 
-.home-work-orders-bar {
-  width: 100vw;
-  position: relative;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;
-  padding: var(--space-sm) var(--space-md) 0;
-  box-sizing: border-box;
+.app-main > .home-work-orders-bar {
   display: flex;
   justify-content: flex-end;
+  width: 100%;
+  margin: 0 0 var(--space-sm);
+  flex-shrink: 0;
 }
 
-.home-work-orders-link {
+/* Plain bold text only — no button box (homepage only; not WorkOrdersPage) */
+.home-work-orders-link,
+.home-work-orders-link:visited {
   margin: 0;
   padding: 0;
   border: none;
