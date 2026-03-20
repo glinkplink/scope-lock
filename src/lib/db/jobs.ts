@@ -78,6 +78,7 @@ export const saveWorkOrder = async (
           name_normalized: nameKey,
           phone: job.customer_phone || null,
           email: job.customer_email || null,
+          address: job.job_location?.trim() || null,
         })
         .eq('id', existing.id)
         .select('id')
@@ -99,6 +100,7 @@ export const saveWorkOrder = async (
           name_normalized: nameKey,
           phone: job.customer_phone || null,
           email: job.customer_email || null,
+          address: job.job_location?.trim() || null,
         })
         .select('id')
         .single();
