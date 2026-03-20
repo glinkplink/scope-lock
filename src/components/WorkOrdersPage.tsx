@@ -68,10 +68,11 @@ export function WorkOrdersPage({
   return (
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
-        <button type="button" className="btn-secondary" onClick={onGoHome}>
+        <button type="button" className="btn-secondary work-orders-toolbar-back" onClick={onGoHome}>
           Go Home
         </button>
         <h1 className="work-orders-title">Work Orders</h1>
+        <span className="work-orders-toolbar-balance" aria-hidden="true" />
       </div>
 
       {successBanner ? (

@@ -203,6 +203,8 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
+  /** True after the user has completed one successful Download & Save (or Download PDF) this mount — further clicks skip DB. */
+  const [hasPersistedViaDownloadOnce, setHasPersistedViaDownloadOnce] = useState(false);
   const documentRef = useRef<HTMLDivElement | null>(null);
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
   const previewSheetRef = useRef<HTMLDivElement | null>(null);
@@ -283,30 +285,46 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       return;
     }
 
-    const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
+    let wroteToDb = false;
 
-    if (error || !data) {
-      setSaving(false);
-      setSaveError(error?.message || 'Failed to save work order.');
-      return;
+    if (!hasPersistedViaDownloadOnce) {
+      const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
+
+      if (error || !data) {
+        setSaving(false);
+        setSaveError(error?.message || 'Failed to save work order.');
+        return;
+      }
+
+      setHasPersistedViaDownloadOnce(true);
+      wroteToDb = true;
+      const isNewInsert = !existingJobId;
+      await Promise.resolve(onSaveSuccess(data.id, isNewInsert));
     }
-
-    const isNewSave = !existingJobId;
-    await Promise.resolve(onSaveSuccess(data.id, isNewSave));
 
     try {
       const blob = await fetchPdfBlob(job, profile, documentRef.current);
       downloadPdfBlob(blob, job);
       setConfirmationMessage(
-        `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
+        wroteToDb
+          ? `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
+          : `WO #${String(job.wo_number).padStart(4, '0')} downloaded.`
       );
     } catch (pdfErr) {
-      setSaveError(
-        pdfErr instanceof Error
-          ? `Work order saved, but PDF failed: ${pdfErr.message}`
-          : 'Work order saved, but PDF download failed.'
-      );
-      setConfirmationMessage(`WO #${String(job.wo_number).padStart(4, '0')} saved.`);
+      if (wroteToDb) {
+        setSaveError(
+          pdfErr instanceof Error
+            ? `Work order saved, but PDF failed: ${pdfErr.message}`
+            : 'Work order saved, but PDF download failed.'
+        );
+        setConfirmationMessage(`WO #${String(job.wo_number).padStart(4, '0')} saved.`);
+      } else {
+        setSaveError(
+          pdfErr instanceof Error
+            ? `PDF download failed: ${pdfErr.message}`
+            : 'PDF download failed.'
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -319,7 +337,13 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       className="btn-action btn-primary"
       disabled={saving}
     >
-      {saving ? 'Saving...' : 'Download & Save'}
+      {saving
+        ? hasPersistedViaDownloadOnce
+          ? 'Downloading...'
+          : 'Saving...'
+        : hasPersistedViaDownloadOnce
+          ? 'Download PDF'
+          : 'Download & Save'}
     </button>
   );
 

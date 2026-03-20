@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Job, BusinessProfile, Invoice } from '../types/db';
 import { generateInvoiceHtml } from '../lib/invoice-generator';
 import { markInvoiceDownloaded, updateInvoice } from '../lib/db/invoices';
@@ -185,6 +185,10 @@ export function InvoiceFinalPage({
   const [notesError, setNotesError] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
+  /** After first successful download that updates DB, further clicks only fetch PDF (no markInvoiceDownloaded / redirect callback). */
+  const [hasPersistedDownloadOnce, setHasPersistedDownloadOnce] = useState(
+    () => invoiceProp.status === 'downloaded'
+  );
 
   const documentRef = useRef<HTMLDivElement | null>(null);
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +202,10 @@ export function InvoiceFinalPage({
     setInvoice(invoiceProp);
     setNotesDraft(invoiceProp.notes ?? '');
   }, [invoiceProp]);
+
+  useEffect(() => {
+    if (invoiceProp.status === 'downloaded') setHasPersistedDownloadOnce(true);
+  }, [invoiceProp.status]);
 
   useLayoutEffect(() => {
     const viewport = previewViewportRef.current;
@@ -244,14 +252,19 @@ export function InvoiceFinalPage({
     try {
       const blob = await fetchInvoicePdfBlob(invoice, job, profile, documentRef.current);
       downloadInvoicePdfBlob(blob, invoice, job);
-      const { error } = await markInvoiceDownloaded(invoice.id);
-      if (error) {
-        setDownloadError(`PDF downloaded, but status could not be updated: ${error.message}`);
+
+      if (!hasPersistedDownloadOnce) {
+        const { error } = await markInvoiceDownloaded(invoice.id);
+        if (error) {
+          setDownloadError(`PDF downloaded, but status could not be updated: ${error.message}`);
+          return;
+        }
+        setHasPersistedDownloadOnce(true);
+        const nextInv = { ...invoice, status: 'downloaded' as const };
+        setInvoice(nextInv);
+        onInvoiceUpdated(nextInv);
+        onAfterDownload(nextInv);
       }
-      const nextInv = { ...invoice, status: 'downloaded' as const };
-      setInvoice(nextInv);
-      onInvoiceUpdated(nextInv);
-      onAfterDownload(nextInv);
     } catch (e) {
       setDownloadError(e instanceof Error ? e.message : 'Download failed.');
     } finally {
@@ -342,7 +355,11 @@ export function InvoiceFinalPage({
           disabled={downloading}
           onClick={() => void handleDownload()}
         >
-          {downloading ? 'Downloading…' : 'Download Invoice'}
+          {downloading
+            ? 'Downloading…'
+            : hasPersistedDownloadOnce
+              ? 'Download PDF'
+              : 'Download Invoice'}
         </button>
         <button type="button" className="btn-secondary invoice-final-edit-btn" onClick={onEditInvoice}>
           Edit Invoice

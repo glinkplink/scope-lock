@@ -71,10 +71,12 @@ A welder signs up, sets up their business profile (saved to the database), then 
   “applicable state” language.
 
 ### Download & Save (`saveWorkOrder` in `jobs.ts` + `AgreementPreview.tsx`)
-- **Order:** **`saveWorkOrder`** runs **first** (Supabase). **`fetchPdfBlob`** + **`downloadPdfBlob`**
-  run only after a successful job write. Save failure → **no** PDF request and **no** download.
-  If save succeeds but PDF fails, the user sees a **“Work order saved, but PDF failed…”** message and
-  **`onSaveSuccess`** still runs (profile **`next_wo_number`** bump for new jobs).
+- **Order:** The **first** click on Download & Save per preview mount runs **`saveWorkOrder`**
+  (insert if no **`existingJobId`**, else update). Later clicks on the same mount **skip** the DB and
+  only run **`fetchPdfBlob`** + **`downloadPdfBlob`** (no duplicate job rows from repeat downloads).
+  Save failure → **no** PDF request and **no** download. If save succeeds but PDF fails, the user sees
+  a **“Work order saved, but PDF failed…”** message and **`onSaveSuccess`** still runs (profile
+  **`next_wo_number`** bump on new inserts only).
 - **Clients:** Before the job row is written, the app **upserts** a **`clients`** row keyed by
   **`name_normalized`** (`lower(trim(name))`) with display **`name`** trimmed; **`jobs.client_id`**
   is set to that client’s id. Requires migration **`0004_clients_name_normalized.sql`**.
@@ -203,7 +205,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
-| Invoices | Yes | Created at wizard step 3; status `draft` until **Download Invoice** sets `downloaded` |
+| Invoices | Yes | Created at wizard step 3; status `draft` until **Download Invoice** sets `downloaded`. The **first** download per final-page mount runs **`markInvoiceDownloaded`** and navigation callback; repeat clicks only regenerate the PDF (no duplicate status writes). |
 | Clients | Partial | Upsert on **Download & Save** (`saveWorkOrder`); list/selection UI not built |
 | Change orders | No | Schema only |
 | Completion signoffs | No | Schema only |
