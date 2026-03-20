@@ -6,9 +6,11 @@ interface JobFormProps {
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
+  /** When true, WO# is locked (already saved to Supabase). */
+  jobPersisted?: boolean;
 }
 
-export function JobForm({ job, onChange, businessName }: JobFormProps) {
+export function JobForm({ job, onChange, businessName, jobPersisted = false }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -102,6 +104,29 @@ export function JobForm({ job, onChange, businessName }: JobFormProps) {
             onChange={(e) => updateField('agreement_date', e.target.value)}
             required
           />
+        </div>
+        <div className="form-group">
+          <label htmlFor="wo_number">Work Order Number</label>
+          <input
+            id="wo_number"
+            type="number"
+            min={1}
+            value={job.wo_number}
+            readOnly={jobPersisted}
+            aria-readonly={jobPersisted}
+            title={
+              jobPersisted
+                ? 'Work order number cannot be changed after save'
+                : undefined
+            }
+            onChange={(e) => {
+              if (jobPersisted) return;
+              updateField('wo_number', Math.max(1, parseInt(e.target.value, 10) || 1));
+            }}
+          />
+          {jobPersisted && (
+            <p className="help-text">Locked after save — use a new work order for the next number.</p>
+          )}
         </div>
         <div className="form-group">
           <label htmlFor="customer_name">Customer Name *</label>

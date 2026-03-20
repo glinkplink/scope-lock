@@ -272,7 +272,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
 
               <div className="form-group">
                 <label>Default Payment Methods</label>
-                <div className="checkbox-group">
+                <div className="checkbox-group checkbox-group--flex-wrap">
                   {PAYMENT_METHOD_OPTIONS.map((method) => (
                     <label key={method} className="checkbox-label">
                       <input

@@ -142,7 +142,11 @@ function buildPdfHtml(previewMarkup: string): string {
 </html>`;
 }
 
-async function buildPdf(job: WelderJob, profile: BusinessProfile | null, previewElement: HTMLElement) {
+async function fetchPdfBlob(
+  job: WelderJob,
+  profile: BusinessProfile | null,
+  previewElement: HTMLElement
+): Promise<Blob> {
   const response = await fetch('/api/pdf', {
     method: 'POST',
     headers: {
@@ -162,7 +166,10 @@ async function buildPdf(job: WelderJob, profile: BusinessProfile | null, preview
     throw new Error(message || 'Failed to generate PDF.');
   }
 
-  const blob = await response.blob();
+  return response.blob();
+}
+
+function downloadPdfBlob(blob: Blob, job: WelderJob): void {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = objectUrl;
@@ -244,14 +251,6 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       return;
     }
 
-    try {
-      await buildPdf(job, profile, documentRef.current);
-    } catch (error) {
-      setSaving(false);
-      setSaveError(error instanceof Error ? error.message : 'Failed to generate PDF.');
-      return;
-    }
-
     if (!profile) {
       setSaving(false);
       setSaveError('No profile found — cannot save work order.');
@@ -260,18 +259,31 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
 
     const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
 
-    setSaving(false);
-
     if (error || !data) {
+      setSaving(false);
       setSaveError(error?.message || 'Failed to save work order.');
       return;
     }
 
     const isNewSave = !existingJobId;
-    setConfirmationMessage(
-      `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
-    );
     onSaveSuccess(data.id, isNewSave);
+
+    try {
+      const blob = await fetchPdfBlob(job, profile, documentRef.current);
+      downloadPdfBlob(blob, job);
+      setConfirmationMessage(
+        `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
+      );
+    } catch (pdfErr) {
+      setSaveError(
+        pdfErr instanceof Error
+          ? `Work order saved, but PDF failed: ${pdfErr.message}`
+          : 'Work order saved, but PDF download failed.'
+      );
+      setConfirmationMessage(`WO #${String(job.wo_number).padStart(4, '0')} saved.`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const renderDownloadButton = () => (

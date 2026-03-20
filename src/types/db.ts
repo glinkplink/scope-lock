@@ -25,6 +25,8 @@ export interface Client {
   id: string;
   user_id: string;
   name: string;
+  /** lower(trim(name)) — used for dedup per user */
+  name_normalized: string;
   phone: string | null;
   email: string | null;
   address: string | null;

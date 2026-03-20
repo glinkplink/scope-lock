@@ -13,6 +13,7 @@ import { signUp } from './lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
 import type { BusinessProfile } from './types/db';
 import sampleJob from './data/sample-job.json';
+import { Settings } from 'lucide-react';
 import './App.css';
 
 type OnboardingStep = 'profile' | 'password' | null;
@@ -258,10 +259,11 @@ function App() {
         <div className="header-actions">
           <button
             type="button"
-            className="btn-header-action"
+            className="btn-header-settings"
             onClick={() => setView('profile')}
+            aria-label="Edit profile"
           >
-            Edit Profile
+            <Settings className="btn-header-settings-icon" aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -296,6 +298,7 @@ function App() {
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
+            jobPersisted={Boolean(currentJobId)}
           />
         ) : (
           <AgreementPreview
