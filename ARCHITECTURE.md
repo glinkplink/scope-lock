@@ -77,8 +77,10 @@ A welder signs up, sets up their business profile (saved to the database), then 
   **`name_normalized`** (`lower(trim(name))`) with display **`name`** trimmed; **`jobs.client_id`**
   is set to that client’s id. Requires migration **`0004_clients_name_normalized.sql`**.
 - **WO number:** **`wo_number`** is included only on **insert**; **updates** omit it so the stored
-  WO# cannot be overwritten from the client. **`JobForm`** shows WO# **read-only** when
-  **`currentJobId`** is set (`jobPersisted`).
+  WO# cannot be overwritten from the client. New drafts get it from **`next_wo_number`**. It is
+  **not** on the edit form. **Preview** shows a centered **“Work Order”** title only (no number);
+  PDF body omits that block (`agreement-preview-only`). Puppeteer **`headerTemplate`** prints **WO#**
+  in the PDF margin header.
 
 ## Folder Structure
 
@@ -101,7 +103,7 @@ scope-lock/
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
 │   │   ├── agreement-generator.ts    # Pure domain logic: agreement text generation
 │   │   └── db/
-│   │       ├── profile.ts            # getProfile / upsertProfile
+│   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
 │   │       ├── clients.ts            # listClients / upsertClient / deleteClient
 │   │       └── jobs.ts               # listJobs / createJob / updateJob / deleteJob
 │   ├── types/
@@ -153,7 +155,7 @@ Header "Edit Profile" → EditProfilePage (edit business info + defaults)
 ### Auth + DB Layer (`src/lib/`)
 - `supabase.ts`: Supabase client, reads env vars
 - `auth.ts`: Thin wrappers over `supabase.auth`
-- `db/profile.ts`: Profile CRUD
+- `db/profile.ts`: Profile CRUD; **`updateNextWoNumber`** uses `.update()` (partial `upsert` 400s on `business_profiles` because `business_name` is NOT NULL)
 - `db/clients.ts`: Client CRUD (helpers ready, UI not yet built)
 - `db/jobs.ts`: Job CRUD (helpers ready, jobs still in-memory in UI)
 

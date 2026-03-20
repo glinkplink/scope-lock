@@ -1,4 +1,4 @@
-export type JobClassification = 'repair' | 'fabrication' | 'installation' | 'maintenance' | 'other';
+export type JobType = 'repair' | 'fabrication' | 'installation' | 'maintenance' | 'other';
 
 export type PriceType = 'fixed' | 'estimate' | 'time_and_materials';
 
@@ -20,7 +20,7 @@ export interface WelderJob {
   job_location: string;
 
   // Job Details
-  job_classification: JobClassification;
+  job_type: JobType;
   other_classification?: string;
   asset_or_item_description: string;
   requested_work: string;

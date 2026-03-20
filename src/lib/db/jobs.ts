@@ -118,8 +118,7 @@ export const saveWorkOrder = async (
     customer_phone: job.customer_phone,
     customer_email: job.customer_email,
     job_location: job.job_location,
-    job_type: job.job_classification,
-    job_classification: job.job_classification,
+    job_type: job.job_type,
     asset_or_item_description: job.asset_or_item_description,
     requested_work: job.requested_work,
     materials_provided_by: job.materials_provided_by,
@@ -132,7 +131,7 @@ export const saveWorkOrder = async (
     price: job.price,
     target_completion_date: job.target_completion_date || null,
     target_start: job.target_start || null,
-    exclusions: job.exclusions,
+    exclusions: Array.isArray(job.exclusions) ? job.exclusions : [],
     change_order_required: job.change_order_required,
     workmanship_warranty_days: job.workmanship_warranty_days,
     agreement_date: job.agreement_date || null,
@@ -141,7 +140,7 @@ export const saveWorkOrder = async (
     deposit_amount: job.deposit_amount,
     late_payment_terms: job.late_payment_terms,
     negotiation_period: job.negotiation_period,
-    customer_obligations: job.customer_obligations,
+    customer_obligations: Array.isArray(job.customer_obligations) ? job.customer_obligations : [],
     client_id: clientId,
   };
 

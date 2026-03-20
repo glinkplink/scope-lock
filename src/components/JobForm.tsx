@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import type { WelderJob, JobClassification, MaterialsProvider, PriceType } from '../types';
+import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types';
 
 interface JobFormProps {
   job: WelderJob;
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
-  /** When true, WO# is locked (already saved to Supabase). */
-  jobPersisted?: boolean;
 }
 
-export function JobForm({ job, onChange, businessName, jobPersisted = false }: JobFormProps) {
+export function JobForm({ job, onChange, businessName }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -96,37 +94,13 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
       <section className="form-section">
         <h2>Parties &amp; Project Information</h2>
         <div className="form-group">
-          <label htmlFor="agreement_date">Agreement Date *</label>
+          <label htmlFor="agreement_date">Agreement Date</label>
           <input
             id="agreement_date"
             type="date"
             value={job.agreement_date}
             onChange={(e) => updateField('agreement_date', e.target.value)}
-            required
           />
-        </div>
-        <div className="form-group">
-          <label htmlFor="wo_number">Work Order Number</label>
-          <input
-            id="wo_number"
-            type="number"
-            min={1}
-            value={job.wo_number}
-            readOnly={jobPersisted}
-            aria-readonly={jobPersisted}
-            title={
-              jobPersisted
-                ? 'Work order number cannot be changed after save'
-                : undefined
-            }
-            onChange={(e) => {
-              if (jobPersisted) return;
-              updateField('wo_number', Math.max(1, parseInt(e.target.value, 10) || 1));
-            }}
-          />
-          {jobPersisted && (
-            <p className="help-text">Locked after save — use a new work order for the next number.</p>
-          )}
         </div>
         <div className="form-group">
           <label htmlFor="customer_name">Customer Name *</label>
@@ -140,13 +114,12 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
           />
         </div>
         <div className="form-group">
-          <label htmlFor="customer_phone">Customer Phone *</label>
+          <label htmlFor="customer_phone">Customer Phone</label>
           <input
             id="customer_phone"
             type="tel"
             value={job.customer_phone}
             onChange={(e) => updateField('customer_phone', e.target.value)}
-            required
             placeholder="(555) 123-4567"
           />
         </div>
@@ -177,11 +150,11 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
       <section className="form-section">
         <h2>Project Overview</h2>
         <div className="form-group">
-          <label htmlFor="job_classification">Job Classification *</label>
+          <label htmlFor="job_type">Job type *</label>
           <select
-            id="job_classification"
-            value={job.job_classification}
-            onChange={(e) => updateField('job_classification', e.target.value as JobClassification)}
+            id="job_type"
+            value={job.job_type}
+            onChange={(e) => updateField('job_type', e.target.value as JobType)}
             required
           >
             <option value="repair">Repair</option>
@@ -191,7 +164,7 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
             <option value="other">Other</option>
           </select>
         </div>
-        {job.job_classification === 'other' && (
+        {job.job_type === 'other' && (
           <div className="form-group">
             <label htmlFor="other_classification">Specify</label>
             <input
@@ -251,12 +224,11 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
       <section className="form-section">
         <h2>Scope of Work</h2>
         <div className="form-group">
-          <label htmlFor="materials_provided_by">Materials Provided By *</label>
+          <label htmlFor="materials_provided_by">Materials Provided By</label>
           <select
             id="materials_provided_by"
             value={job.materials_provided_by}
             onChange={(e) => updateField('materials_provided_by', e.target.value as MaterialsProvider)}
-            required
           >
             <option value="welder">{materialsWelderLabel}</option>
             <option value="customer">Customer</option>
@@ -378,7 +350,7 @@ export function JobForm({ job, onChange, businessName, jobPersisted = false }: J
               value={rawPrice}
               onChange={handlePriceChange}
               required
-              min="0"
+              min="0.01"
               step="0.01"
               placeholder="0.00"
             />

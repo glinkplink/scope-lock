@@ -94,11 +94,12 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   });
 
   // 2. Project Overview
-  const jobClassification = job.job_classification === 'other' && job.other_classification
-    ? job.other_classification
-    : capitalizeFirst(job.job_classification);
+  const jobTypeLabel =
+    job.job_type === 'other' && job.other_classification
+      ? job.other_classification
+      : capitalizeFirst(job.job_type);
   const overviewRows: [string, string][] = [
-    ['Job Classification', jobClassification],
+    ['Job type', jobTypeLabel],
     ['Item / Structure', job.asset_or_item_description],
     ['Work Requested', job.requested_work],
     ['Target Start Date', formatDate(job.target_start)],

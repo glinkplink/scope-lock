@@ -8,7 +8,7 @@ import { PasswordCreationPage } from './components/PasswordCreationPage';
 import { HomePage } from './components/HomePage';
 import { EditProfilePage } from './components/EditProfilePage';
 import { useAuth } from './hooks/useAuth';
-import { getProfile, upsertProfile } from './lib/db/profile';
+import { getProfile, updateNextWoNumber, upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
 import type { BusinessProfile } from './types/db';
@@ -70,6 +70,8 @@ function App() {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [woIsOpen, setWoIsOpen] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  /** Shown when job save succeeded but persisting next_wo_number failed */
+  const [woCounterPersistError, setWoCounterPersistError] = useState<string | null>(null);
   const [job, setJob] = useState<WelderJob>(() => ({
     ...(sampleJob as WelderJob),
     contractor_name: '',
@@ -108,13 +110,20 @@ function App() {
     closeUnsavedModal();
   };
 
-  const handleSaveSuccess = (savedJobId: string, isNewSave: boolean) => {
+  const handleSaveSuccess = async (savedJobId: string, isNewSave: boolean) => {
     setCurrentJobId(savedJobId);
+    setWoCounterPersistError(null);
     if (isNewSave && profile) {
       const newCount = (profile.next_wo_number ?? 1) + 1;
-      const updatedProfile = { ...profile, next_wo_number: newCount };
-      setProfile(updatedProfile);
-      upsertProfile({ user_id: profile.user_id, next_wo_number: newCount });
+      const { error } = await updateNextWoNumber(profile.user_id, newCount);
+      if (error) {
+        console.error('Failed to persist next work order number:', error);
+        setWoCounterPersistError(
+          `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
+        );
+        return;
+      }
+      setProfile({ ...profile, next_wo_number: newCount });
     }
   };
 
@@ -268,6 +277,20 @@ function App() {
         </div>
       </header>
 
+      {woCounterPersistError && (
+        <div className="error-banner wo-counter-error-banner" role="alert">
+          <span>{woCounterPersistError}</span>
+          <button
+            type="button"
+            className="btn-dismiss-banner"
+            onClick={() => setWoCounterPersistError(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {showTabs && (
         <nav className="tab-nav">
           <button
@@ -298,7 +321,6 @@ function App() {
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
-            jobPersisted={Boolean(currentJobId)}
           />
         ) : (
           <AgreementPreview

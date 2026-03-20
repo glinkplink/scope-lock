@@ -441,6 +441,7 @@ body {
 /* ─── Agreement Document ────────────────────────────── */
 
 .agreement-document {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;
@@ -866,6 +867,33 @@ body {
 .error-banner {
   background: var(--danger-light);
   color: var(--danger);
+}
+
+.wo-counter-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  text-align: left;
+  width: calc(100% - 2rem);
+  max-width: 56rem;
+  margin: var(--space-md) auto 0;
+}
+
+.btn-dismiss-banner {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.btn-dismiss-banner:hover {
+  opacity: 1;
 }
 
 /* ─── Edit Profile Page ─────────────────────────────── */

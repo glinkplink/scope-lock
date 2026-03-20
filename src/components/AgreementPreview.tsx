@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { WelderJob } from '../types';
+import type { PriceType, WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
 import { generateAgreement } from '../lib/agreement-generator';
 import { saveWorkOrder } from '../lib/db/jobs';
@@ -11,11 +11,30 @@ const PREVIEW_LETTER_WIDTH_PX = 816;
 /** Preview upscale only applies at this breakpoint and when measure width > 816px. */
 const PREVIEW_DESKTOP_UPSCALE_MQ = '(min-width: 1024px)';
 
+const VALID_PRICE_TYPES: readonly PriceType[] = ['fixed', 'estimate', 'time_and_materials'];
+
+/** Labels for missing/invalid fields — used only in Download & Save gate. */
+function getRequiredFieldIssues(job: WelderJob): string[] {
+  const issues: string[] = [];
+  if (!job.customer_name?.trim()) issues.push('Customer name');
+  if (!job.job_location?.trim()) issues.push('Job site / address');
+  if (!job.asset_or_item_description?.trim()) issues.push('Item / structure');
+  if (!job.requested_work?.trim()) issues.push('Work requested');
+  if (!job.job_type?.trim()) issues.push('Job type');
+  if (typeof job.price !== 'number' || !Number.isFinite(job.price) || job.price <= 0) {
+    issues.push('Total contract price (must be greater than 0)');
+  }
+  if (!job.price_type || !VALID_PRICE_TYPES.includes(job.price_type)) {
+    issues.push('Price type');
+  }
+  return issues;
+}
+
 interface AgreementPreviewProps {
   job: WelderJob;
   profile: BusinessProfile | null;
   existingJobId?: string;
-  onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void;
+  onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
 }
 
 function getPdfFilename(woNumber: number, customerName: string): string {
@@ -34,6 +53,11 @@ function getPdfFooterBusinessName(profile: BusinessProfile | null, job: WelderJo
 
 function getPdfFooterPhone(profile: BusinessProfile | null, job: WelderJob): string {
   return profile?.phone || job.contractor_phone || '';
+}
+
+/** Padded label for PDF margin header + preview chrome (matches server `buildHeaderTemplate` left cell). */
+function getWorkOrderHeaderLabel(job: WelderJob): string {
+  return `Work Order #${String(job.wo_number).padStart(4, '0')}`;
 }
 
 function buildPdfHtml(previewMarkup: string): string {
@@ -113,9 +137,9 @@ function buildPdfHtml(previewMarkup: string): string {
         print-color-adjust: exact;
       }
 
-      /* Extra space below Puppeteer header margin so "Work Order" clears the header rule */
-      .pdf-render-root .agreement-document-header {
-        padding-top: 1rem;
+      /* Preview-only chrome (e.g. “Work Order” title); PDF uses Puppeteer margin header for WO# */
+      .agreement-preview-only {
+        display: none !important;
       }
 
       .content-bullets {
@@ -155,7 +179,7 @@ async function fetchPdfBlob(
     body: JSON.stringify({
       filename: getPdfFilename(job.wo_number, job.customer_name),
       html: buildPdfHtml(previewElement.outerHTML),
-      workOrderNumber: `Work Order #${String(job.wo_number).padStart(4, '0')}`,
+      workOrderNumber: getWorkOrderHeaderLabel(job),
       providerName: getPdfFooterBusinessName(profile, job),
       providerPhone: getPdfFooterPhone(profile, job),
     }),
@@ -257,6 +281,13 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       return;
     }
 
+    const fieldIssues = getRequiredFieldIssues(job);
+    if (fieldIssues.length > 0) {
+      setSaving(false);
+      setSaveError(`Please complete the following before saving: ${fieldIssues.join('; ')}.`);
+      return;
+    }
+
     const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
 
     if (error || !data) {
@@ -266,7 +297,7 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
     }
 
     const isNewSave = !existingJobId;
-    onSaveSuccess(data.id, isNewSave);
+    await Promise.resolve(onSaveSuccess(data.id, isNewSave));
 
     try {
       const blob = await fetchPdfBlob(job, profile, documentRef.current);
@@ -325,7 +356,8 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
             }}
           >
                 <div ref={documentRef} className="agreement-document">
-              <div className="agreement-document-header">
+              {/* Preview only — not in PDF body; WO# stays in Puppeteer margin header */}
+              <div className="agreement-preview-only agreement-document-header">
                 <h2 className="agreement-document-title">Work Order</h2>
               </div>
               {sections.map((section, si) => (
