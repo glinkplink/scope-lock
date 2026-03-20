@@ -1,310 +1,509 @@
-import { jsPDF } from 'jspdf';
-import type { WelderJob } from '../types';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { PriceType, WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
-import { generateAgreement, formatAgreementAsText } from '../lib/agreement-generator';
+import { generateAgreement } from '../lib/agreement-generator';
+import { saveWorkOrder } from '../lib/db/jobs';
+import appCss from '../App.css?raw';
+
+/** Letter width at 96dpi — preview layout matches PDF viewport. */
+const PREVIEW_LETTER_WIDTH_PX = 816;
+
+/** Preview upscale only applies at this breakpoint and when measure width > 816px. */
+const PREVIEW_DESKTOP_UPSCALE_MQ = '(min-width: 1024px)';
+
+const VALID_PRICE_TYPES: readonly PriceType[] = ['fixed', 'estimate', 'time_and_materials'];
+
+/** Labels for missing/invalid fields — used only in Download & Save gate. */
+function getRequiredFieldIssues(job: WelderJob): string[] {
+  const issues: string[] = [];
+  if (!job.customer_name?.trim()) issues.push('Customer name');
+  if (!job.job_location?.trim()) issues.push('Job site / address');
+  if (!job.asset_or_item_description?.trim()) issues.push('Item / structure');
+  if (!job.requested_work?.trim()) issues.push('Work requested');
+  if (!job.job_type?.trim()) issues.push('Job type');
+  if (typeof job.price !== 'number' || !Number.isFinite(job.price) || job.price <= 0) {
+    issues.push('Total contract price (must be greater than 0)');
+  }
+  if (!job.price_type || !VALID_PRICE_TYPES.includes(job.price_type)) {
+    issues.push('Price type');
+  }
+  return issues;
+}
 
 interface AgreementPreviewProps {
   job: WelderJob;
   profile: BusinessProfile | null;
+  existingJobId?: string;
+  onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
 }
 
-function getPdfFilename(customerName: string): string {
-  const sanitized = customerName.replace(/\s+/g, '');
-  const d = new Date();
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${sanitized}${m}-${day}-${yy}.pdf`;
+function getPdfFilename(woNumber: number, customerName: string): string {
+  const sanitized = (customerName || 'customer').replace(/\s+/g, '_');
+  return `WO-${String(woNumber).padStart(4, '0')}_${sanitized}.pdf`;
 }
 
-// Labels that should have bold formatting
-const BOLD_LABELS = [
-  'Date:',
-  'Service Provider:',
-  'Customer:',
-  'Job Location:',
-  'Phone:',
-  'Item/Structure:',
-  'Work Requested:',
-  'Job Type:',
-  'Total Price:',
-  'Price Type:',
-  'Deposit Required:',
-  'Payment Terms:',
-  'Target Completion:',
-  'Name:',
-  'Signature:',
-];
-
-// Parse a line and return label/value parts if it matches a known label
-function parseLabeledLine(line: string): { label: string; value: string } | null {
-  for (const label of BOLD_LABELS) {
-    if (line.startsWith(label)) {
-      return { label, value: line.slice(label.length).trim() };
-    }
-  }
-  return null;
-}
-
-// Render a line with bold label for HTML preview
-function renderLineWithBoldLabel(line: string, key: number) {
-  const parsed = parseLabeledLine(line);
-  if (parsed) {
-    return (
-      <p key={key} className="content-line">
-        <strong>{parsed.label}</strong> {parsed.value}
-      </p>
-    );
-  }
+/** Business name for PDF footer (not owner/welder personal name). */
+function getPdfFooterBusinessName(profile: BusinessProfile | null, job: WelderJob): string {
   return (
-    <p key={key} className="content-line">
-      {line}
-    </p>
+    profile?.business_name?.trim() ||
+    job.contractor_name?.trim() ||
+    ''
   );
 }
 
-export function AgreementPreview({ job, profile }: AgreementPreviewProps) {
-  const sections = generateAgreement(job, profile);
-  const plainText = formatAgreementAsText(sections);
+function getPdfFooterPhone(profile: BusinessProfile | null, job: WelderJob): string {
+  return profile?.phone || job.contractor_phone || '';
+}
 
-  const handlePrint = () => {
-    window.print();
-  };
+/** Padded label for PDF margin header + preview chrome (matches server `buildHeaderTemplate` left cell). */
+function getWorkOrderHeaderLabel(job: WelderJob): string {
+  return `Work Order #${String(job.wo_number).padStart(4, '0')}`;
+}
 
-  const handleDownloadPdf = () => {
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height; // ~297mm for A4
-    const pageWidth = doc.internal.pageSize.width;   // ~210mm for A4
-    const margin = 20;
-    const maxWidth = pageWidth - (margin * 2);       // ~170mm
-    const baseLineHeight = 6;                        // Base line height
-    const usableHeight = pageHeight - (margin * 2);  // Usable page height
+function buildPdfHtml(previewMarkup: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Dancing+Script:wght@400;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      ${appCss}
 
-    let yPosition = margin;
-    const lines = doc.splitTextToSize(plainText, maxWidth);
-
-    // Section headers to detect for special formatting
-    const sectionHeaders = [
-      'WELDING SERVICES AGREEMENT',
-      'Project Overview',
-      'Scope of Work',
-      'Materials',
-      'Exclusions',
-      'Assumptions',
-      'Hidden Damage Clause',
-      'Third-Party Work',
-      'Change Orders',
-      'Pricing and Payment',
-      'Completion and Responsibility',
-      'Workmanship Warranty',
-      'Agreement and Acknowledgment',
-    ];
-
-    // Signature block party labels
-    const signaturePartyLabels = ['Customer', 'Service Provider'];
-
-    // Pre-calculate section boundaries for smart page breaks
-    const sectionStartIndices: number[] = [];
-    lines.forEach((line: string, index: number) => {
-      if (sectionHeaders.includes(line.trim())) {
-        sectionStartIndices.push(index);
+      :root {
+        color-scheme: light;
       }
-    });
 
-    // Calculate height needed for content from startIdx to next section (or end)
-    const getContentHeightUntilNextSection = (startIdx: number): number => {
-      const nextSectionIdx = sectionStartIndices.find(i => i > startIdx) ?? lines.length;
-      let height = 0;
-      for (let i = startIdx; i < nextSectionIdx; i++) {
-        const trimmed = lines[i].trim();
-        if (trimmed === '') {
-          height += 3;
-        } else if (sectionHeaders.includes(trimmed)) {
-          height += baseLineHeight + 2 + 4; // header height + spacing
-        } else {
-          height += baseLineHeight;
+      /* No @page rule: page.pdf({ margin }) is the only source of content insets (see app-server). */
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+      }
+
+      body {
+        font-family: 'Barlow', 'DIN 2014', 'Bahnschrift', 'D-DIN', system-ui, sans-serif;
+        letter-spacing: normal;
+        word-spacing: normal;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      p {
+        text-align: left;
+        line-height: 1.4;
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
+
+      .pdf-render-root {
+        padding: 0;
+        background: #ffffff;
+      }
+
+      .agreement-document {
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      /* Key-value tables: label column tint + borders (parity with preview) */
+      .content-table {
+        border: 1px solid #cccccc;
+        border-collapse: collapse;
+      }
+
+      .content-table td {
+        border: 1px solid #cccccc;
+        padding: 0.7rem 0.8rem;
+      }
+
+      .content-table.parties-party-table th.party-header-cell {
+        border: 1px solid #cccccc;
+        padding: 0.7rem 0.8rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .table-label {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .content-bullets {
+        list-style-type: disc;
+        list-style-position: outside;
+        padding-left: 1.35rem;
+        margin-left: 0;
+      }
+
+      .content-bullets li {
+        display: list-item;
+      }
+
+      @media print {
+        body {
+          -webkit-font-smoothing: antialiased;
         }
       }
-      return height;
+    </style>
+  </head>
+  <body>
+    <div class="pdf-render-root">${previewMarkup}</div>
+  </body>
+</html>`;
+}
+
+async function fetchPdfBlob(
+  job: WelderJob,
+  profile: BusinessProfile | null,
+  previewElement: HTMLElement
+): Promise<Blob> {
+  const response = await fetch('/api/pdf', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filename: getPdfFilename(job.wo_number, job.customer_name),
+      html: buildPdfHtml(previewElement.outerHTML),
+      workOrderNumber: getWorkOrderHeaderLabel(job),
+      providerName: getPdfFooterBusinessName(profile, job),
+      providerPhone: getPdfFooterPhone(profile, job),
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Failed to generate PDF.');
+  }
+
+  return response.blob();
+}
+
+function downloadPdfBlob(blob: Blob, job: WelderJob): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = getPdfFilename(job.wo_number, job.customer_name);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }: AgreementPreviewProps) {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const documentRef = useRef<HTMLDivElement | null>(null);
+  const previewViewportRef = useRef<HTMLDivElement | null>(null);
+  const previewSheetRef = useRef<HTMLDivElement | null>(null);
+  const [previewContentHeight, setPreviewContentHeight] = useState(0);
+  /**
+   * Screen preview only: scales the native 816px sheet to fit smaller containers,
+   * and may upscale modestly on desktop. PDF markup stays 816px.
+   */
+  const [previewScale, setPreviewScale] = useState(1);
+
+  const sections = generateAgreement(job, profile);
+
+  useLayoutEffect(() => {
+    const viewport = previewViewportRef.current;
+    if (!viewport) return;
+
+    const computeScale = () => {
+      const w = viewport.getBoundingClientRect().width;
+      if (w <= 0) return 1;
+
+      const maxScale = window.matchMedia(PREVIEW_DESKTOP_UPSCALE_MQ).matches ? 1.5 : 1;
+      return Math.min(w / PREVIEW_LETTER_WIDTH_PX, maxScale);
     };
 
-    lines.forEach((line: string, index: number) => {
-      const trimmedLine = line.trim();
-      const isMainTitle = trimmedLine === 'WELDING SERVICES AGREEMENT';
-      const isSectionHeader = sectionHeaders.includes(trimmedLine);
-      const isSignaturePartyLabel = signaturePartyLabels.includes(trimmedLine);
-      const isEmptyLine = trimmedLine === '';
+    const updateScale = () => {
+      setPreviewScale(computeScale());
+    };
 
-      // Track if we're in Service Provider section
-      const previousLines = lines.slice(0, index).map((l: string) => l.trim());
-      const isAfterServiceProvider = previousLines.includes('Service Provider');
-      const isBeforeCustomer = !previousLines.includes('Customer') ||
-                               previousLines.lastIndexOf('Service Provider') > previousLines.lastIndexOf('Customer');
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(viewport);
+    const mq = window.matchMedia(PREVIEW_DESKTOP_UPSCALE_MQ);
+    mq.addEventListener('change', updateScale);
+    window.addEventListener('resize', updateScale);
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener('change', updateScale);
+      window.removeEventListener('resize', updateScale);
+    };
+  }, []);
 
-      // Check if this is the Service Provider's signature line
-      const isProviderSignatureLine =
-        isAfterServiceProvider &&
-        isBeforeCustomer &&
-        trimmedLine.startsWith('Signature:');
+  /* Spacer height: sheet content only — ResizeObserver here does not track scroll container size. */
+  useLayoutEffect(() => {
+    const sheet = previewSheetRef.current;
+    if (!sheet) return;
 
-      // Determine line height and spacing
-      let lineHeight = baseLineHeight;
-      if (isEmptyLine) {
-        lineHeight = 3;
-      } else if (isSectionHeader) {
-        lineHeight = baseLineHeight + 2;
-      }
+    const updateHeight = () => {
+      setPreviewContentHeight(sheet.scrollHeight);
+    };
 
-      // Add extra space before "Customer" signature label
-      if (trimmedLine === 'Customer') {
-        yPosition += 15;
-      }
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(sheet);
+    return () => ro.disconnect();
+  }, [job, profile]);
 
-      // Smart page break: when hitting a section header, check if section fits
-      if (isSectionHeader && !isMainTitle) {
-        const sectionHeight = getContentHeightUntilNextSection(index);
-        const spaceRemaining = usableHeight - (yPosition - margin);
+  const handleDownloadAndSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    setConfirmationMessage('');
 
-        // If less than 40% of section fits, start new page
-        if (sectionHeight > spaceRemaining && spaceRemaining < sectionHeight * 0.6) {
-          doc.addPage();
-          yPosition = margin;
-        }
-      }
+    if (!documentRef.current) {
+      setSaving(false);
+      setSaveError('Preview is not ready yet. Please try again.');
+      return;
+    }
 
-      // Basic overflow check
-      if (yPosition + lineHeight > pageHeight - margin) {
-        doc.addPage();
-        yPosition = margin;
-      }
+    if (!profile) {
+      setSaving(false);
+      setSaveError('No profile found — cannot save work order.');
+      return;
+    }
 
-      // Add spacing before section headers (except main title and if not at page top)
-      if (isSectionHeader && !isMainTitle && yPosition > margin + 5) {
-        yPosition += 4;
-      }
+    const fieldIssues = getRequiredFieldIssues(job);
+    if (fieldIssues.length > 0) {
+      setSaving(false);
+      setSaveError(`Please complete the following before saving: ${fieldIssues.join('; ')}.`);
+      return;
+    }
 
-      // Render the line
-      if (!isEmptyLine) {
-        if (isMainTitle) {
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          doc.text(line, pageWidth / 2, yPosition, { align: 'center' });
-        } else if (isSectionHeader) {
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text(line, margin, yPosition);
-        } else if (isSignaturePartyLabel) {
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'bold');
-          doc.text(line, margin, yPosition);
-        } else if (isProviderSignatureLine) {
-          // Render Service Provider signature with label in bold, value in italic
-          doc.setFontSize(10);
-          const parsed = parseLabeledLine(trimmedLine);
-          if (parsed) {
-            doc.setFont('helvetica', 'bold');
-            doc.text(parsed.label, margin, yPosition);
-            const labelWidth = doc.getTextWidth(parsed.label + ' ');
-            doc.setFont('helvetica', 'italic');
-            doc.setFontSize(14);
-            doc.text(parsed.value, margin + labelWidth, yPosition);
-            doc.setFontSize(10); // Reset font size
-          } else {
-            doc.setFont('helvetica', 'normal');
-            doc.text(line, margin, yPosition);
-          }
-        } else {
-          doc.setFontSize(10);
-          const parsed = parseLabeledLine(trimmedLine);
-          if (parsed) {
-            doc.setFont('helvetica', 'bold');
-            doc.text(parsed.label, margin, yPosition);
-            const labelWidth = doc.getTextWidth(parsed.label + ' ');
-            doc.setFont('helvetica', 'normal');
-            doc.text(parsed.value, margin + labelWidth, yPosition);
-          } else {
-            doc.setFont('helvetica', 'normal');
-            doc.text(line, margin, yPosition);
-          }
-        }
-      }
+    const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
 
-      yPosition += lineHeight;
-    });
+    if (error || !data) {
+      setSaving(false);
+      setSaveError(error?.message || 'Failed to save work order.');
+      return;
+    }
 
-    doc.save(getPdfFilename(job.customer_name));
+    const isNewSave = !existingJobId;
+    await Promise.resolve(onSaveSuccess(data.id, isNewSave));
+
+    try {
+      const blob = await fetchPdfBlob(job, profile, documentRef.current);
+      downloadPdfBlob(blob, job);
+      setConfirmationMessage(
+        `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
+      );
+    } catch (pdfErr) {
+      setSaveError(
+        pdfErr instanceof Error
+          ? `Work order saved, but PDF failed: ${pdfErr.message}`
+          : 'Work order saved, but PDF download failed.'
+      );
+      setConfirmationMessage(`WO #${String(job.wo_number).padStart(4, '0')} saved.`);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const actionButtons = (
-    <div className="preview-actions">
-      <button onClick={handlePrint} className="btn-action">
-        Print
-      </button>
-      <button onClick={handleDownloadPdf} className="btn-action">
-        📥 Download PDF
-      </button>
-    </div>
+  const renderDownloadButton = () => (
+    <button
+      type="button"
+      onClick={handleDownloadAndSave}
+      className="btn-action btn-primary"
+      disabled={saving}
+    >
+      {saving ? 'Saving...' : 'Download & Save'}
+    </button>
   );
 
   return (
     <div className="agreement-preview">
-      {actionButtons}
-
-      <div className="agreement-document">
-        {sections.map((section, index) => {
-          const isSignature = !!section.signatureData;
-          const sig = section.signatureData;
-          return (
-            <div
-              key={index}
-              className={`agreement-section ${isSignature ? 'signature-section' : ''}`}
-            >
-              <h3 className="section-title">{section.title}</h3>
-              <div className="section-content">
-                {section.content.split('\n').map((line, i) => renderLineWithBoldLabel(line, i))}
-                {sig && (
-                  <div className="signature-blocks">
-                    <div className="signature-block">
-                      <div className="signature-block-identifier">Customer</div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Name</span>
-                        <div className="signature-field-value">{sig.customerName}</div>
-                      </div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Signature</span>
-                        <div className="signature-field-value" />
-                      </div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Date</span>
-                        <div className="signature-field-value" />
-                      </div>
-                    </div>
-                    <div className="signature-block">
-                      <div className="signature-block-identifier">Service Provider</div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Name</span>
-                        <div className="signature-field-value">{sig.ownerName}</div>
-                      </div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Signature</span>
-                        <div className="signature-field-value">
-                          <div className="signature-autofill-name">{sig.ownerName}</div>
-                        </div>
-                      </div>
-                      <div className="signature-field">
-                        <span className="signature-field-label">Date</span>
-                        <div className="signature-field-value">{sig.ownerDate}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="preview-actions">
+        {confirmationMessage && (
+          <div className="success-banner">{confirmationMessage}</div>
+        )}
+        {saveError && <div className="error-banner">{saveError}</div>}
+        {renderDownloadButton()}
       </div>
 
-      {actionButtons}
+      <div ref={previewViewportRef} className="agreement-preview-scale-viewport">
+        <div
+          className="agreement-preview-scale-spacer"
+          style={{
+            width: PREVIEW_LETTER_WIDTH_PX * previewScale,
+            height: previewContentHeight * previewScale,
+          }}
+        >
+          <div
+            ref={previewSheetRef}
+            className="agreement-preview-scale-sheet"
+            style={{
+              width: PREVIEW_LETTER_WIDTH_PX,
+              transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
+              transformOrigin: 'top left',
+            }}
+          >
+                <div ref={documentRef} className="agreement-document">
+              {sections.map((section, si) => (
+                <div
+                  key={si}
+                  className={`agreement-section ${section.signatureData ? 'signature-section' : ''}`}
+                >
+                  <h3 className="section-title">
+                    {section.number > 0 ? `${section.number}. ${section.title}` : section.title}
+                  </h3>
+                  <div className="section-content">
+                    {section.blocks.map((block, bi) => {
+                if (block.type === 'paragraph') {
+                  return (
+                    <p key={bi} className="content-paragraph">
+                      {block.text}
+                    </p>
+                  );
+                }
+                if (block.type === 'note') {
+                  return (
+                    <p key={bi} className="content-note">
+                      {block.text}
+                    </p>
+                  );
+                }
+                if (block.type === 'bullets') {
+                  return (
+                    <ul key={bi} className="content-bullets">
+                      {block.items.map((item, ii) => (
+                        <li key={ii}>{item}</li>
+                      ))}
+                    </ul>
+                  );
+                }
+                if (block.type === 'partiesLayout') {
+                  const { agreementDate, serviceProvider: sp, customer: cu, jobSiteAddress } = block;
+                  return (
+                    <div key={bi} className="parties-layout">
+                      <div className="parties-plain">
+                        <div className="parties-plain-row">
+                          <span className="parties-plain-label">Agreement Date:</span>
+                          <span className="parties-plain-value">{agreementDate}</span>
+                        </div>
+                      </div>
+                      <table className="content-table parties-party-table">
+                        <tbody>
+                          <tr className="party-table-header-row">
+                            <th
+                              className="party-header-cell party-header-spacer"
+                              scope="col"
+                              aria-hidden="true"
+                            >
+                              {'\u00a0'}
+                            </th>
+                            <th scope="col" className="party-header-cell">
+                              Service Provider
+                            </th>
+                            <th scope="col" className="party-header-cell">
+                              Customer
+                            </th>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Name</td>
+                            <td className="table-value">{sp.businessName}</td>
+                            <td className="table-value">{cu.name}</td>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Phone</td>
+                            <td className="table-value">{sp.phone}</td>
+                            <td className="table-value">{cu.phone}</td>
+                          </tr>
+                          <tr>
+                            <td className="table-label">Email</td>
+                            <td className="table-value">{sp.email}</td>
+                            <td className="table-value">{cu.email}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <div className="parties-plain">
+                        <div className="parties-plain-row">
+                          <span className="parties-plain-label">Job Site Address:</span>
+                          <span className="parties-plain-value">{jobSiteAddress}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (block.type === 'table') {
+                  return (
+                    <table key={bi} className="content-table">
+                      <tbody>
+                        {block.rows.map(([label, value], ri) => (
+                          <tr key={ri}>
+                            <td className="table-label">{label}</td>
+                            <td className="table-value">{value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                }
+                if (block.type === 'signature') {
+                  const sig = section.signatureData;
+                  if (!sig) return null;
+                  return (
+                    <div key={bi} className="signature-blocks">
+                      <div className="signature-block">
+                        <div className="signature-block-identifier">Customer</div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Name</span>
+                          <div className="signature-field-value">{sig.customerName}</div>
+                        </div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Signature</span>
+                          <div className="signature-field-value" />
+                        </div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Date</span>
+                          <div className="signature-field-value" />
+                        </div>
+                      </div>
+                      <div className="signature-block">
+                        <div className="signature-block-identifier">Service Provider</div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Name</span>
+                          <div className="signature-field-value">{sig.ownerName}</div>
+                        </div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Signature</span>
+                          <div className="signature-field-value">
+                            <div className="signature-autofill-name">{sig.ownerName}</div>
+                          </div>
+                        </div>
+                        <div className="signature-field">
+                          <span className="signature-field-label">Date</span>
+                          <div className="signature-field-value">{sig.ownerDate}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="preview-actions preview-actions-bottom">
+        {renderDownloadButton()}
+      </div>
     </div>
   );
 }

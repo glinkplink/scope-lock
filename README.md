@@ -11,7 +11,7 @@ npm install
 # Copy env vars and fill in from Supabase dashboard (Project Settings → API)
 cp .env.example .env.local
 
-# Start development server
+# Start the app server (frontend + /api/pdf)
 npm run dev
 
 # Build for production
@@ -26,14 +26,14 @@ npm run build
 - Reusable default exclusions and assumptions saved to profile
 - Work Agreement generator (12 sections)
 - Agreement preview
-- PDF download with named file (`CustomerName M-D-YY.pdf`)
+- PDF download rendered through the app server with Puppeteer for preview parity
 - Print support
 
 ## Tech Stack
 
 - **Vite** + **React** + **TypeScript**
 - **Supabase** (auth + Postgres + row-level security)
-- **jsPDF** (PDF generation)
+- **Puppeteer Core** (same-server PDF rendering with Chrome)
 - Plain CSS — no Tailwind
 
 ## Environment Variables
@@ -54,7 +54,7 @@ src/
     PasswordCreationPage.tsx # New user onboarding step 2
     HomePage.tsx             # Dashboard after login
     JobForm.tsx              # Work agreement form
-    AgreementPreview.tsx     # Agreement preview + PDF export
+    AgreementPreview.tsx     # Agreement preview + PDF export handoff
     EditProfilePage.tsx      # Edit business profile + agreement defaults
   lib/
     supabase.ts              # Supabase client
@@ -71,6 +71,8 @@ src/
     db.ts                    # BusinessProfile, Client, Job etc.
   data/
     sample-job.json          # Default/placeholder values for new agreements
+server/
+  app-server.mjs             # App server + /api/pdf Puppeteer route
 supabase/
   migrations/               # Apply via Supabase CLI or dashboard SQL editor
     0001_initial_schema.sql
@@ -92,7 +94,7 @@ supabase/
 
 ## Database
 
-Five tables: `business_profiles`, `clients`, `jobs`, `change_orders`, `completion_signoffs`
+Four tables: `business_profiles`, `clients`, `jobs`, `change_orders`
 
 All tables use RLS — users can only access their own rows.
 

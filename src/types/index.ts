@@ -1,20 +1,27 @@
-export type JobType = 'repair' | 'fabrication' | 'mobile repair';
+export type JobType = 'repair' | 'fabrication' | 'installation' | 'maintenance' | 'other';
 
-export type PriceType = 'fixed' | 'estimate';
+export type PriceType = 'fixed' | 'estimate' | 'time_and_materials';
 
 export type MaterialsProvider = 'welder' | 'customer' | 'mixed';
 
 export interface WelderJob {
-  // Contractor (welder) - optional for backward compatibility
-  contractor_name?: string;
+  wo_number: number;
+  agreement_date: string;
 
-  // Customer Information
+  // Contractor
+  contractor_name?: string;
+  contractor_phone?: string;
+  contractor_email?: string;
+
+  // Customer
   customer_name: string;
   customer_phone: string;
+  customer_email: string;
   job_location: string;
 
   // Job Details
   job_type: JobType;
+  other_classification?: string;
   asset_or_item_description: string;
   requested_work: string;
 
@@ -27,25 +34,27 @@ export interface WelderJob {
   paint_or_coating_included: boolean;
   removal_or_disassembly_included: boolean;
 
-  // Risk Assessment
+  // Risk
   hidden_damage_possible: boolean;
+
+  // Scheduling
+  target_start: string;
+  target_completion_date: string;
 
   // Pricing
   price_type: PriceType;
   price: number;
-  deposit_required: boolean;
-  payment_terms: string;
-
-  // Scheduling
-  target_completion_date: string;
+  deposit_amount: number;
+  late_payment_terms: string;
 
   // Scope Control
   exclusions: string[];
-  assumptions: string[];
+  customer_obligations: string[];
   change_order_required: boolean;
 
-  // Warranty
+  // Warranty & Dispute
   workmanship_warranty_days: number;
+  negotiation_period: number;
 }
 
 export interface SignatureBlockData {
@@ -54,8 +63,23 @@ export interface SignatureBlockData {
   ownerDate: string;
 }
 
+export type SectionContentBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'note'; text: string }
+  | { type: 'bullets'; items: string[] }
+  | { type: 'table'; rows: [string, string][] }
+  | {
+      type: 'partiesLayout';
+      agreementDate: string;
+      serviceProvider: { businessName: string; phone: string; email: string };
+      customer: { name: string; phone: string; email: string };
+      jobSiteAddress: string;
+    }
+  | { type: 'signature' };
+
 export interface AgreementSection {
   title: string;
-  content: string;
+  number: number;
+  blocks: SectionContentBlock[];
   signatureData?: SignatureBlockData;
 }

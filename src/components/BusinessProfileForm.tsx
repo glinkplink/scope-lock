@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { upsertProfile } from '../lib/db/profile';
+import { getDefaultCustomerObligations, getDefaultExclusions } from '../lib/defaults';
 import type { BusinessProfile } from '../types/db';
 
 interface BusinessProfileFormProps {
@@ -71,8 +72,8 @@ export function BusinessProfileForm({
       email: email || null,
       address: address || null,
       google_business_profile_url: googleUrl || null,
-      default_exclusions: initialProfile?.default_exclusions ?? [],
-      default_assumptions: initialProfile?.default_assumptions ?? [],
+      default_exclusions: getDefaultExclusions(initialProfile?.default_exclusions),
+      default_assumptions: getDefaultCustomerObligations(initialProfile?.default_assumptions),
     });
 
     setLoading(false);

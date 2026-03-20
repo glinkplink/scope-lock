@@ -8,10 +8,12 @@ import { PasswordCreationPage } from './components/PasswordCreationPage';
 import { HomePage } from './components/HomePage';
 import { EditProfilePage } from './components/EditProfilePage';
 import { useAuth } from './hooks/useAuth';
-import { getProfile, upsertProfile } from './lib/db/profile';
+import { getProfile, updateNextWoNumber, upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
+import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
 import type { BusinessProfile } from './types/db';
 import sampleJob from './data/sample-job.json';
+import { Settings } from 'lucide-react';
 import './App.css';
 
 type OnboardingStep = 'profile' | 'password' | null;
@@ -25,6 +27,35 @@ interface OnboardingData {
   googleUrl: string;
 }
 
+function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJob {
+  const today = new Date().toISOString().split('T')[0];
+  const p = currentProfile;
+  const defaults: Partial<WelderJob> = p
+    ? {
+        contractor_name: p.business_name,
+        contractor_phone: p.phone ?? '',
+        contractor_email: p.email ?? '',
+        wo_number: p.next_wo_number ?? 1,
+        agreement_date: today,
+        exclusions: getDefaultExclusions(p.default_exclusions),
+        customer_obligations: getDefaultCustomerObligations(p.default_assumptions),
+        late_payment_terms:
+          p.default_late_payment_terms ||
+          'Balances unpaid 7 days after completion accrue 1.5% per month',
+        workmanship_warranty_days: p.default_warranty_period ?? 30,
+        negotiation_period: p.default_negotiation_period ?? 10,
+      }
+    : { agreement_date: today };
+
+  return {
+    ...(sampleJob as WelderJob),
+    contractor_name: '',
+    exclusions: getDefaultExclusions(),
+    customer_obligations: getDefaultCustomerObligations(),
+    ...defaults,
+  };
+}
+
 function App() {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
@@ -36,35 +67,69 @@ function App() {
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [accountCreating, setAccountCreating] = useState(false);
   const [justCompletedSignup, setJustCompletedSignup] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [woIsOpen, setWoIsOpen] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  /** Shown when job save succeeded but persisting next_wo_number failed */
+  const [woCounterPersistError, setWoCounterPersistError] = useState<string | null>(null);
   const [job, setJob] = useState<WelderJob>(() => ({
     ...(sampleJob as WelderJob),
     contractor_name: '',
   }));
+  const [draftBaseline, setDraftBaseline] = useState<WelderJob | null>(null);
 
-  // Populate job with profile defaults when creating a new Work Agreement
-  const createNewAgreement = () => {
-    const defaults = profile
-      ? {
-          contractor_name: profile.business_name,
-          exclusions: profile.default_exclusions?.length ? profile.default_exclusions : sampleJob.exclusions,
-          assumptions: profile.default_assumptions?.length ? profile.default_assumptions : sampleJob.assumptions,
-        }
-      : {};
-
-    setJob({
-      ...(sampleJob as WelderJob),
-      contractor_name: '',
-      exclusions: [],
-      assumptions: [],
-      ...defaults,
-    });
+  const doCreateNewAgreement = (currentProfile: BusinessProfile | null) => {
+    const nextDraft = buildNewAgreementDraft(currentProfile);
+    setJob(nextDraft);
+    setDraftBaseline(nextDraft);
+    setCurrentJobId(null);
+    setWoIsOpen(true);
     setView('form');
+  };
+
+  const createNewAgreement = () => {
+    const hasUnsavedChanges =
+      woIsOpen &&
+      currentJobId === null &&
+      draftBaseline !== null &&
+      JSON.stringify(job) !== JSON.stringify(draftBaseline);
+
+    if (hasUnsavedChanges) {
+      setShowUnsavedModal(true);
+      return;
+    }
+    doCreateNewAgreement(profile);
+  };
+
+  const closeUnsavedModal = () => {
+    setShowUnsavedModal(false);
+  };
+
+  const continueEditingWorkOrder = () => {
+    setView('form');
+    closeUnsavedModal();
+  };
+
+  const handleSaveSuccess = async (savedJobId: string, isNewSave: boolean) => {
+    setCurrentJobId(savedJobId);
+    setWoCounterPersistError(null);
+    if (isNewSave && profile) {
+      const newCount = (profile.next_wo_number ?? 1) + 1;
+      const { error } = await updateNextWoNumber(profile.user_id, newCount);
+      if (error) {
+        console.error('Failed to persist next work order number:', error);
+        setWoCounterPersistError(
+          `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
+        );
+        return;
+      }
+      setProfile({ ...profile, next_wo_number: newCount });
+    }
   };
 
   useEffect(() => {
     if (user) {
       const loadProfile = async () => {
-        // Also clear auth page flag on sign-in (deferred to avoid sync setState in effect)
         setShowAuthPage(false);
         setProfileLoading(true);
         const data = await getProfile(user.id);
@@ -104,7 +169,6 @@ function App() {
 
     setAccountCreating(true);
 
-    // Create account
     const { data, error } = await signUp(onboardingData.email, password);
 
     if (error || !data.user) {
@@ -112,7 +176,6 @@ function App() {
       throw new Error(error?.message || 'Failed to create account');
     }
 
-    // Save profile
     const { error: profileError } = await upsertProfile({
       user_id: data.user.id,
       business_name: onboardingData.businessName,
@@ -121,8 +184,8 @@ function App() {
       email: onboardingData.email || null,
       address: onboardingData.address || null,
       google_business_profile_url: onboardingData.googleUrl || null,
-      default_exclusions: [],
-      default_assumptions: [],
+      default_exclusions: getDefaultExclusions(),
+      default_assumptions: getDefaultCustomerObligations(),
     });
 
     if (profileError) {
@@ -130,13 +193,11 @@ function App() {
       throw new Error(profileError.message);
     }
 
-    // Set flags for successful signup
     setShowSuccessBanner(true);
     setJustCompletedSignup(true);
     setOnboardingStep(null);
     setOnboardingData(null);
-    setView('home'); // Ensure we land on home page
-    // Keep accountCreating true - will be reset when auth state updates
+    setView('home');
   };
 
   if (authLoading || profileLoading || accountCreating) {
@@ -147,7 +208,6 @@ function App() {
     );
   }
 
-  // New user onboarding flow
   if (!user && !showAuthPage) {
     if (onboardingStep === 'password' && onboardingData) {
       return (
@@ -168,13 +228,10 @@ function App() {
     );
   }
 
-  // Returning user sign in
   if (!user && showAuthPage) {
     return <AuthPage onSignUpClick={() => setShowAuthPage(false)} />;
   }
 
-  // Authenticated user without profile
-  // Skip this if user just completed signup (profile is still loading)
   if (user && !profile && !justCompletedSignup) {
     return (
       <BusinessProfileForm
@@ -185,8 +242,6 @@ function App() {
     );
   }
 
-  // User is authenticated and has profile
-  // If user just completed signup and profile is still loading, show loading state
   if (!profile) {
     if (justCompletedSignup) {
       return <div className="app-loading">Setting up your account...</div>;
@@ -194,7 +249,6 @@ function App() {
     return null;
   }
 
-  // Show EditProfilePage when view === 'profile'
   if (view === 'profile') {
     return (
       <EditProfilePage
@@ -214,13 +268,28 @@ function App() {
         <div className="header-actions">
           <button
             type="button"
-            className="btn-header-action"
+            className="btn-header-settings"
             onClick={() => setView('profile')}
+            aria-label="Edit profile"
           >
-            Edit Profile
+            <Settings className="btn-header-settings-icon" aria-hidden="true" />
           </button>
         </div>
       </header>
+
+      {woCounterPersistError && (
+        <div className="error-banner wo-counter-error-banner" role="alert">
+          <span>{woCounterPersistError}</span>
+          <button
+            type="button"
+            className="btn-dismiss-banner"
+            onClick={() => setWoCounterPersistError(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {showTabs && (
         <nav className="tab-nav">
@@ -228,13 +297,13 @@ function App() {
             className={`tab-button ${view === 'form' ? 'active' : ''}`}
             onClick={() => setView('form')}
           >
-            Work Agreement
+            Edit Work Order
           </button>
           <button
             className={`tab-button ${view === 'preview' ? 'active' : ''}`}
             onClick={() => setView('preview')}
           >
-            Agreement Preview
+            Preview
           </button>
         </nav>
       )}
@@ -248,15 +317,50 @@ function App() {
             onDismissBanner={() => setShowSuccessBanner(false)}
           />
         ) : view === 'form' ? (
-          <JobForm job={job} onChange={setJob} />
+          <JobForm
+            job={job}
+            onChange={setJob}
+            businessName={profile?.business_name}
+          />
         ) : (
-          <AgreementPreview job={job} profile={profile} />
+          <AgreementPreview
+            job={job}
+            profile={profile}
+            existingJobId={currentJobId ?? undefined}
+            onSaveSuccess={handleSaveSuccess}
+          />
         )}
       </main>
 
       <footer className="app-footer">
         <p>ScopeLock - Protect Your Work</p>
       </footer>
+
+      {showUnsavedModal && (
+        <div className="modal-overlay" onClick={closeUnsavedModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Unsaved Work Order</h3>
+            <p>You have an unsaved Work Order. Continue editing or discard it?</p>
+            <div className="modal-actions">
+              <button
+                className="btn-secondary"
+                onClick={continueEditingWorkOrder}
+              >
+                Continue Editing
+              </button>
+              <button
+                className="btn-danger"
+                onClick={() => {
+                  closeUnsavedModal();
+                  doCreateNewAgreement(profile);
+                }}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { upsertProfile } from '../lib/db/profile';
 import { signOut } from '../lib/auth';
+import { getDefaultCustomerObligations, getDefaultExclusions } from '../lib/defaults';
 import type { BusinessProfile } from '../types/db';
+
+const PAYMENT_METHOD_OPTIONS = ['Cash', 'Check', 'Zelle', 'Venmo', 'Card'];
 
 interface EditProfilePageProps {
   profile: BusinessProfile;
@@ -17,42 +20,54 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
   const [address, setAddress] = useState(profile.address ?? '');
   const [googleUrl, setGoogleUrl] = useState(profile.google_business_profile_url ?? '');
   const [defaultExclusions, setDefaultExclusions] = useState<string[]>(
-    profile.default_exclusions ?? []
+    getDefaultExclusions(profile.default_exclusions)
   );
-  const [defaultAssumptions, setDefaultAssumptions] = useState<string[]>(
-    profile.default_assumptions ?? []
+  const [defaultCustomerObligations, setDefaultCustomerObligations] = useState<string[]>(
+    getDefaultCustomerObligations(profile.default_assumptions)
+  );
+  const [defaultWarrantyPeriod, setDefaultWarrantyPeriod] = useState(
+    profile.default_warranty_period ?? 30
+  );
+  const [defaultNegotiationPeriod, setDefaultNegotiationPeriod] = useState(
+    profile.default_negotiation_period ?? 10
+  );
+  const [defaultPaymentMethods, setDefaultPaymentMethods] = useState<string[]>(
+    profile.default_payment_methods ?? []
+  );
+  const [defaultLatePaymentTerms, setDefaultLatePaymentTerms] = useState(
+    profile.default_late_payment_terms ??
+      'Balances unpaid 7 days after completion accrue 1.5% per month'
+  );
+  const [defaultCardFeeNote, setDefaultCardFeeNote] = useState(
+    profile.default_card_fee_note ?? false
   );
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const addExclusion = () => {
-    setDefaultExclusions([...defaultExclusions, '']);
-  };
-
+  const addExclusion = () => setDefaultExclusions([...defaultExclusions, '']);
   const updateExclusion = (index: number, value: string) => {
     const updated = [...defaultExclusions];
     updated[index] = value;
     setDefaultExclusions(updated);
   };
-
-  const removeExclusion = (index: number) => {
+  const removeExclusion = (index: number) =>
     setDefaultExclusions(defaultExclusions.filter((_, i) => i !== index));
-  };
 
-  const addAssumption = () => {
-    setDefaultAssumptions([...defaultAssumptions, '']);
-  };
-
-  const updateAssumption = (index: number, value: string) => {
-    const updated = [...defaultAssumptions];
+  const addObligation = () => setDefaultCustomerObligations([...defaultCustomerObligations, '']);
+  const updateObligation = (index: number, value: string) => {
+    const updated = [...defaultCustomerObligations];
     updated[index] = value;
-    setDefaultAssumptions(updated);
+    setDefaultCustomerObligations(updated);
   };
+  const removeObligation = (index: number) =>
+    setDefaultCustomerObligations(defaultCustomerObligations.filter((_, i) => i !== index));
 
-  const removeAssumption = (index: number) => {
-    setDefaultAssumptions(defaultAssumptions.filter((_, i) => i !== index));
+  const togglePaymentMethod = (method: string) => {
+    setDefaultPaymentMethods((prev) =>
+      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,9 +76,8 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
     setSuccess(false);
     setLoading(true);
 
-    // Filter out empty strings
     const exclusionsArray = defaultExclusions.filter((s) => s.trim().length > 0);
-    const assumptionsArray = defaultAssumptions.filter((s) => s.trim().length > 0);
+    const obligationsArray = defaultCustomerObligations.filter((s) => s.trim().length > 0);
 
     const { error } = await upsertProfile({
       user_id: profile.user_id,
@@ -74,7 +88,12 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
       address: address || null,
       google_business_profile_url: googleUrl || null,
       default_exclusions: exclusionsArray,
-      default_assumptions: assumptionsArray,
+      default_assumptions: obligationsArray,
+      default_warranty_period: defaultWarrantyPeriod,
+      default_negotiation_period: defaultNegotiationPeriod,
+      default_payment_methods: defaultPaymentMethods,
+      default_late_payment_terms: defaultLatePaymentTerms,
+      default_card_fee_note: defaultCardFeeNote,
     });
 
     setLoading(false);
@@ -203,27 +222,90 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
               </div>
 
               <div className="form-group">
-                <label>Default Assumptions</label>
-                {defaultAssumptions.map((assumption, index) => (
+                <label>Default Customer Obligations &amp; Site Conditions</label>
+                {defaultCustomerObligations.map((obligation, index) => (
                   <div key={index} className="list-item-row">
                     <input
                       type="text"
-                      value={assumption}
-                      onChange={(e) => updateAssumption(index, e.target.value)}
+                      value={obligation}
+                      onChange={(e) => updateObligation(index, e.target.value)}
                       placeholder="e.g., Customer will provide clear access to work area"
                     />
                     <button
                       type="button"
                       className="btn-remove"
-                      onClick={() => removeAssumption(index)}
+                      onClick={() => removeObligation(index)}
                     >
                       ×
                     </button>
                   </div>
                 ))}
-                <button type="button" className="btn-add" onClick={addAssumption}>
-                  + Add Assumption
+                <button type="button" className="btn-add" onClick={addObligation}>
+                  + Add Obligation
                 </button>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="defaultWarrantyPeriod">Default Warranty Period (Days)</label>
+                  <input
+                    id="defaultWarrantyPeriod"
+                    type="number"
+                    value={defaultWarrantyPeriod}
+                    onChange={(e) => setDefaultWarrantyPeriod(parseInt(e.target.value) || 0)}
+                    min="0"
+                    placeholder="30"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="defaultNegotiationPeriod">Default Negotiation Period (Days)</label>
+                  <input
+                    id="defaultNegotiationPeriod"
+                    type="number"
+                    value={defaultNegotiationPeriod}
+                    onChange={(e) => setDefaultNegotiationPeriod(parseInt(e.target.value) || 0)}
+                    min="1"
+                    placeholder="10"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Default Payment Methods</label>
+                <div className="checkbox-group checkbox-group--flex-wrap">
+                  {PAYMENT_METHOD_OPTIONS.map((method) => (
+                    <label key={method} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={defaultPaymentMethods.includes(method)}
+                        onChange={() => togglePaymentMethod(method)}
+                      />
+                      <span>{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="defaultLatePaymentTerms">Default Late Payment Terms</label>
+                <textarea
+                  id="defaultLatePaymentTerms"
+                  value={defaultLatePaymentTerms}
+                  onChange={(e) => setDefaultLatePaymentTerms(e.target.value)}
+                  rows={2}
+                  placeholder="Balances unpaid 7 days after completion accrue 1.5% per month"
+                />
+              </div>
+
+              <div className="checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={defaultCardFeeNote}
+                    onChange={(e) => setDefaultCardFeeNote(e.target.checked)}
+                  />
+                  <span>Include card processing fee note by default (up to 3.5%)</span>
+                </label>
               </div>
             </section>
 
