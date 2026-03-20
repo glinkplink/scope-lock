@@ -179,22 +179,37 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   const completionOpeningNoWarranty =
     `Upon completion of the work and ${CUSTOMER} approval, responsibility for the repaired/fabricated item transfers back to ${CUSTOMER}.`;
 
-  const changeOrdersHiddenDamageBlocks: SectionContentBlock[] = [
-    {
-      type: 'paragraph',
-      text: `Any work outside the agreed scope requires approval from ${CUSTOMER} before ${SERVICE_PROVIDER} proceeds. Extra work may cost more and take longer; ${SERVICE_PROVIDER_CAP} will give an estimate before starting that work. If hidden damage appears during the job that could not reasonably be seen during the initial inspection, ${SERVICE_PROVIDER} will notify ${CUSTOMER} before doing more work to address it. Any added work for hidden damage may cost more and requires ${CUSTOMER}'s approval.`,
-    },
-  ];
-  if (job.workmanship_warranty_days <= 0) {
-    changeOrdersHiddenDamageBlocks.push({
-      type: 'paragraph',
-      text: completionOpeningNoWarranty,
+  const changeOrderClause =
+    `Any work outside the agreed scope requires approval from ${CUSTOMER} before ${SERVICE_PROVIDER} proceeds. Extra work may cost more and take longer; ${SERVICE_PROVIDER_CAP} will give an estimate before starting that work.`;
+  const hiddenDamageClause =
+    `If hidden damage appears during the job that could not reasonably be seen during the initial inspection, ${SERVICE_PROVIDER} will notify ${CUSTOMER} before doing more work to address it. Any added work for hidden damage may cost more and requires ${CUSTOMER}'s approval.`;
+
+  const hasChangeOrdersSection = job.change_order_required || job.hidden_damage_possible;
+  if (hasChangeOrdersSection) {
+    const changeOrdersHiddenDamageBlocks: SectionContentBlock[] = [];
+    if (job.change_order_required) {
+      changeOrdersHiddenDamageBlocks.push({ type: 'paragraph', text: changeOrderClause });
+    }
+    if (job.hidden_damage_possible) {
+      changeOrdersHiddenDamageBlocks.push({ type: 'paragraph', text: hiddenDamageClause });
+    }
+    if (job.workmanship_warranty_days <= 0) {
+      changeOrdersHiddenDamageBlocks.push({
+        type: 'paragraph',
+        text: completionOpeningNoWarranty,
+      });
+    }
+    drafts.push({
+      title: 'Change Orders & Hidden Damage',
+      blocks: changeOrdersHiddenDamageBlocks,
+    });
+  } else if (job.workmanship_warranty_days <= 0) {
+    // Completion opening lived in this section when warranty is off; keep it if the whole CO/Hidden block is omitted
+    drafts.push({
+      title: 'Completion & Acceptance',
+      blocks: [{ type: 'paragraph', text: completionOpeningNoWarranty }],
     });
   }
-  drafts.push({
-    title: 'Change Orders & Hidden Damage',
-    blocks: changeOrdersHiddenDamageBlocks,
-  });
 
   // Workmanship Warranty (omitted if warranty days is 0; completion opening folded in when present)
   if (job.workmanship_warranty_days > 0) {

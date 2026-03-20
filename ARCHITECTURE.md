@@ -59,7 +59,10 @@ A welder signs up, sets up their business profile (saved to the database), then 
   tables; values are white. Profile fills the SP column; the form fills the customer column.
 - **Optional sections**: Exclusions and Customer Obligations omit when the **job** lists have no
   non-empty lines (profile defaults are copied into **new** drafts only; clearing the form removes
-  the section from preview/PDF). Workmanship Warranty (days is 0) and Dispute Resolution
+  the section from preview/PDF). **Change Orders & Hidden Damage** omits when both
+  `change_order_required` and `hidden_damage_possible` are false; each checkbox adds only its clause.
+  If that section is omitted and workmanship warranty is 0, the completion opening appears under
+  **Completion & Acceptance** instead. Workmanship Warranty (days is 0) and Dispute Resolution
   (negotiation days is 0) omit similarly. **Section numbers are assigned at render time** (1…n with
   no gaps); the signature block stays unnumbered.
 - **Governing state** is not collected on the work order form; dispute copy uses generic
