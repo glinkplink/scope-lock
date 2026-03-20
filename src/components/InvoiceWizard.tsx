@@ -33,9 +33,7 @@ function parseExistingIntoState(job: Job, existing: Invoice) {
   let fixedTotal = job.price;
   let laborHours = '';
   let laborRate = '';
-  let laborSkipped = false;
   const materialsYes = matItems.length > 0;
-  const materialsSkipped = matItems.length === 0;
   const materialRows: MaterialRow[] =
     matItems.length > 0
       ? matItems.map((m) => ({
@@ -53,8 +51,6 @@ function parseExistingIntoState(job: Job, existing: Invoice) {
     if (first) {
       laborHours = String(first.qty);
       laborRate = String(first.unit_price);
-    } else {
-      laborSkipped = true;
     }
   }
 
@@ -62,9 +58,7 @@ function parseExistingIntoState(job: Job, existing: Invoice) {
     fixedTotal,
     laborHours,
     laborRate,
-    laborSkipped,
     materialsYes,
-    materialsSkipped,
     materialRows,
     due_date: existing.due_date,
     selectedPaymentMethods: [...existing.payment_methods],
@@ -76,8 +70,6 @@ function buildLineItemsAndTotals(
   fixedTotal: number,
   laborHours: string,
   laborRate: string,
-  laborSkipped: boolean,
-  materialsSkipped: boolean,
   materialsYes: boolean,
   materialRows: MaterialRow[]
 ): { line_items: InvoiceLineItem[]; subtotal: number } {
@@ -93,21 +85,19 @@ function buildLineItemsAndTotals(
       total: Math.round(t * 100) / 100,
     });
   } else {
-    if (!laborSkipped) {
-      const h = Number(laborHours);
-      const r = Number(laborRate);
-      if (Number.isFinite(h) && Number.isFinite(r) && h > 0 && r >= 0) {
-        const total = Math.round(h * r * 100) / 100;
-        items.push({
-          kind: 'labor',
-          description: 'Labor',
-          qty: h,
-          unit_price: r,
-          total,
-        });
-      }
+    const h = Number(laborHours);
+    const r = Number(laborRate);
+    if (Number.isFinite(h) && Number.isFinite(r) && h > 0 && r >= 0) {
+      const total = Math.round(h * r * 100) / 100;
+      items.push({
+        kind: 'labor',
+        description: 'Labor',
+        qty: h,
+        unit_price: r,
+        total,
+      });
     }
-    if (!materialsSkipped && materialsYes) {
+    if (materialsYes) {
       for (const row of materialRows) {
         const q = Number(row.qty);
         const up = Number(row.unit_price);
@@ -153,9 +143,7 @@ export function InvoiceWizard({
       fixedTotal: job.price,
       laborHours: '',
       laborRate: '',
-      laborSkipped: false,
-      materialsYes: false,
-      materialsSkipped: false,
+      materialsYes: null as boolean | null,
       materialRows: [{ description: '', qty: '1', unit_price: '' }] as MaterialRow[],
       due_date: defaultDueDateYmd(),
       selectedPaymentMethods: defaultPaymentSelection(profile),
@@ -165,19 +153,13 @@ export function InvoiceWizard({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [pricingSubStep, setPricingSubStep] = useState<PricingSubStep | null>(() => {
     if (job.price_type === 'fixed') return null;
-    if (existingInvoice) {
-      const laborItems = existingInvoice.line_items.filter((i) => i.kind === 'labor');
-      if (laborItems.length === 0) return 'materials';
-    }
     return 'labor';
   });
 
   const [fixedTotal, setFixedTotal] = useState(initial.fixedTotal);
   const [laborHours, setLaborHours] = useState(initial.laborHours);
   const [laborRate, setLaborRate] = useState(initial.laborRate);
-  const [laborSkipped, setLaborSkipped] = useState(initial.laborSkipped);
-  const [materialsYes, setMaterialsYes] = useState(initial.materialsYes);
-  const [materialsSkipped, setMaterialsSkipped] = useState(initial.materialsSkipped);
+  const [materialsYes, setMaterialsYes] = useState<boolean | null>(initial.materialsYes);
   const [materialRows, setMaterialRows] = useState<MaterialRow[]>(initial.materialRows);
   const [dueDate, setDueDate] = useState(initial.due_date);
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>(
@@ -214,9 +196,7 @@ export function InvoiceWizard({
     fixedTotal,
     laborHours,
     laborRate,
-    laborSkipped,
-    materialsSkipped,
-    materialsYes,
+    materialsYes === true,
     materialRows
   );
   const tax_amount = Math.round(subtotal * TAX_RATE * 100) / 100;
@@ -236,35 +216,49 @@ export function InvoiceWizard({
   };
 
   const handleLaborContinue = () => {
-    if (!laborSkipped) {
-      const h = Number(laborHours);
-      const r = Number(laborRate);
-      if (!Number.isFinite(h) || !Number.isFinite(r) || h <= 0 || r < 0) {
-        setError('Enter hours and rate, or tap Skip.');
-        return;
-      }
+    const h = Number(laborHours);
+    const r = Number(laborRate);
+    if (!Number.isFinite(h) || !Number.isFinite(r) || h <= 0 || r < 0) {
+      setError('Enter hours and rate.');
+      return;
     }
     setError('');
     setPricingSubStep('materials');
   };
 
-  const handleLaborSkip = () => {
-    setLaborSkipped(true);
-    setError('');
-    setPricingSubStep('materials');
-  };
-
   const handleMaterialsContinue = () => {
-    setMaterialsSkipped(false);
     setError('');
+    if (materialsYes === null) {
+      setError('Choose whether to add materials.');
+      return;
+    }
+    if (materialsYes) {
+      const hasValidRow = materialRows.some((row) => {
+        const q = Number(row.qty);
+        const up = Number(row.unit_price);
+        return (
+          row.description.trim() !== '' &&
+          Number.isFinite(q) &&
+          Number.isFinite(up) &&
+          q > 0 &&
+          up >= 0
+        );
+      });
+      if (!hasValidRow) {
+        setError('Add at least one material line with description, quantity, and unit price.');
+        return;
+      }
+    }
     goStep2();
   };
 
-  const handleMaterialsSkip = () => {
-    setMaterialsSkipped(true);
-    setMaterialsYes(false);
+  const handleDueDateContinue = () => {
+    if (!dueDate || !String(dueDate).trim()) {
+      setError('Choose a due date.');
+      return;
+    }
     setError('');
-    goStep2();
+    setStep(3);
   };
 
   const handleGenerate = async () => {
@@ -274,13 +268,15 @@ export function InvoiceWizard({
       fixedTotal,
       laborHours,
       laborRate,
-      laborSkipped,
-      materialsSkipped,
-      materialsYes,
+      materialsYes === true,
       materialRows
     );
     if (built.subtotal <= 0) {
       setError('Subtotal must be greater than zero.');
+      return;
+    }
+    if (selectedPaymentMethods.length === 0) {
+      setError('Select at least one payment method.');
       return;
     }
     const ta = Math.round(built.subtotal * TAX_RATE * 100) / 100;
@@ -388,7 +384,6 @@ export function InvoiceWizard({
               min={0}
               step="0.25"
               className="field-input"
-              disabled={laborSkipped}
               value={laborHours}
               onChange={(e) => setLaborHours(e.target.value)}
             />
@@ -403,7 +398,6 @@ export function InvoiceWizard({
               min={0}
               step="0.01"
               className="field-input"
-              disabled={laborSkipped}
               value={laborRate}
               onChange={(e) => setLaborRate(e.target.value)}
             />
@@ -412,14 +406,9 @@ export function InvoiceWizard({
             Subtotal (preview): ${subtotal.toFixed(2)} · Tax: ${tax_amount.toFixed(2)} · Total: $
             {total.toFixed(2)}
           </p>
-          <div className="invoice-wizard-actions-row">
-            <button type="button" className="btn-secondary" onClick={handleLaborSkip}>
-              Skip
-            </button>
-            <button type="button" className="btn-primary" onClick={handleLaborContinue}>
-              Continue
-            </button>
-          </div>
+          <button type="button" className="btn-primary" onClick={handleLaborContinue}>
+            Continue
+          </button>
         </section>
       ) : null}
 
@@ -433,10 +422,7 @@ export function InvoiceWizard({
                 type="radio"
                 name="mat-yesno"
                 checked={materialsYes === true}
-                onChange={() => {
-                  setMaterialsYes(true);
-                  setMaterialsSkipped(false);
-                }}
+                onChange={() => setMaterialsYes(true)}
               />
               Yes
             </label>
@@ -450,7 +436,7 @@ export function InvoiceWizard({
               No
             </label>
           </fieldset>
-          {materialsYes ? (
+          {materialsYes === true ? (
             <div className="invoice-material-rows">
               {materialRows.map((row, index) => (
                 <div key={index} className="invoice-material-row">
@@ -499,14 +485,9 @@ export function InvoiceWizard({
             Subtotal (preview): ${subtotal.toFixed(2)} · Tax: ${tax_amount.toFixed(2)} · Total: $
             {total.toFixed(2)}
           </p>
-          <div className="invoice-wizard-actions-row">
-            <button type="button" className="btn-secondary" onClick={handleMaterialsSkip}>
-              Skip
-            </button>
-            <button type="button" className="btn-primary" onClick={handleMaterialsContinue}>
-              Continue
-            </button>
-          </div>
+          <button type="button" className="btn-primary" onClick={handleMaterialsContinue}>
+            Continue
+          </button>
         </section>
       ) : null}
 
@@ -523,7 +504,7 @@ export function InvoiceWizard({
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
           />
-          <button type="button" className="btn-primary" onClick={() => setStep(3)}>
+          <button type="button" className="btn-primary" onClick={handleDueDateContinue}>
             Continue
           </button>
         </section>

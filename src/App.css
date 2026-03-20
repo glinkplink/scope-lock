@@ -2187,8 +2187,31 @@ body {
   background: var(--surface-white);
 }
 
-.invoice-payment-list {
-  margin-bottom: var(--space-lg);
+/* Horizontal row for invoice PDF + preview (overrides .content-bullets) */
+.invoice-payment-list.content-bullets,
+ul.invoice-payment-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0 0 var(--space-lg);
+}
+
+.invoice-payment-list li {
+  display: block;
+}
+
+.invoice-payment-list li + li {
+  margin-top: 0;
+}
+
+.invoice-payment-list li:not(:last-child)::after {
+  content: '·';
+  margin: 0 0.65rem;
+  color: var(--text-muted);
 }
 
 .invoice-notes-section {

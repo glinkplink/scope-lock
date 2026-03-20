@@ -99,14 +99,14 @@ function buildPdfHtml(previewMarkup: string): string {
         print-color-adjust: exact;
       }
 
-      .content-bullets {
+      .content-bullets:not(.invoice-payment-list) {
         list-style-type: disc;
         list-style-position: outside;
         padding-left: 1.35rem;
         margin-left: 0;
       }
 
-      .content-bullets li {
+      .content-bullets:not(.invoice-payment-list) li {
         display: list-item;
       }
     </style>
