@@ -227,14 +227,11 @@ function App() {
     }
   };
 
-  const handleInvoiceFinalGoHome = () => {
-    setView('home');
-    setInvoiceFlowJob(null);
-    setActiveInvoice(null);
-  };
-
   const handleInvoiceFinalWorkOrders = () => {
     setView('work-orders');
+    setInvoiceFlowJob(null);
+    setActiveInvoice(null);
+    setWizardExistingInvoice(null);
   };
 
   const handleEditInvoice = () => {
@@ -476,7 +473,6 @@ function App() {
             invoice={activeInvoice}
             job={invoiceFlowJob}
             profile={profile}
-            onGoHome={handleInvoiceFinalGoHome}
             onWorkOrders={handleInvoiceFinalWorkOrders}
             onEditInvoice={handleEditInvoice}
             onAfterDownload={handleAfterInvoiceDownload}

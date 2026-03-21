@@ -160,7 +160,6 @@ interface InvoiceFinalPageProps {
   invoice: Invoice;
   job: Job;
   profile: BusinessProfile;
-  onGoHome: () => void;
   onWorkOrders: () => void;
   onEditInvoice: () => void;
   onAfterDownload: (invoice: Invoice) => void;
@@ -171,7 +170,6 @@ export function InvoiceFinalPage({
   invoice: invoiceProp,
   job,
   profile,
-  onGoHome,
   onWorkOrders,
   onEditInvoice,
   onAfterDownload,
@@ -298,11 +296,8 @@ export function InvoiceFinalPage({
   return (
     <div className={`invoice-final-page${!isReadOnly ? ' invoice-final-page--draft' : ''}`}>
       <div className="invoice-final-nav">
-        <button type="button" className="invoice-final-nav-plain" onClick={onGoHome}>
-          Go Home
-        </button>
-        <button type="button" className="home-work-orders-link" onClick={onWorkOrders}>
-          Work Orders
+        <button type="button" className="invoice-final-nav-plain" onClick={onWorkOrders}>
+          Go Back
         </button>
       </div>
 

@@ -24,7 +24,8 @@ export function WorkOrderDetailPage({ job, profile, onBack }: WorkOrderDetailPag
   const sections = useMemo(() => generateAgreement(welderJob, profile), [welderJob, profile]);
 
   const woLabel =
-    job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'Work order';
+    job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
+  const customerTitle = job.customer_name.trim() || 'Customer';
 
   const handleDownloadPdf = async () => {
     setPdfError('');
@@ -45,21 +46,15 @@ export function WorkOrderDetailPage({ job, profile, onBack }: WorkOrderDetailPag
 
   return (
     <div className="work-order-detail-page">
-      <div className="work-order-detail-header">
-        <a
-          href="#"
-          className="home-work-orders-link work-order-detail-back"
-          onClick={(e) => {
-            e.preventDefault();
-            onBack();
-          }}
-        >
+      <div className="invoice-final-nav">
+        <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
           Go Back
-        </a>
-        <h1 className="work-order-detail-title">
-          {woLabel} · {job.customer_name}
-        </h1>
+        </button>
       </div>
+      <hgroup>
+        <h1 className="invoice-final-heading">{customerTitle}</h1>
+        <p className="invoice-final-heading-sub">{woLabel}</p>
+      </hgroup>
 
       {pdfError ? (
         <div className="error-banner" role="alert">
