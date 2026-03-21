@@ -382,6 +382,7 @@ export function InvoiceWizard({
 
       {step === 1 && job.price_type === 'fixed' ? (
         <section className="invoice-wizard-step">
+          <h2 className="invoice-flow-section-title">Pricing</h2>
           <div className="form-group">
             <label htmlFor="fixed-total">Total amount</label>
             <input
@@ -576,7 +577,7 @@ export function InvoiceWizard({
 
       {step === 2 ? (
         <section className="invoice-wizard-step">
-          {job.price_type !== 'fixed' ? <h2 className="invoice-flow-section-title">Due date</h2> : null}
+          <h2 className="invoice-flow-section-title">Due date</h2>
           <button
             type="button"
             className="invoice-flow-back-link"
@@ -609,7 +610,7 @@ export function InvoiceWizard({
 
       {step === 3 ? (
         <section className="invoice-wizard-step">
-          {job.price_type !== 'fixed' ? <h2 className="invoice-flow-section-title">Payment methods</h2> : null}
+          <h2 className="invoice-flow-section-title">Payment methods</h2>
           <button
             type="button"
             className="invoice-flow-back-link"
