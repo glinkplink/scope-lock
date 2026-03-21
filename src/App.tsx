@@ -177,6 +177,11 @@ function App() {
     if (!silent) setProfileLoading(false);
   };
 
+  const handleEditProfileSaved = (savedProfile: BusinessProfile | null) => {
+    if (savedProfile) setProfile(savedProfile);
+    else void loadProfile({ silent: true });
+  };
+
   const openWorkOrders = () => {
     setView('work-orders');
   };
@@ -348,7 +353,7 @@ function App() {
     return (
       <EditProfilePage
         profile={profile}
-        onSave={loadProfile}
+        onSave={handleEditProfileSaved}
         onCancel={() => setView('home')}
       />
     );

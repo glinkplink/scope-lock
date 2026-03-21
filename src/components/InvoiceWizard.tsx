@@ -570,17 +570,6 @@ export function InvoiceWizard({
               </button>
             </div>
           ) : null}
-          <div className="form-group">
-            <label htmlFor="materials-tax">Tax (%)</label>
-            <input
-              id="materials-tax"
-              type="number"
-              min={0}
-              step="0.01"
-              value={taxPercent}
-              onChange={(e) => setTaxPercent(e.target.value)}
-            />
-          </div>
           <InvoicePreviewSummary
             subtotal={subtotal}
             tax_amount={tax_amount}

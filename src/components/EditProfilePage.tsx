@@ -8,7 +8,8 @@ import { DEFAULT_TAX_RATE, normalizeTaxRate, percentValueToTaxRate, taxRateToPer
 
 interface EditProfilePageProps {
   profile: BusinessProfile;
-  onSave: () => void;
+  /** Called with the row returned from upsert so parent state updates before any refetch race. */
+  onSave: (savedProfile: BusinessProfile | null) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -82,7 +83,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
     const exclusionsArray = defaultExclusions.filter((s) => s.trim().length > 0);
     const obligationsArray = defaultCustomerObligations.filter((s) => s.trim().length > 0);
 
-    const { error } = await upsertProfile({
+    const { data: savedProfile, error } = await upsertProfile({
       user_id: profile.user_id,
       business_name: businessName,
       owner_name: ownerName || null,
@@ -106,7 +107,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
       setError(error.message);
     } else {
       setSuccess(true);
-      onSave();
+      await Promise.resolve(onSave(savedProfile ?? null));
     }
   };
 
