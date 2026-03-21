@@ -320,7 +320,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
                 />
               </div>
 
-              <div className="checkbox-group">
+              <div className="checkbox-group checkbox-group--inline-row">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"

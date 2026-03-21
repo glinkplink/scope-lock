@@ -300,6 +300,19 @@ body {
   padding: 6px 8px;
 }
 
+/* Single full-width row: checkbox + long label stay horizontal until viewport forces wrap */
+.checkbox-group--inline-row .checkbox-label {
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.checkbox-group--inline-row .checkbox-label span {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -1857,7 +1870,7 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .checkbox-group:not(.checkbox-group--flex-wrap) {
+  .checkbox-group:not(.checkbox-group--flex-wrap):not(.checkbox-group--inline-row) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1879,7 +1892,7 @@ body {
     padding: var(--space-xl) var(--space-lg);
   }
 
-  .checkbox-group:not(.checkbox-group--flex-wrap) {
+  .checkbox-group:not(.checkbox-group--flex-wrap):not(.checkbox-group--inline-row) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
