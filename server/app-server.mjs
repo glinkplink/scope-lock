@@ -138,7 +138,8 @@ async function handlePdfRequest(req, res) {
   let page;
 
   try {
-    const { html, filename, workOrderNumber, providerName, providerPhone } = await readJsonBody(req);
+    const { html, filename, workOrderNumber, marginHeaderLeft, providerName, providerPhone } =
+      await readJsonBody(req);
 
     if (typeof html !== 'string' || !html.trim()) {
       sendText(res, 400, 'Missing HTML payload.');

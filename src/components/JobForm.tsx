@@ -3,6 +3,20 @@ import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types'
 import type { Client } from '../types/db';
 import { searchClients } from '../lib/db/clients';
 
+/** US NANP display like (571) 473-1291 — strips non-digits, keeps up to 10 digits (strips leading 1 if 11). */
+function formatUsPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  let d = digits;
+  if (d.length === 11 && d[0] === '1') {
+    d = d.slice(1);
+  }
+  d = d.slice(0, 10);
+  if (d.length === 0) return '';
+  if (d.length <= 3) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 interface JobFormProps {
   userId: string;
   job: WelderJob;
@@ -114,7 +128,7 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
     const name = client.name?.trim();
     if (name) patches.customer_name = name;
     const phone = client.phone?.trim();
-    if (phone) patches.customer_phone = phone;
+    if (phone) patches.customer_phone = formatUsPhoneInput(phone);
     const email = client.email?.trim();
     if (email) patches.customer_email = email;
     const address = client.address?.trim();
@@ -332,9 +346,11 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
           <input
             id="customer_phone"
             type="tel"
-            value={job.customer_phone}
-            onChange={(e) => updateField('customer_phone', e.target.value)}
-            placeholder="(555) 123-4567"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={formatUsPhoneInput(job.customer_phone ?? '')}
+            onChange={(e) => updateField('customer_phone', formatUsPhoneInput(e.target.value))}
+            placeholder="(571) 473-1291"
           />
         </div>
         <div className="form-group">
