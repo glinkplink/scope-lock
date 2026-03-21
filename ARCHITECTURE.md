@@ -191,7 +191,7 @@ Four tables in Supabase Postgres, all with row-level security:
 
 | Table | Key Columns |
 |---|---|
-| `business_profiles` | user_id (unique), business_name, owner_name, phone, email, address, google_business_profile_url, default_exclusions[], default_assumptions[] |
+| `business_profiles` | user_id (unique), business_name, owner_name, phone, email, address, google_business_profile_url, default_exclusions[], default_assumptions[], default_tax_rate, default_payment_methods[], next_wo_number, next_invoice_number, … |
 | `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status |
 | `change_orders` | user_id, job_id, description, price_delta, time_delta, approved |

@@ -1021,6 +1021,10 @@ body {
   margin-bottom: 0;
 }
 
+.edit-profile-page .form-row + .form-group {
+  padding-top: var(--space-md);
+}
+
 .edit-profile-page .form-group label {
   display: block;
   font-size: 0.75rem;
