@@ -484,6 +484,7 @@ function App() {
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
+            onGoToPreview={() => setView('preview')}
           />
         ) : (
           <AgreementPreview

@@ -60,6 +60,10 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
   const sections = generateAgreement(job, profile);
 
   useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useLayoutEffect(() => {
     const viewport = previewViewportRef.current;
     if (!viewport) return;
 

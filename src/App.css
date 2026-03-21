@@ -139,6 +139,14 @@ body {
 
 /* ─── Form Sections ─────────────────────────────────── */
 
+.job-form-preview-footer {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 2px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
 .form-section {
   background: var(--surface-white);
   border: 1px solid var(--border);
@@ -805,7 +813,7 @@ body {
 }
 
 .home-greeting {
-  font-size: calc(0.8125rem + 9px);
+  font-size: calc(0.8125rem + 1px);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;

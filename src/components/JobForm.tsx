@@ -23,9 +23,11 @@ interface JobFormProps {
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
+  /** Opens agreement preview (e.g. switches to Preview tab and scrolls to top). */
+  onGoToPreview?: () => void;
 }
 
-export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
+export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -671,6 +673,14 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
           </div>
         </div>
       </section>
+
+      {onGoToPreview && (
+        <div className="job-form-preview-footer">
+          <button type="button" className="btn-action btn-primary" onClick={onGoToPreview}>
+            Preview
+          </button>
+        </div>
+      )}
     </form>
   );
 }
