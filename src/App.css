@@ -810,9 +810,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 0;
-  padding: 0 0 var(--space-xl);
+  padding: 15vh 0 var(--space-xl);
 }
 
 .home-content {
@@ -935,12 +934,18 @@ body {
   padding: 0.4rem 0.45rem;
   margin: 0;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, opacity 0.15s;
+  transition: color 0.15s, opacity 0.15s, text-decoration 0.15s;
 }
 
 .header-work-orders-link:hover {
   color: var(--accent-gold);
-  background: rgba(255, 255, 255, 0.06);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 1;
+}
+
+.header-work-orders-link:active {
+  background: transparent;
   opacity: 1;
 }
 
@@ -2045,15 +2050,10 @@ body {
 }
 
 .work-orders-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: var(--space-md);
   margin-bottom: var(--space-lg);
-}
-
-.work-orders-toolbar-back {
-  justify-self: start;
 }
 
 .work-orders-title {
@@ -2061,14 +2061,6 @@ body {
   font-weight: 700;
   margin: 0;
   text-align: center;
-}
-
-.work-orders-toolbar-balance {
-  justify-self: end;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
 }
 
 .work-orders-summary-strip {
@@ -2100,11 +2092,11 @@ body {
 }
 
 .work-orders-summary-invoiced .work-orders-summary-amount {
-  color: #065f46;
+  color: #2d6a2e;
 }
 
 .work-orders-summary-pending .work-orders-summary-amount {
-  color: var(--danger);
+  color: #9a3412;
 }
 
 .work-orders-list {

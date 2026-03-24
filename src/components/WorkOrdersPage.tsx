@@ -29,7 +29,6 @@ interface WorkOrdersPageProps {
   userId: string;
   successBanner: string | null;
   onClearSuccessBanner: () => void;
-  onGoHome: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
   onOpenWorkOrderDetail: (job: Job) => void;
@@ -39,7 +38,6 @@ export function WorkOrdersPage({
   userId,
   successBanner,
   onClearSuccessBanner,
-  onGoHome,
   onStartInvoice,
   onOpenPendingInvoice,
   onOpenWorkOrderDetail,
@@ -77,26 +75,23 @@ export function WorkOrdersPage({
     }
   }
 
-  let invoicedContractTotal = 0;
-  let pendingContractTotal = 0;
-  for (const job of jobs) {
-    const inv = invoiceByJobId.get(job.id);
-    const p = typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0;
-    if (inv?.status === 'downloaded') {
-      invoicedContractTotal += p;
-    } else {
-      pendingContractTotal += p;
-    }
-  }
+  const contractPrice = (job: Job) =>
+    typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0;
+
+  const invoicedContractTotal = jobs.reduce((acc, job) => {
+    if (!invoiceByJobId.has(job.id)) return acc;
+    return acc + contractPrice(job);
+  }, 0);
+
+  const pendingContractTotal = jobs.reduce((acc, job) => {
+    if (invoiceByJobId.has(job.id)) return acc;
+    return acc + contractPrice(job);
+  }, 0);
 
   return (
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
-        <button type="button" className="btn-secondary work-orders-toolbar-back" onClick={onGoHome}>
-          Go Home
-        </button>
         <h1 className="work-orders-title">Work Orders</h1>
-        <span className="work-orders-toolbar-balance" aria-hidden="true" />
       </div>
 
       {successBanner ? (

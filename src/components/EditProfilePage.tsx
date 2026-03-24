@@ -112,15 +112,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1 className="app-title" onClick={onCancel}>
-          ScopeLock
-        </h1>
-      </header>
-
-      <main className="app-main">
-        <div className="edit-profile-page">
+    <div className="edit-profile-page">
           {success && (
             <div className="success-banner">
               Profile saved successfully!
@@ -355,12 +347,6 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
               Profile saved successfully!
             </div>
           )}
-        </div>
-      </main>
-
-      <footer className="app-footer">
-        <p>ScopeLock - Protect Your Work</p>
-      </footer>
     </div>
   );
 }

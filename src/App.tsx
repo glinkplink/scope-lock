@@ -346,16 +346,6 @@ function App() {
     return null;
   }
 
-  if (view === 'profile') {
-    return (
-      <EditProfilePage
-        profile={profile}
-        onSave={handleEditProfileSaved}
-        onCancel={() => setView('home')}
-      />
-    );
-  }
-
   if (!user) {
     return null;
   }
@@ -435,12 +425,17 @@ function App() {
             showSuccessBanner={showSuccessBanner}
             onDismissBanner={() => setShowSuccessBanner(false)}
           />
+        ) : view === 'profile' ? (
+          <EditProfilePage
+            profile={profile}
+            onSave={handleEditProfileSaved}
+            onCancel={() => setView('home')}
+          />
         ) : view === 'work-orders' && user ? (
           <WorkOrdersPage
             userId={user.id}
             successBanner={workOrdersSuccessBanner}
             onClearSuccessBanner={() => setWorkOrdersSuccessBanner(null)}
-            onGoHome={() => setView('home')}
             onStartInvoice={handleStartInvoice}
             onOpenPendingInvoice={handleOpenPendingInvoice}
             onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
