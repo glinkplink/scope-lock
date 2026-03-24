@@ -3,12 +3,13 @@ import { upsertProfile } from '../lib/db/profile';
 import { signOut } from '../lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from '../lib/defaults';
 import type { BusinessProfile } from '../types/db';
-
-const PAYMENT_METHOD_OPTIONS = ['Cash', 'Check', 'Zelle', 'Venmo', 'Card'];
+import { PAYMENT_METHOD_OPTIONS, normalizePaymentMethods } from '../lib/payment-methods';
+import { DEFAULT_TAX_RATE, normalizeTaxRate, percentValueToTaxRate, taxRateToPercentValue } from '../lib/tax';
 
 interface EditProfilePageProps {
   profile: BusinessProfile;
-  onSave: () => void;
+  /** Called with the row returned from upsert so parent state updates before any refetch race. */
+  onSave: (savedProfile: BusinessProfile | null) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -32,7 +33,10 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
     profile.default_negotiation_period ?? 10
   );
   const [defaultPaymentMethods, setDefaultPaymentMethods] = useState<string[]>(
-    profile.default_payment_methods ?? []
+    normalizePaymentMethods(profile.default_payment_methods)
+  );
+  const [defaultTaxRate, setDefaultTaxRate] = useState(
+    taxRateToPercentValue(profile.default_tax_rate ?? DEFAULT_TAX_RATE)
   );
   const [defaultLatePaymentTerms, setDefaultLatePaymentTerms] = useState(
     profile.default_late_payment_terms ??
@@ -79,7 +83,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
     const exclusionsArray = defaultExclusions.filter((s) => s.trim().length > 0);
     const obligationsArray = defaultCustomerObligations.filter((s) => s.trim().length > 0);
 
-    const { error } = await upsertProfile({
+    const { data: savedProfile, error } = await upsertProfile({
       user_id: profile.user_id,
       business_name: businessName,
       owner_name: ownerName || null,
@@ -91,7 +95,8 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
       default_assumptions: obligationsArray,
       default_warranty_period: defaultWarrantyPeriod,
       default_negotiation_period: defaultNegotiationPeriod,
-      default_payment_methods: defaultPaymentMethods,
+      default_payment_methods: normalizePaymentMethods(defaultPaymentMethods),
+      default_tax_rate: normalizeTaxRate(percentValueToTaxRate(defaultTaxRate)),
       default_late_payment_terms: defaultLatePaymentTerms,
       default_card_fee_note: defaultCardFeeNote,
     });
@@ -102,7 +107,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
       setError(error.message);
     } else {
       setSuccess(true);
-      onSave();
+      await Promise.resolve(onSave(savedProfile ?? null));
     }
   };
 
@@ -271,16 +276,35 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
               </div>
 
               <div className="form-group">
-                <label>Default Payment Methods</label>
-                <div className="checkbox-group checkbox-group--flex-wrap">
+                <label htmlFor="defaultTaxRate">Default Tax (%)</label>
+                <input
+                  id="defaultTaxRate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={defaultTaxRate}
+                  onChange={(e) => setDefaultTaxRate(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group form-group--default-payment-methods">
+                <p className="edit-profile-payment-methods-heading" id="edit-profile-payment-methods-heading">
+                  Default Payment Methods
+                </p>
+                <div
+                  className="payment-method-chip-grid"
+                  role="group"
+                  aria-labelledby="edit-profile-payment-methods-heading"
+                >
                   {PAYMENT_METHOD_OPTIONS.map((method) => (
-                    <label key={method} className="checkbox-label">
+                    <label key={method} className="payment-method-chip">
                       <input
                         type="checkbox"
+                        className="payment-method-chip-input"
                         checked={defaultPaymentMethods.includes(method)}
                         onChange={() => togglePaymentMethod(method)}
                       />
-                      <span>{method}</span>
+                      <span className="payment-method-chip-text">{method}</span>
                     </label>
                   ))}
                 </div>
@@ -297,7 +321,7 @@ export function EditProfilePage({ profile, onSave, onCancel }: EditProfilePagePr
                 />
               </div>
 
-              <div className="checkbox-group">
+              <div className="checkbox-group checkbox-group--inline-row">
                 <label className="checkbox-label">
                   <input
                     type="checkbox"

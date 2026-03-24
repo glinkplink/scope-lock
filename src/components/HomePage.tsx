@@ -33,10 +33,8 @@ export function HomePage({
         ) : (
           ownerName && <p className="home-greeting">Welcome back, {ownerName}</p>
         )}
-        <h1>Create clear job agreements and protect your work</h1>
-        <p className="home-description">
-          Generate a Work Agreement, track changes, and keep a clear record of what was approved.
-        </p>
+        <h1>Cover your ass.</h1>
+        <p className="home-description">Work orders and invoices that keep your backend tidy.</p>
         <button className="btn-primary btn-large" onClick={onCreateAgreement}>
           Create Work Order
         </button>

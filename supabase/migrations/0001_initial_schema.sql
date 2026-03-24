@@ -21,6 +21,7 @@ CREATE TABLE business_profiles (
   default_warranty_period  integer     NOT NULL DEFAULT 30,
   default_negotiation_period integer   NOT NULL DEFAULT 10,
   default_payment_methods  text[]      NOT NULL DEFAULT '{}',
+  default_tax_rate         numeric(5,4) NOT NULL DEFAULT 0.06,
   default_late_payment_terms text      NOT NULL DEFAULT 'Balances unpaid 7 days after completion accrue 1.5% per month',
   default_card_fee_note    boolean     NOT NULL DEFAULT false,
   created_at               timestamptz DEFAULT now(),

@@ -11,9 +11,13 @@ import { useAuth } from './hooks/useAuth';
 import { getProfile, updateNextWoNumber, upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
-import type { BusinessProfile } from './types/db';
+import type { BusinessProfile, Job, Invoice } from './types/db';
 import sampleJob from './data/sample-job.json';
 import { Settings } from 'lucide-react';
+import { WorkOrdersPage } from './components/WorkOrdersPage';
+import { InvoiceWizard } from './components/InvoiceWizard';
+import { InvoiceFinalPage } from './components/InvoiceFinalPage';
+import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
 import './App.css';
 
 type OnboardingStep = 'profile' | 'password' | null;
@@ -60,7 +64,21 @@ function App() {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [view, setView] = useState<'home' | 'form' | 'preview' | 'profile'>('home');
+  const [view, setView] = useState<
+    | 'home'
+    | 'form'
+    | 'preview'
+    | 'profile'
+    | 'work-orders'
+    | 'work-order-detail'
+    | 'invoice-wizard'
+    | 'invoice-final'
+  >('home');
+  const [workOrderDetailJob, setWorkOrderDetailJob] = useState<Job | null>(null);
+  const [invoiceFlowJob, setInvoiceFlowJob] = useState<Job | null>(null);
+  const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
+  const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
+  const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>(null);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(false);
@@ -128,11 +146,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (user) {
-      const loadProfile = async () => {
+    const uid = user?.id;
+    if (uid) {
+      const run = async () => {
         setShowAuthPage(false);
         setProfileLoading(true);
-        const data = await getProfile(user.id);
+        const data = await getProfile(uid);
         setProfile(data);
         setProfileLoading(false);
         setAccountCreating(false);
@@ -140,21 +159,99 @@ function App() {
           setJustCompletedSignup(false);
         }
       };
-      loadProfile();
+      void run();
     } else {
       Promise.resolve().then(() => {
         setProfile(null);
         setProfileLoading(false);
       });
     }
-  }, [user, justCompletedSignup]);
+  }, [user?.id, justCompletedSignup]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (options?: { silent?: boolean }) => {
     if (!user) return;
-    setProfileLoading(true);
+    const silent = options?.silent === true;
+    if (!silent) setProfileLoading(true);
     const data = await getProfile(user.id);
     setProfile(data);
-    setProfileLoading(false);
+    if (!silent) setProfileLoading(false);
+  };
+
+  const handleEditProfileSaved = (savedProfile: BusinessProfile | null) => {
+    if (savedProfile) setProfile(savedProfile);
+    else void loadProfile({ silent: true });
+  };
+
+  const openWorkOrders = () => {
+    setView('work-orders');
+  };
+
+  const handleOpenWorkOrderDetail = (job: Job) => {
+    setWorkOrderDetailJob(job);
+    setView('work-order-detail');
+  };
+
+  const handleBackFromWorkOrderDetail = () => {
+    setWorkOrderDetailJob(null);
+    setView('work-orders');
+  };
+
+  const handleStartInvoice = (job: Job) => {
+    setInvoiceFlowJob(job);
+    setWizardExistingInvoice(null);
+    setActiveInvoice(null);
+    setView('invoice-wizard');
+  };
+
+  const handleOpenPendingInvoice = (job: Job, invoice: Invoice) => {
+    setInvoiceFlowJob(job);
+    setActiveInvoice(invoice);
+    setView('invoice-final');
+  };
+
+  const handleInvoiceWizardSuccess = (invoice: Invoice) => {
+    setActiveInvoice(invoice);
+    setWizardExistingInvoice(null);
+    setView('invoice-final');
+    void loadProfile({ silent: true });
+  };
+
+  const handleInvoiceWizardCancel = () => {
+    if (wizardExistingInvoice) {
+      setWizardExistingInvoice(null);
+      setView('invoice-final');
+    } else {
+      setInvoiceFlowJob(null);
+      setActiveInvoice(null);
+      setView('work-orders');
+    }
+  };
+
+  const handleInvoiceFinalWorkOrders = () => {
+    setView('work-orders');
+    setInvoiceFlowJob(null);
+    setActiveInvoice(null);
+    setWizardExistingInvoice(null);
+  };
+
+  const handleEditInvoice = () => {
+    if (!activeInvoice) return;
+    setWizardExistingInvoice(activeInvoice);
+    setView('invoice-wizard');
+  };
+
+  const handleAfterInvoiceDownload = (inv: Invoice) => {
+    setWorkOrdersSuccessBanner(
+      `Invoice #${String(inv.invoice_number).padStart(4, '0')} downloaded and saved!`
+    );
+    setView('work-orders');
+    setInvoiceFlowJob(null);
+    setActiveInvoice(null);
+    void loadProfile({ silent: true });
+  };
+
+  const handleInvoiceUpdated = (inv: Invoice) => {
+    setActiveInvoice(inv);
   };
 
   const handleNewUserContinue = (profileData: OnboardingData) => {
@@ -253,7 +350,7 @@ function App() {
     return (
       <EditProfilePage
         profile={profile}
-        onSave={loadProfile}
+        onSave={handleEditProfileSaved}
         onCancel={() => setView('home')}
       />
     );
@@ -268,7 +365,18 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title" onClick={() => setView('home')}>ScopeLock</h1>
+        <h1
+          className="app-title"
+          onClick={() => {
+            setView('home');
+            setInvoiceFlowJob(null);
+            setActiveInvoice(null);
+            setWizardExistingInvoice(null);
+            setWorkOrderDetailJob(null);
+          }}
+        >
+          ScopeLock
+        </h1>
         <div className="header-actions">
           <button
             type="button"
@@ -314,11 +422,61 @@ function App() {
 
       <main className="app-main">
         {view === 'home' ? (
-          <HomePage
-            onCreateAgreement={createNewAgreement}
-            ownerName={profile?.owner_name || profile?.business_name}
-            showSuccessBanner={showSuccessBanner}
-            onDismissBanner={() => setShowSuccessBanner(false)}
+          <>
+            <div className="home-work-orders-bar">
+              <a
+                href="#"
+                className="home-work-orders-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openWorkOrders();
+                }}
+              >
+                Work Orders
+              </a>
+            </div>
+            <HomePage
+              onCreateAgreement={createNewAgreement}
+              ownerName={profile?.owner_name || profile?.business_name}
+              showSuccessBanner={showSuccessBanner}
+              onDismissBanner={() => setShowSuccessBanner(false)}
+            />
+          </>
+        ) : view === 'work-orders' && user ? (
+          <WorkOrdersPage
+            userId={user.id}
+            successBanner={workOrdersSuccessBanner}
+            onClearSuccessBanner={() => setWorkOrdersSuccessBanner(null)}
+            onGoHome={() => setView('home')}
+            onStartInvoice={handleStartInvoice}
+            onOpenPendingInvoice={handleOpenPendingInvoice}
+            onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
+          />
+        ) : view === 'work-order-detail' && profile && workOrderDetailJob ? (
+          <WorkOrderDetailPage
+            job={workOrderDetailJob}
+            profile={profile}
+            onBack={handleBackFromWorkOrderDetail}
+          />
+        ) : view === 'invoice-wizard' && user && profile && invoiceFlowJob ? (
+          <InvoiceWizard
+            key={`${invoiceFlowJob.id}-${wizardExistingInvoice?.id ?? 'new'}`}
+            userId={user.id}
+            job={invoiceFlowJob}
+            profile={profile}
+            existingInvoice={wizardExistingInvoice}
+            onCancel={handleInvoiceWizardCancel}
+            onSuccess={handleInvoiceWizardSuccess}
+          />
+        ) : view === 'invoice-final' && user && profile && invoiceFlowJob && activeInvoice ? (
+          <InvoiceFinalPage
+            invoice={activeInvoice}
+            job={invoiceFlowJob}
+            profile={profile}
+            onWorkOrders={handleInvoiceFinalWorkOrders}
+            onEditInvoice={handleEditInvoice}
+            onAfterDownload={handleAfterInvoiceDownload}
+            onInvoiceUpdated={handleInvoiceUpdated}
           />
         ) : view === 'form' ? (
           <JobForm
@@ -326,6 +484,7 @@ function App() {
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
+            onGoToPreview={() => setView('preview')}
           />
         ) : (
           <AgreementPreview

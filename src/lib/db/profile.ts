@@ -1,5 +1,15 @@
 import { supabase } from '../supabase';
 import type { BusinessProfile } from '../../types/db';
+import { normalizePaymentMethods } from '../payment-methods';
+import { normalizeTaxRate } from '../tax';
+
+function normalizeProfile(profile: BusinessProfile): BusinessProfile {
+  return {
+    ...profile,
+    default_payment_methods: normalizePaymentMethods(profile.default_payment_methods),
+    default_tax_rate: normalizeTaxRate(profile.default_tax_rate),
+  };
+}
 
 export const getProfile = async (userId: string): Promise<BusinessProfile | null> => {
   const { data, error } = await supabase
@@ -13,7 +23,7 @@ export const getProfile = async (userId: string): Promise<BusinessProfile | null
     return null;
   }
 
-  return data;
+  return normalizeProfile(data);
 };
 
 /**
@@ -40,11 +50,21 @@ export const updateNextWoNumber = async (
 export const upsertProfile = async (
   profile: Partial<BusinessProfile> & { user_id: string }
 ) => {
+  const normalizedProfile = {
+    ...profile,
+    default_payment_methods:
+      profile.default_payment_methods === undefined
+        ? undefined
+        : normalizePaymentMethods(profile.default_payment_methods),
+    default_tax_rate:
+      profile.default_tax_rate === undefined ? undefined : normalizeTaxRate(profile.default_tax_rate),
+  };
+
   const { data, error } = await supabase
     .from('business_profiles')
-    .upsert(profile, { onConflict: 'user_id' })
+    .upsert(normalizedProfile, { onConflict: 'user_id' })
     .select()
     .single();
 
-  return { data, error };
+  return { data: data ? normalizeProfile(data) : null, error };
 };

@@ -1,7 +1,21 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types';
 import type { Client } from '../types/db';
 import { searchClients } from '../lib/db/clients';
+
+/** US NANP display like (571) 473-1291 — strips non-digits, keeps up to 10 digits (strips leading 1 if 11). */
+function formatUsPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  let d = digits;
+  if (d.length === 11 && d[0] === '1') {
+    d = d.slice(1);
+  }
+  d = d.slice(0, 10);
+  if (d.length === 0) return '';
+  if (d.length <= 3) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
 
 interface JobFormProps {
   userId: string;
@@ -9,9 +23,11 @@ interface JobFormProps {
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
+  /** Opens agreement preview (e.g. switches to Preview tab and scrolls to top). */
+  onGoToPreview?: () => void;
 }
 
-export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
+export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
   const [rawPrice, setRawPrice] = useState(() => (job.price === 0 ? '' : String(job.price)));
   const [rawDeposit, setRawDeposit] = useState(() => (job.deposit_amount === 0 ? '' : String(job.deposit_amount)));
@@ -29,7 +45,9 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
   };
 
   const customerNameRef = useRef(job.customer_name);
-  customerNameRef.current = job.customer_name;
+  useLayoutEffect(() => {
+    customerNameRef.current = job.customer_name;
+  });
 
   const comboboxId = useId();
   const listboxId = `${comboboxId}-client-listbox`;
@@ -45,20 +63,24 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
 
   useEffect(() => {
     if (dropdownSuppressed) {
-      setClientMatches([]);
-      setClientListOpen(false);
-      setClientHighlightIndex(-1);
-      setClientSearchLoading(false);
-      return;
+      const id = window.setTimeout(() => {
+        setClientMatches([]);
+        setClientListOpen(false);
+        setClientHighlightIndex(-1);
+        setClientSearchLoading(false);
+      }, 0);
+      return () => window.clearTimeout(id);
     }
 
     const trimmed = job.customer_name.trim();
     if (!trimmed) {
-      setClientMatches([]);
-      setClientListOpen(false);
-      setClientHighlightIndex(-1);
-      setClientSearchLoading(false);
-      return;
+      const id = window.setTimeout(() => {
+        setClientMatches([]);
+        setClientListOpen(false);
+        setClientHighlightIndex(-1);
+        setClientSearchLoading(false);
+      }, 0);
+      return () => window.clearTimeout(id);
     }
 
     const id = window.setTimeout(() => {
@@ -114,7 +136,7 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
     const name = client.name?.trim();
     if (name) patches.customer_name = name;
     const phone = client.phone?.trim();
-    if (phone) patches.customer_phone = phone;
+    if (phone) patches.customer_phone = formatUsPhoneInput(phone);
     const email = client.email?.trim();
     if (email) patches.customer_email = email;
     const address = client.address?.trim();
@@ -332,9 +354,11 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
           <input
             id="customer_phone"
             type="tel"
-            value={job.customer_phone}
-            onChange={(e) => updateField('customer_phone', e.target.value)}
-            placeholder="(555) 123-4567"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={formatUsPhoneInput(job.customer_phone ?? '')}
+            onChange={(e) => updateField('customer_phone', formatUsPhoneInput(e.target.value))}
+            placeholder="(571) 473-1291"
           />
         </div>
         <div className="form-group">
@@ -655,6 +679,14 @@ export function JobForm({ userId, job, onChange, businessName }: JobFormProps) {
           </div>
         </div>
       </section>
+
+      {onGoToPreview && (
+        <div className="job-form-preview-footer">
+          <button type="button" className="btn-action btn-primary" onClick={onGoToPreview}>
+            Preview
+          </button>
+        </div>
+      )}
     </form>
   );
 }
