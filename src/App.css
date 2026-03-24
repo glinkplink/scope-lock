@@ -758,11 +758,13 @@ body {
 }
 
 .signature-block-identifier {
-  font-size: 0.6875rem;
+  font-size: calc(0.6875rem * 1.2);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--agreement-section-blue);
+  text-decoration: none;
+  border-bottom: none;
   margin-bottom: var(--space-md);
 }
 
