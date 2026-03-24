@@ -824,7 +824,7 @@ body {
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: none;
-  color: var(--text-muted);
+  color: var(--accent-gold);
   margin-top: 1.25rem;
   margin-bottom: 0;
 }
@@ -2636,9 +2636,13 @@ ul.invoice-payment-list {
 /* ─── Invoice final page ───────────────────────────── */
 
 .invoice-final-page {
-  max-width: 480px;
+  max-width: min(480px, 100%);
+  width: 100%;
   margin: 0 auto;
   padding: 0 var(--space-xs);
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .invoice-final-nav {
@@ -2723,7 +2727,11 @@ ul.invoice-payment-list {
   background: var(--surface-white);
   margin-bottom: var(--space-lg);
   max-height: 360px;
-  overflow: auto;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .invoice-final-mini-preview-hitbox {
@@ -2777,6 +2785,9 @@ ul.invoice-payment-list {
   background: rgba(26, 25, 23, 0.55);
   display: flex;
   flex-direction: column;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .invoice-preview-modal-toolbar {
@@ -2790,15 +2801,21 @@ ul.invoice-payment-list {
 
 .invoice-preview-modal-scroll {
   flex: 1;
-  overflow: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y pinch-zoom;
   padding: var(--space-md);
 }
 
 .invoice-preview-modal-sheet {
-  max-width: 816px;
+  width: 100%;
+  max-width: min(816px, 100%);
   margin: 0 auto;
+  box-sizing: border-box;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }

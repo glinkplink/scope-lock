@@ -31,6 +31,9 @@ interface OnboardingData {
   googleUrl: string;
 }
 
+/** `history.state` flag so browser Back/Forward matches sign-in vs sign-up landing. */
+type AuthHistoryState = { scopeLockAuth?: 'signin' };
+
 function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJob {
   const today = new Date().toISOString().split('T')[0];
   const p = currentProfile;
@@ -81,7 +84,10 @@ function App() {
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>(null);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
-  const [showAuthPage, setShowAuthPage] = useState(false);
+  const [showAuthPage, setShowAuthPage] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (window.history.state as AuthHistoryState | null)?.scopeLockAuth === 'signin';
+  });
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [accountCreating, setAccountCreating] = useState(false);
   const [justCompletedSignup, setJustCompletedSignup] = useState(false);
@@ -144,6 +150,15 @@ function App() {
       setProfile({ ...profile, next_wo_number: newCount });
     }
   };
+
+  useEffect(() => {
+    const syncAuthPageFromHistory = () => {
+      const st = window.history.state as AuthHistoryState | null;
+      setShowAuthPage(st?.scopeLockAuth === 'signin');
+    };
+    window.addEventListener('popstate', syncAuthPageFromHistory);
+    return () => window.removeEventListener('popstate', syncAuthPageFromHistory);
+  }, []);
 
   useEffect(() => {
     const uid = user?.id;
@@ -320,13 +335,27 @@ function App() {
       <BusinessProfileForm
         isNewUser={true}
         onContinue={handleNewUserContinue}
-        onSignInClick={() => setShowAuthPage(true)}
+        onSignInClick={() => {
+          window.history.pushState({ scopeLockAuth: 'signin' }, '', window.location.href);
+          setShowAuthPage(true);
+        }}
       />
     );
   }
 
   if (!user && showAuthPage) {
-    return <AuthPage onSignUpClick={() => setShowAuthPage(false)} />;
+    return (
+      <AuthPage
+        onSignUpClick={() => {
+          const st = window.history.state as AuthHistoryState | null;
+          if (st?.scopeLockAuth === 'signin') {
+            window.history.back();
+          } else {
+            setShowAuthPage(false);
+          }
+        }}
+      />
+    );
   }
 
   if (user && !profile && !justCompletedSignup) {
