@@ -515,8 +515,9 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
         <p className="help-text">List what is NOT included in this job</p>
         {job.exclusions.map((exclusion, index) => (
           <div key={`exclusion-${index}`} className="list-item">
-            <input
-              type="text"
+            <textarea
+              id={`exclusion-${index}`}
+              rows={2}
               value={exclusion}
               onChange={(e) => updateExclusion(index, e.target.value)}
               placeholder="e.g., Painting or powder coating"
@@ -542,8 +543,9 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
         <p className="help-text">What the customer must provide or ensure before work begins</p>
         {job.customer_obligations.map((obligation, index) => (
           <div key={`obligation-${index}`} className="list-item">
-            <input
-              type="text"
+            <textarea
+              id={`obligation-${index}`}
+              rows={2}
               value={obligation}
               onChange={(e) => updateObligation(index, e.target.value)}
               placeholder="e.g., Customer will provide clear access to work area"
