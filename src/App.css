@@ -172,6 +172,12 @@ body {
   border-bottom: 2px solid var(--border);
 }
 
+/* Job form section titles — same navy as agreement preview .section-title */
+.job-form .form-section h2 {
+  color: var(--agreement-section-blue);
+  border-bottom-color: var(--agreement-section-blue);
+}
+
 /* ─── Form Groups ───────────────────────────────────── */
 
 .form-group {
