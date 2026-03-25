@@ -27,7 +27,7 @@
   "price_type": "fixed",
   "price": 0,
   "deposit_amount": 0,
-  "late_payment_terms": "Balances unpaid 7 days after completion accrue 1.5% per month",
+  "late_payment_terms": "Balances unpaid 7 days after completion accrue 1.5% per month.",
   "exclusions": [],
   "customer_obligations": [],
   "change_order_required": true,

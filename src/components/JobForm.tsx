@@ -2,11 +2,17 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types';
 import type { Client } from '../types/db';
 import { searchClients } from '../lib/db/clients';
-import { formatJobSiteAddress, governingStateFromSiteState } from '../lib/job-site-address';
+import {
+  formatJobSiteAddress,
+  governingStateFromSiteState,
+  parseStoredJobSiteAddress,
+  tryParseUsAddressBlob,
+} from '../lib/job-site-address';
 import {
   fetchGeoapifyAddressSuggestions,
   type JobSiteAddressSuggestion,
 } from '../lib/geoapify-autocomplete';
+import { formatUsPhoneInput } from '../lib/us-phone-input';
 
 function patchJobSite(
   base: WelderJob,
@@ -26,22 +32,8 @@ function patchJobSite(
   };
 }
 
-/** US NANP display like (571) 473-1291 — strips non-digits, keeps up to 10 digits (strips leading 1 if 11). */
-function formatUsPhoneInput(value: string): string {
-  const digits = value.replace(/\D/g, '');
-  let d = digits;
-  if (d.length === 11 && d[0] === '1') {
-    d = d.slice(1);
-  }
-  d = d.slice(0, 10);
-  if (d.length === 0) return '';
-  if (d.length <= 3) return `(${d}`;
-  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-}
-
 interface JobFormProps {
-  userId: string;
+  userId?: string;
   job: WelderJob;
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
@@ -137,6 +129,14 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     const id = window.setTimeout(() => {
       const q = customerNameRef.current.trim();
       if (!q) {
+        setClientMatches([]);
+        setClientListOpen(false);
+        setClientHighlightIndex(-1);
+        setClientSearchLoading(false);
+        return;
+      }
+
+      if (!userId) {
         setClientMatches([]);
         setClientListOpen(false);
         setClientHighlightIndex(-1);
@@ -266,6 +266,19 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
   };
 
   const handleJobSiteStreetBlur = () => {
+    const line = job.job_site_street.trim();
+    const parsed = tryParseUsAddressBlob(line);
+    if (parsed && parsed.state && parsed.zip) {
+      onChange(
+        patchJobSite(job, {
+          job_site_street: parsed.street,
+          job_site_city: parsed.city || job.job_site_city,
+          job_site_state: parsed.state,
+          job_site_zip: parsed.zip,
+        })
+      );
+    }
+
     if (jobSiteStreetBlurCloseTimerRef.current != null) {
       window.clearTimeout(jobSiteStreetBlurCloseTimerRef.current);
     }
@@ -330,11 +343,12 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     let next: WelderJob = { ...job, ...patches };
     const address = client.address?.trim();
     if (address) {
+      const parts = parseStoredJobSiteAddress(address);
       next = patchJobSite(next, {
-        job_site_street: address,
-        job_site_city: '',
-        job_site_state: '',
-        job_site_zip: '',
+        job_site_street: parts.street,
+        job_site_city: parts.city,
+        job_site_state: parts.state,
+        job_site_zip: parts.zip,
       });
     }
     onChange(next);
@@ -586,7 +600,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
               onChange={handleJobSiteStreetChange}
               onBlur={handleJobSiteStreetBlur}
               onKeyDown={handleJobSiteStreetKeyDown}
-              autoComplete="off"
+              autoComplete="address-line1"
               required
               placeholder="123 Main Street"
             />
@@ -627,6 +641,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
             <input
               id="job_site_city"
               type="text"
+              autoComplete="address-level2"
               value={job.job_site_city}
               onChange={(e) => onChange(patchJobSite(job, { job_site_city: e.target.value }))}
               placeholder="Austin"
@@ -637,6 +652,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
             <input
               id="job_site_state"
               type="text"
+              autoComplete="address-level1"
               value={job.job_site_state}
               onChange={(e) => onChange(patchJobSite(job, { job_site_state: e.target.value }))}
               placeholder="TX"
@@ -648,6 +664,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
               id="job_site_zip"
               type="text"
               inputMode="numeric"
+              autoComplete="postal-code"
               value={job.job_site_zip}
               onChange={(e) => onChange(patchJobSite(job, { job_site_zip: e.target.value }))}
               placeholder="78701"
@@ -884,7 +901,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
             value={job.late_payment_terms}
             onChange={(e) => updateField('late_payment_terms', e.target.value)}
             rows={2}
-            placeholder="Balances unpaid 7 days after completion accrue 1.5% per month"
+              placeholder="Balances unpaid 7 days after completion accrue 1.5% per month."
           />
         </div>
       </section>

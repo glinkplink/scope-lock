@@ -1,3 +1,8 @@
+import {
+  parseUsCityStateZipFromLine2,
+  tryParseUsAddressBlob,
+} from './job-site-address';
+
 export interface JobSiteAddressSuggestion {
   id: string;
   label: string;
@@ -10,23 +15,53 @@ export interface JobSiteAddressSuggestion {
 /** One row from Geoapify autocomplete `format=json` — flat object on `data.results`. */
 type GeoapifyJsonResult = {
   address_line1?: string;
+  address_line2?: string;
   city?: string;
   state_code?: string;
   postcode?: string;
   formatted?: string;
+  housenumber?: string;
+  street?: string;
 };
 
 function resultToSuggestion(r: GeoapifyJsonResult, index: number): JobSiteAddressSuggestion | null {
   const formatted = (r.formatted ?? '').trim();
   const line1 = (r.address_line1 ?? '').trim();
-  const street =
+  const house = (r.housenumber ?? '').trim();
+  const st = (r.street ?? '').trim();
+  const fromParts = [house, st].filter(Boolean).join(' ').trim();
+
+  let street =
     line1 ||
+    fromParts ||
     (formatted.includes(',') ? formatted.split(',')[0]?.trim() ?? '' : formatted) ||
     '';
   if (!street) return null;
-  const city = (r.city ?? '').trim();
-  const state = (r.state_code ?? '').trim();
-  const zip = (r.postcode ?? '').trim();
+
+  let city = (r.city ?? '').trim();
+  let state = (r.state_code ?? '').trim();
+  let zip = (r.postcode ?? '').trim();
+
+  const line2 = (r.address_line2 ?? '').trim();
+  if ((!city || !state || !zip) && line2) {
+    const p = parseUsCityStateZipFromLine2(line2);
+    if (!city) city = p.city;
+    if (!state) state = p.state;
+    if (!zip) zip = p.zip;
+  }
+
+  if ((!city || !state || !zip) && formatted) {
+    const blob = tryParseUsAddressBlob(formatted);
+    if (blob) {
+      if (!city) city = blob.city;
+      if (!state) state = blob.state;
+      if (!zip) zip = blob.zip;
+      if ((!line1 && !fromParts && blob.street) || street === formatted) {
+        street = blob.street;
+      }
+    }
+  }
+
   const label = [street, city, state, zip].filter(Boolean).join(', ');
   return {
     id: `geoapify-${index}-${label.slice(0, 48)}`,
