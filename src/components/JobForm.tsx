@@ -89,9 +89,10 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
   const jobSiteStreetComboboxRef = useRef<HTMLDivElement>(null);
   const jobSiteStreetQueryRef = useRef(job.job_site_street);
   const jobSiteStreetBlurCloseTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  /** Only the latest autocomplete request may apply results (avoids stale short-query responses clearing longer-query UI). */
+  const geoFetchSeqRef = useRef(0);
 
   const [geoMatches, setGeoMatches] = useState<JobSiteAddressSuggestion[]>([]);
-  const [geoListOpen, setGeoListOpen] = useState(false);
   const [geoHighlightIndex, setGeoHighlightIndex] = useState(-1);
   const [geoSearchLoading, setGeoSearchLoading] = useState(false);
   const [geoDropdownSuppressed, setGeoDropdownSuppressed] = useState(false);
@@ -156,7 +157,6 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
       setClientMatches([]);
       setClientHighlightIndex(-1);
       if (t && jobSiteStreetComboboxRef.current?.contains(t)) return;
-      setGeoListOpen(false);
       setGeoMatches([]);
       setGeoHighlightIndex(-1);
     };
@@ -178,8 +178,8 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
   useEffect(() => {
     if (geoDropdownSuppressed) {
       const id = window.setTimeout(() => {
+        geoFetchSeqRef.current += 1;
         setGeoMatches([]);
-        setGeoListOpen(false);
         setGeoHighlightIndex(-1);
         setGeoSearchLoading(false);
       }, 0);
@@ -189,8 +189,8 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     const trimmed = job.job_site_street.trim();
     if (trimmed.length < 3 || !geoapifyApiKey) {
       const id = window.setTimeout(() => {
+        geoFetchSeqRef.current += 1;
         setGeoMatches([]);
-        setGeoListOpen(false);
         setGeoHighlightIndex(-1);
         setGeoSearchLoading(false);
       }, 0);
@@ -200,29 +200,30 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     const id = window.setTimeout(() => {
       const q = jobSiteStreetQueryRef.current.trim();
       if (q.length < 3) {
+        geoFetchSeqRef.current += 1;
         setGeoMatches([]);
-        setGeoListOpen(false);
         setGeoHighlightIndex(-1);
         setGeoSearchLoading(false);
         return;
       }
 
+      const fetchSeq = ++geoFetchSeqRef.current;
       setGeoSearchLoading(true);
       void fetchGeoapifyAddressSuggestions(q, geoapifyApiKey)
         .then((rows) => {
-          if (jobSiteStreetQueryRef.current.trim() !== q) {
-            setGeoSearchLoading(false);
+          if (fetchSeq !== geoFetchSeqRef.current) {
             return;
           }
           setGeoSearchLoading(false);
           setGeoMatches(rows);
-          setGeoListOpen(rows.length > 0);
           setGeoHighlightIndex(rows.length > 0 ? 0 : -1);
         })
         .catch(() => {
+          if (fetchSeq !== geoFetchSeqRef.current) {
+            return;
+          }
           setGeoSearchLoading(false);
           setGeoMatches([]);
-          setGeoListOpen(false);
           setGeoHighlightIndex(-1);
         });
     }, 300);
@@ -239,7 +240,6 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
         job_site_zip: s.zip,
       })
     );
-    setGeoListOpen(false);
     setGeoMatches([]);
     setGeoHighlightIndex(-1);
     setGeoDropdownSuppressed(true);
@@ -264,20 +264,18 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
       if (root?.contains(document.activeElement)) {
         return;
       }
-      setGeoListOpen(false);
       setGeoMatches([]);
       setGeoHighlightIndex(-1);
     }, 120);
   };
 
   const handleJobSiteStreetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!geoListOpen || geoMatches.length === 0) {
+    if (geoMatches.length === 0) {
       return;
     }
 
     if (e.key === 'Escape') {
       e.preventDefault();
-      setGeoListOpen(false);
       setGeoMatches([]);
       setGeoHighlightIndex(-1);
       return;
@@ -565,11 +563,11 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
               id="job_site_street"
               type="text"
               role="combobox"
-              aria-expanded={geoListOpen}
+              aria-expanded={geoMatches.length > 0}
               aria-controls={siteListboxId}
               aria-autocomplete="list"
               aria-activedescendant={
-                geoListOpen && geoHighlightIndex >= 0 && geoMatches[geoHighlightIndex]
+                geoMatches.length > 0 && geoHighlightIndex >= 0 && geoMatches[geoHighlightIndex]
                   ? `${siteListboxId}-option-${geoHighlightIndex}`
                   : undefined
               }
@@ -586,7 +584,7 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
                 Searching…
               </span>
             )}
-            {geoListOpen && geoMatches.length > 0 && (
+            {geoMatches.length > 0 && (
               <ul id={siteListboxId} className="job-site-street-listbox" role="listbox">
                 {geoMatches.map((s, index) => (
                   <li

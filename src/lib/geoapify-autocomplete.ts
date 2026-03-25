@@ -7,35 +7,38 @@ export interface JobSiteAddressSuggestion {
   zip: string;
 }
 
-type GeoapifyFeature = {
-  properties?: Record<string, string | undefined>;
+/** One row from Geoapify autocomplete `format=json` — flat object on `data.results`. */
+type GeoapifyJsonResult = {
+  address_line1?: string;
+  city?: string;
+  state_code?: string;
+  postcode?: string;
+  formatted?: string;
 };
 
-function featureToSuggestion(feature: GeoapifyFeature, index: number): JobSiteAddressSuggestion | null {
-  const p = feature.properties;
-  if (!p) return null;
-  const housenumber = (p.housenumber ?? '').trim();
-  const streetName = (p.street ?? '').trim();
-  const line1 =
-    [housenumber, streetName].filter(Boolean).join(' ').trim() ||
-    (p.address_line1 ?? '').trim() ||
-    (p.formatted ?? '').trim();
-  if (!line1) return null;
-  const city = (p.city ?? '').trim();
-  const state = (p.state_code ?? p.state ?? '').trim();
-  const zip = (p.postcode ?? '').trim();
-  const label = (p.formatted ?? line1).trim() || line1;
+function resultToSuggestion(r: GeoapifyJsonResult, index: number): JobSiteAddressSuggestion | null {
+  const formatted = (r.formatted ?? '').trim();
+  const line1 = (r.address_line1 ?? '').trim();
+  const street =
+    line1 ||
+    (formatted.includes(',') ? formatted.split(',')[0]?.trim() ?? '' : formatted) ||
+    '';
+  if (!street) return null;
+  const city = (r.city ?? '').trim();
+  const state = (r.state_code ?? '').trim();
+  const zip = (r.postcode ?? '').trim();
+  const label = [street, city, state, zip].filter(Boolean).join(', ');
   return {
     id: `geoapify-${index}-${label.slice(0, 48)}`,
     label,
-    street: line1,
+    street,
     city,
     state,
     zip,
   };
 }
 
-/** Geoapify Geocoder Autocomplete (US street), raw JSON FeatureCollection. */
+/** Geoapify Geocoder Autocomplete (US street); `format=json` returns `{ results: [...] }`. */
 export async function fetchGeoapifyAddressSuggestions(
   text: string,
   apiKey: string
@@ -45,7 +48,6 @@ export async function fetchGeoapifyAddressSuggestions(
 
   const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
   url.searchParams.set('text', trimmed);
-  url.searchParams.set('type', 'street');
   url.searchParams.set('filter', 'countrycode:us');
   url.searchParams.set('format', 'json');
   url.searchParams.set('apiKey', apiKey);
@@ -58,11 +60,16 @@ export async function fetchGeoapifyAddressSuggestions(
   }
   if (!res.ok) return [];
 
-  const data = (await res.json()) as { features?: GeoapifyFeature[] };
-  const features = Array.isArray(data.features) ? data.features : [];
+  const data = (await res.json()) as { results?: GeoapifyJsonResult[] };
+
+  if (import.meta.env.DEV) {
+    console.log('[Geoapify] autocomplete data.results', data.results);
+  }
+
+  const raw = Array.isArray(data.results) ? data.results : [];
   const out: JobSiteAddressSuggestion[] = [];
-  for (let i = 0; i < features.length && out.length < 5; i++) {
-    const s = featureToSuggestion(features[i], i);
+  for (let i = 0; i < raw.length && out.length < 5; i++) {
+    const s = resultToSuggestion(raw[i], i);
     if (s) out.push(s);
   }
   return out;
