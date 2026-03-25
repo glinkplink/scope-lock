@@ -3,9 +3,11 @@ import { signIn } from '../lib/auth';
 
 interface AuthPageProps {
   onSignUpClick?: () => void;
+  /** Called after successful sign-in (e.g. leave auth view). */
+  onSignInSuccess?: () => void;
 }
 
-export function AuthPage({ onSignUpClick }: AuthPageProps) {
+export function AuthPage({ onSignUpClick, onSignInSuccess }: AuthPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,6 +25,7 @@ export function AuthPage({ onSignUpClick }: AuthPageProps) {
       setLoading(false);
     } else {
       setLoading(false);
+      onSignInSuccess?.();
     }
   };
 

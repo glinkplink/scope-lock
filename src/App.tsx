@@ -4,7 +4,6 @@ import { JobForm } from './components/JobForm';
 import { AgreementPreview } from './components/AgreementPreview';
 import { AuthPage } from './components/AuthPage';
 import { BusinessProfileForm } from './components/BusinessProfileForm';
-import { PasswordCreationPage } from './components/PasswordCreationPage';
 import { HomePage } from './components/HomePage';
 import { EditProfilePage } from './components/EditProfilePage';
 import { useAuth } from './hooks/useAuth';
@@ -20,17 +19,6 @@ import { InvoiceFinalPage } from './components/InvoiceFinalPage';
 import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
 import './App.css';
 
-type OnboardingStep = 'profile' | 'password' | null;
-
-interface OnboardingData {
-  businessName: string;
-  ownerName: string;
-  phone: string;
-  email: string;
-  address: string;
-  googleUrl: string;
-}
-
 type AppView =
   | 'home'
   | 'form'
@@ -39,10 +27,10 @@ type AppView =
   | 'work-orders'
   | 'work-order-detail'
   | 'invoice-wizard'
-  | 'invoice-final';
+  | 'invoice-final'
+  | 'auth';
 
-/** `history.state` for auth landing vs sign-in and in-app view stack. */
-type AppHistoryState = { scopeLockAuth?: 'signin'; view?: AppView };
+type AppHistoryState = { view?: AppView };
 
 const APP_VIEWS: AppView[] = [
   'home',
@@ -53,6 +41,7 @@ const APP_VIEWS: AppView[] = [
   'work-order-detail',
   'invoice-wizard',
   'invoice-final',
+  'auth',
 ];
 
 function isAppView(v: unknown): v is AppView {
@@ -98,15 +87,7 @@ function App() {
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>(null);
-  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
-  const [showAuthPage, setShowAuthPage] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return (window.history.state as AppHistoryState | null)?.scopeLockAuth === 'signin';
-  });
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const [accountCreating, setAccountCreating] = useState(false);
-  const [justCompletedSignup, setJustCompletedSignup] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [woIsOpen, setWoIsOpen] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -158,7 +139,9 @@ function App() {
   const handleSaveSuccess = async (savedJobId: string, isNewSave: boolean) => {
     setCurrentJobId(savedJobId);
     setWoCounterPersistError(null);
-    if (isNewSave && profile) {
+    if (!isNewSave) return;
+
+    if (profile) {
       const newCount = (profile.next_wo_number ?? 1) + 1;
       const { error } = await updateNextWoNumber(profile.user_id, newCount);
       if (error) {
@@ -169,13 +152,55 @@ function App() {
         return;
       }
       setProfile({ ...profile, next_wo_number: newCount });
+      return;
     }
+
+    const uid = user?.id;
+    if (uid) {
+      const fresh = await getProfile(uid);
+      if (fresh) {
+        const newCount = (fresh.next_wo_number ?? 1) + 1;
+        const { error } = await updateNextWoNumber(uid, newCount);
+        if (error) {
+          console.error('Failed to persist next work order number:', error);
+          setWoCounterPersistError(
+            `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
+          );
+          return;
+        }
+        setProfile({ ...fresh, next_wo_number: newCount });
+      }
+    }
+  };
+
+  const handleCaptureAndSave = async (capture: {
+    businessName: string;
+    email: string;
+    password: string;
+  }) => {
+    const { data: authData, error: authError } = await signUp(capture.email, capture.password);
+    if (authError || !authData.user) {
+      throw new Error(authError?.message || 'Failed to create account');
+    }
+
+    const { error: profileError } = await upsertProfile({
+      user_id: authData.user.id,
+      business_name: capture.businessName,
+      email: capture.email,
+      default_exclusions: getDefaultExclusions(),
+      default_assumptions: getDefaultCustomerObligations(),
+    });
+
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    return { userId: authData.user.id, businessName: capture.businessName, email: capture.email };
   };
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
       const st = e.state as AppHistoryState | null;
-      setShowAuthPage(st?.scopeLockAuth === 'signin');
       const v = st?.view;
       if (isAppView(v)) setView(v);
       else setView('home');
@@ -188,15 +213,10 @@ function App() {
     const uid = user?.id;
     if (uid) {
       const run = async () => {
-        setShowAuthPage(false);
         setProfileLoading(true);
         const data = await getProfile(uid);
         setProfile(data);
         setProfileLoading(false);
-        setAccountCreating(false);
-        if (justCompletedSignup && data) {
-          setJustCompletedSignup(false);
-        }
       };
       void run();
     } else {
@@ -205,7 +225,7 @@ function App() {
         setProfileLoading(false);
       });
     }
-  }, [user?.id, justCompletedSignup]);
+  }, [user?.id]);
 
   const loadProfile = async (options?: { silent?: boolean }) => {
     if (!user) return;
@@ -225,8 +245,8 @@ function App() {
     navigateTo('work-orders');
   };
 
-  const handleOpenWorkOrderDetail = (job: Job) => {
-    setWorkOrderDetailJob(job);
+  const handleOpenWorkOrderDetail = (jobRow: Job) => {
+    setWorkOrderDetailJob(jobRow);
     navigateTo('work-order-detail');
   };
 
@@ -235,15 +255,15 @@ function App() {
     navigateTo('work-orders');
   };
 
-  const handleStartInvoice = (job: Job) => {
-    setInvoiceFlowJob(job);
+  const handleStartInvoice = (jobRow: Job) => {
+    setInvoiceFlowJob(jobRow);
     setWizardExistingInvoice(null);
     setActiveInvoice(null);
     navigateTo('invoice-wizard');
   };
 
-  const handleOpenPendingInvoice = (job: Job, invoice: Invoice) => {
-    setInvoiceFlowJob(job);
+  const handleOpenPendingInvoice = (jobRow: Job, invoice: Invoice) => {
+    setInvoiceFlowJob(jobRow);
     setActiveInvoice(invoice);
     navigateTo('invoice-final');
   };
@@ -293,96 +313,25 @@ function App() {
     setActiveInvoice(inv);
   };
 
-  const handleNewUserContinue = (profileData: OnboardingData) => {
-    setOnboardingData(profileData);
-    setOnboardingStep('password');
-  };
-
-  const handleCreateAccount = async (password: string) => {
-    if (!onboardingData) {
-      throw new Error('Profile data is missing');
-    }
-
-    setAccountCreating(true);
-
-    const { data, error } = await signUp(onboardingData.email, password);
-
-    if (error || !data.user) {
-      setAccountCreating(false);
-      throw new Error(error?.message || 'Failed to create account');
-    }
-
-    const { error: profileError } = await upsertProfile({
-      user_id: data.user.id,
-      business_name: onboardingData.businessName,
-      owner_name: onboardingData.ownerName || null,
-      phone: onboardingData.phone || null,
-      email: onboardingData.email || null,
-      address: onboardingData.address || null,
-      google_business_profile_url: onboardingData.googleUrl || null,
-      default_exclusions: getDefaultExclusions(),
-      default_assumptions: getDefaultCustomerObligations(),
-    });
-
-    if (profileError) {
-      setAccountCreating(false);
-      throw new Error(profileError.message);
-    }
-
-    setShowSuccessBanner(true);
-    setJustCompletedSignup(true);
-    setOnboardingStep(null);
-    setOnboardingData(null);
-    navigateTo('home');
-  };
-
-  if (authLoading || profileLoading || accountCreating) {
+  if (authLoading) {
     return (
       <div className="app-loading">
-        {accountCreating ? 'Creating your account...' : 'Loading...'}
+        Loading...
       </div>
     );
   }
 
-  if (!user && !showAuthPage) {
-    if (onboardingStep === 'password' && onboardingData) {
-      return (
-        <PasswordCreationPage
-          email={onboardingData.email}
-          onCreateAccount={handleCreateAccount}
-          onBack={() => setOnboardingStep(null)}
-        />
-      );
-    }
+  const inWorkOrderFlow = view === 'form' || view === 'preview';
 
+  if (user && !profile && profileLoading && !inWorkOrderFlow) {
     return (
-      <BusinessProfileForm
-        isNewUser={true}
-        onContinue={handleNewUserContinue}
-        onSignInClick={() => {
-          window.history.pushState({ scopeLockAuth: 'signin' }, '', window.location.href);
-          setShowAuthPage(true);
-        }}
-      />
+      <div className="app-loading">
+        Loading...
+      </div>
     );
   }
 
-  if (!user && showAuthPage) {
-    return (
-      <AuthPage
-        onSignUpClick={() => {
-          const st = window.history.state as AppHistoryState | null;
-          if (st?.scopeLockAuth === 'signin') {
-            window.history.back();
-          } else {
-            setShowAuthPage(false);
-          }
-        }}
-      />
-    );
-  }
-
-  if (user && !profile && !justCompletedSignup) {
+  if (user && !profile && !profileLoading && !inWorkOrderFlow) {
     return (
       <BusinessProfileForm
         userId={user.id}
@@ -392,18 +341,16 @@ function App() {
     );
   }
 
-  if (!profile) {
-    if (justCompletedSignup) {
-      return <div className="app-loading">Setting up your account...</div>;
-    }
-    return null;
-  }
-
-  if (!user) {
-    return null;
-  }
-
   const showTabs = view === 'form' || view === 'preview';
+
+  const homePageEl = (
+    <HomePage
+      onCreateAgreement={createNewAgreement}
+      ownerName={profile?.owner_name || profile?.business_name}
+      showSuccessBanner={showSuccessBanner}
+      onDismissBanner={() => setShowSuccessBanner(false)}
+    />
+  );
 
   return (
     <div className="app">
@@ -421,21 +368,34 @@ function App() {
           ScopeLock
         </h1>
         <div className="header-actions">
-          <button
-            type="button"
-            className="header-work-orders-link"
-            onClick={openWorkOrders}
-          >
-            Work Orders
-          </button>
-          <button
-            type="button"
-            className="btn-header-settings"
-            onClick={() => navigateTo('profile')}
-            aria-label="Edit profile"
-          >
-            <Settings className="btn-header-settings-icon" aria-hidden="true" />
-          </button>
+          {!user && (
+            <button
+              type="button"
+              className="header-sign-in-link"
+              onClick={() => navigateTo('auth')}
+            >
+              Sign In
+            </button>
+          )}
+          {user && (
+            <button
+              type="button"
+              className="header-work-orders-link"
+              onClick={openWorkOrders}
+            >
+              Work Orders
+            </button>
+          )}
+          {user && (
+            <button
+              type="button"
+              className="btn-header-settings"
+              onClick={() => navigateTo('profile')}
+              aria-label="Edit profile"
+            >
+              <Settings className="btn-header-settings-icon" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -471,19 +431,26 @@ function App() {
       )}
 
       <main className="app-main">
-        {view === 'home' ? (
-          <HomePage
-            onCreateAgreement={createNewAgreement}
-            ownerName={profile?.owner_name || profile?.business_name}
-            showSuccessBanner={showSuccessBanner}
-            onDismissBanner={() => setShowSuccessBanner(false)}
+        {view === 'auth' && !user ? (
+          <AuthPage
+            onSignUpClick={() => navigateTo('home')}
+            onSignInSuccess={() => {
+              window.history.replaceState({ view: 'home' }, '');
+              setView('home');
+            }}
           />
-        ) : view === 'profile' ? (
+        ) : view === 'auth' && user ? (
+          homePageEl
+        ) : view === 'home' ? (
+          homePageEl
+        ) : view === 'profile' && profile ? (
           <EditProfilePage
             profile={profile}
             onSave={handleEditProfileSaved}
             onCancel={() => navigateTo('home')}
           />
+        ) : view === 'profile' && !profile ? (
+          homePageEl
         ) : view === 'work-orders' && user ? (
           <WorkOrdersPage
             userId={user.id}
@@ -521,7 +488,7 @@ function App() {
           />
         ) : view === 'form' ? (
           <JobForm
-            userId={user.id}
+            userId={user?.id}
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
@@ -533,6 +500,8 @@ function App() {
             profile={profile}
             existingJobId={currentJobId ?? undefined}
             onSaveSuccess={handleSaveSuccess}
+            onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
+            onCaptureFlowFinished={() => setShowSuccessBanner(true)}
           />
         )}
       </main>

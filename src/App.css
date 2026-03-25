@@ -1984,6 +1984,21 @@ body {
   justify-content: flex-end;
 }
 
+.capture-modal-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.header-sign-in-link {
+  background: none;
+  border: none;
+  color: var(--primary-light);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
 /* ─── Print ──────────────────────────────────────────── */
 
 @media print {

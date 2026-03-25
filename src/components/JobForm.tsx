@@ -41,7 +41,7 @@ function formatUsPhoneInput(value: string): string {
 }
 
 interface JobFormProps {
-  userId: string;
+  userId?: string;
   job: WelderJob;
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
@@ -137,6 +137,14 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     const id = window.setTimeout(() => {
       const q = customerNameRef.current.trim();
       if (!q) {
+        setClientMatches([]);
+        setClientListOpen(false);
+        setClientHighlightIndex(-1);
+        setClientSearchLoading(false);
+        return;
+      }
+
+      if (!userId) {
         setClientMatches([]);
         setClientListOpen(false);
         setClientHighlightIndex(-1);

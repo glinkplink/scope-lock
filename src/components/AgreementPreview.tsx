@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { PriceType, WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
 import { generateAgreement } from '../lib/agreement-generator';
@@ -8,6 +9,7 @@ import {
   fetchAgreementPdfBlob,
 } from '../lib/agreement-pdf';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
+import { CaptureModal } from './CaptureModal';
 
 /** Letter width at 96dpi — preview layout matches PDF viewport. */
 const PREVIEW_LETTER_WIDTH_PX = 816;
@@ -34,14 +36,55 @@ function getRequiredFieldIssues(job: WelderJob): string[] {
   return issues;
 }
 
+function buildCapturedProfileStub(
+  result: { userId: string; businessName: string; email: string }
+): BusinessProfile {
+  return {
+    id: '',
+    user_id: result.userId,
+    business_name: result.businessName,
+    owner_name: null,
+    phone: null,
+    email: result.email,
+    address: null,
+    google_business_profile_url: null,
+    default_exclusions: [],
+    default_assumptions: [],
+    next_wo_number: 1,
+    next_invoice_number: 1,
+    default_warranty_period: 30,
+    default_negotiation_period: 10,
+    default_payment_methods: [],
+    default_tax_rate: 0,
+    default_late_payment_terms: '',
+    default_card_fee_note: false,
+    created_at: '',
+    updated_at: '',
+  };
+}
+
 interface AgreementPreviewProps {
   job: WelderJob;
   profile: BusinessProfile | null;
   existingJobId?: string;
   onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
+  onCaptureAndSave?: (capture: {
+    businessName: string;
+    email: string;
+    password: string;
+  }) => Promise<{ userId: string; businessName: string; email: string }>;
+  /** Called after capture modal flow completes (account + save + PDF). */
+  onCaptureFlowFinished?: () => void;
 }
 
-export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }: AgreementPreviewProps) {
+export function AgreementPreview({
+  job,
+  profile,
+  existingJobId,
+  onSaveSuccess,
+  onCaptureAndSave,
+  onCaptureFlowFinished,
+}: AgreementPreviewProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
@@ -57,7 +100,18 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
    */
   const [previewScale, setPreviewScale] = useState(1);
 
-  const sections = generateAgreement(job, profile);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
+  const [captureError, setCaptureError] = useState('');
+  const [captureSubmitting, setCaptureSubmitting] = useState(false);
+  /** After capture, re-render agreement with contractor profile before PDF snapshot. */
+  const [postCaptureProfile, setPostCaptureProfile] = useState<BusinessProfile | null>(null);
+
+  const displayProfile = postCaptureProfile ?? profile;
+  const sections = generateAgreement(job, displayProfile);
+
+  useEffect(() => {
+    if (profile) setPostCaptureProfile(null);
+  }, [profile]);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -105,7 +159,57 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
     const ro = new ResizeObserver(updateHeight);
     ro.observe(sheet);
     return () => ro.disconnect();
-  }, [job, profile]);
+  }, [job, displayProfile]);
+
+  const handleCaptureSubmit = async (businessName: string, email: string, password: string) => {
+    if (!onCaptureAndSave) return;
+    setCaptureSubmitting(true);
+    setCaptureError('');
+
+    try {
+      const result = await onCaptureAndSave({ businessName, email, password });
+      const capturedProfile = buildCapturedProfileStub(result);
+
+      flushSync(() => setPostCaptureProfile(capturedProfile));
+
+      const { data, error } = await saveWorkOrder(result.userId, job, existingJobId);
+      if (error || !data) {
+        setCaptureSubmitting(false);
+        setCaptureError(error?.message || 'Failed to save work order.');
+        return;
+      }
+
+      setHasPersistedViaDownloadOnce(true);
+      await Promise.resolve(onSaveSuccess(data.id, true));
+      onCaptureFlowFinished?.();
+
+      let pdfOk = false;
+      if (documentRef.current) {
+        try {
+          const blob = await fetchAgreementPdfBlob(job, capturedProfile, documentRef.current);
+          downloadAgreementPdfBlob(blob, job);
+          pdfOk = true;
+        } catch (pdfErr) {
+          setSaveError(
+            pdfErr instanceof Error
+              ? `Work order saved, but PDF failed: ${pdfErr.message}`
+              : 'Work order saved, but PDF download failed.'
+          );
+        }
+      }
+
+      setShowCaptureModal(false);
+      setCaptureSubmitting(false);
+      setConfirmationMessage(
+        pdfOk
+          ? `Account created! WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`
+          : `Account created! WO #${String(job.wo_number).padStart(4, '0')} saved.`
+      );
+    } catch (err) {
+      setCaptureSubmitting(false);
+      setCaptureError(err instanceof Error ? err.message : 'Something went wrong.');
+    }
+  };
 
   const handleDownloadAndSave = async () => {
     setSaving(true);
@@ -118,7 +222,7 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       return;
     }
 
-    if (!profile) {
+    if (!profile && !onCaptureAndSave) {
       setSaving(false);
       setSaveError('No profile found — cannot save work order.');
       return;
@@ -128,6 +232,18 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
     if (fieldIssues.length > 0) {
       setSaving(false);
       setSaveError(`Please complete the following before saving: ${fieldIssues.join('; ')}.`);
+      return;
+    }
+
+    if (!profile && onCaptureAndSave) {
+      setSaving(false);
+      setShowCaptureModal(true);
+      return;
+    }
+
+    if (!profile) {
+      setSaving(false);
+      setSaveError('No profile found — cannot save work order.');
       return;
     }
 
@@ -179,7 +295,7 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
   const renderDownloadButton = () => (
     <button
       type="button"
-      onClick={handleDownloadAndSave}
+      onClick={() => void handleDownloadAndSave()}
       className="btn-action btn-primary"
       disabled={saving}
     >
@@ -220,9 +336,9 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
               transformOrigin: 'top left',
             }}
           >
-                <div ref={documentRef} className="agreement-document">
-                  <AgreementDocumentSections sections={sections} />
-                </div>
+            <div ref={documentRef} className="agreement-document">
+              <AgreementDocumentSections sections={sections} />
+            </div>
           </div>
         </div>
       </div>
@@ -230,6 +346,18 @@ export function AgreementPreview({ job, profile, existingJobId, onSaveSuccess }:
       <div className="preview-actions preview-actions-bottom">
         {renderDownloadButton()}
       </div>
+
+      {showCaptureModal && (
+        <CaptureModal
+          onSubmit={handleCaptureSubmit}
+          onClose={() => {
+            setShowCaptureModal(false);
+            setCaptureError('');
+          }}
+          error={captureError}
+          submitting={captureSubmitting}
+        />
+      )}
     </div>
   );
 }
