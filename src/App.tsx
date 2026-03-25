@@ -31,8 +31,33 @@ interface OnboardingData {
   googleUrl: string;
 }
 
-/** `history.state` flag so browser Back/Forward matches sign-in vs sign-up landing. */
-type AuthHistoryState = { scopeLockAuth?: 'signin' };
+type AppView =
+  | 'home'
+  | 'form'
+  | 'preview'
+  | 'profile'
+  | 'work-orders'
+  | 'work-order-detail'
+  | 'invoice-wizard'
+  | 'invoice-final';
+
+/** `history.state` for auth landing vs sign-in and in-app view stack. */
+type AppHistoryState = { scopeLockAuth?: 'signin'; view?: AppView };
+
+const APP_VIEWS: AppView[] = [
+  'home',
+  'form',
+  'preview',
+  'profile',
+  'work-orders',
+  'work-order-detail',
+  'invoice-wizard',
+  'invoice-final',
+];
+
+function isAppView(v: unknown): v is AppView {
+  return typeof v === 'string' && (APP_VIEWS as readonly string[]).includes(v);
+}
 
 function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJob {
   const today = new Date().toISOString().split('T')[0];
@@ -67,16 +92,7 @@ function App() {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [view, setView] = useState<
-    | 'home'
-    | 'form'
-    | 'preview'
-    | 'profile'
-    | 'work-orders'
-    | 'work-order-detail'
-    | 'invoice-wizard'
-    | 'invoice-final'
-  >('home');
+  const [view, setView] = useState<AppView>('home');
   const [workOrderDetailJob, setWorkOrderDetailJob] = useState<Job | null>(null);
   const [invoiceFlowJob, setInvoiceFlowJob] = useState<Job | null>(null);
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
@@ -86,7 +102,7 @@ function App() {
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
   const [showAuthPage, setShowAuthPage] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return (window.history.state as AuthHistoryState | null)?.scopeLockAuth === 'signin';
+    return (window.history.state as AppHistoryState | null)?.scopeLockAuth === 'signin';
   });
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [accountCreating, setAccountCreating] = useState(false);
@@ -102,13 +118,18 @@ function App() {
   }));
   const [draftBaseline, setDraftBaseline] = useState<WelderJob | null>(null);
 
+  const navigateTo = (newView: AppView) => {
+    window.history.pushState({ view: newView }, '');
+    setView(newView);
+  };
+
   const doCreateNewAgreement = (currentProfile: BusinessProfile | null) => {
     const nextDraft = buildNewAgreementDraft(currentProfile);
     setJob(nextDraft);
     setDraftBaseline(nextDraft);
     setCurrentJobId(null);
     setWoIsOpen(true);
-    setView('form');
+    navigateTo('form');
   };
 
   const createNewAgreement = () => {
@@ -130,7 +151,7 @@ function App() {
   };
 
   const continueEditingWorkOrder = () => {
-    setView('form');
+    navigateTo('form');
     closeUnsavedModal();
   };
 
@@ -152,12 +173,15 @@ function App() {
   };
 
   useEffect(() => {
-    const syncAuthPageFromHistory = () => {
-      const st = window.history.state as AuthHistoryState | null;
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as AppHistoryState | null;
       setShowAuthPage(st?.scopeLockAuth === 'signin');
+      const v = st?.view;
+      if (isAppView(v)) setView(v);
+      else setView('home');
     };
-    window.addEventListener('popstate', syncAuthPageFromHistory);
-    return () => window.removeEventListener('popstate', syncAuthPageFromHistory);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   useEffect(() => {
@@ -198,52 +222,52 @@ function App() {
   };
 
   const openWorkOrders = () => {
-    setView('work-orders');
+    navigateTo('work-orders');
   };
 
   const handleOpenWorkOrderDetail = (job: Job) => {
     setWorkOrderDetailJob(job);
-    setView('work-order-detail');
+    navigateTo('work-order-detail');
   };
 
   const handleBackFromWorkOrderDetail = () => {
     setWorkOrderDetailJob(null);
-    setView('work-orders');
+    navigateTo('work-orders');
   };
 
   const handleStartInvoice = (job: Job) => {
     setInvoiceFlowJob(job);
     setWizardExistingInvoice(null);
     setActiveInvoice(null);
-    setView('invoice-wizard');
+    navigateTo('invoice-wizard');
   };
 
   const handleOpenPendingInvoice = (job: Job, invoice: Invoice) => {
     setInvoiceFlowJob(job);
     setActiveInvoice(invoice);
-    setView('invoice-final');
+    navigateTo('invoice-final');
   };
 
   const handleInvoiceWizardSuccess = (invoice: Invoice) => {
     setActiveInvoice(invoice);
     setWizardExistingInvoice(null);
-    setView('invoice-final');
+    navigateTo('invoice-final');
     void loadProfile({ silent: true });
   };
 
   const handleInvoiceWizardCancel = () => {
     if (wizardExistingInvoice) {
       setWizardExistingInvoice(null);
-      setView('invoice-final');
+      navigateTo('invoice-final');
     } else {
       setInvoiceFlowJob(null);
       setActiveInvoice(null);
-      setView('work-orders');
+      navigateTo('work-orders');
     }
   };
 
   const handleInvoiceFinalWorkOrders = () => {
-    setView('work-orders');
+    navigateTo('work-orders');
     setInvoiceFlowJob(null);
     setActiveInvoice(null);
     setWizardExistingInvoice(null);
@@ -252,14 +276,14 @@ function App() {
   const handleEditInvoice = () => {
     if (!activeInvoice) return;
     setWizardExistingInvoice(activeInvoice);
-    setView('invoice-wizard');
+    navigateTo('invoice-wizard');
   };
 
   const handleAfterInvoiceDownload = (inv: Invoice) => {
     setWorkOrdersSuccessBanner(
       `Invoice #${String(inv.invoice_number).padStart(4, '0')} downloaded and saved!`
     );
-    setView('work-orders');
+    navigateTo('work-orders');
     setInvoiceFlowJob(null);
     setActiveInvoice(null);
     void loadProfile({ silent: true });
@@ -309,7 +333,7 @@ function App() {
     setJustCompletedSignup(true);
     setOnboardingStep(null);
     setOnboardingData(null);
-    setView('home');
+    navigateTo('home');
   };
 
   if (authLoading || profileLoading || accountCreating) {
@@ -347,7 +371,7 @@ function App() {
     return (
       <AuthPage
         onSignUpClick={() => {
-          const st = window.history.state as AuthHistoryState | null;
+          const st = window.history.state as AppHistoryState | null;
           if (st?.scopeLockAuth === 'signin') {
             window.history.back();
           } else {
@@ -387,7 +411,7 @@ function App() {
         <h1
           className="app-title"
           onClick={() => {
-            setView('home');
+            navigateTo('home');
             setInvoiceFlowJob(null);
             setActiveInvoice(null);
             setWizardExistingInvoice(null);
@@ -407,7 +431,7 @@ function App() {
           <button
             type="button"
             className="btn-header-settings"
-            onClick={() => setView('profile')}
+            onClick={() => navigateTo('profile')}
             aria-label="Edit profile"
           >
             <Settings className="btn-header-settings-icon" aria-hidden="true" />
@@ -433,13 +457,13 @@ function App() {
         <nav className="tab-nav">
           <button
             className={`tab-button ${view === 'form' ? 'active' : ''}`}
-            onClick={() => setView('form')}
+            onClick={() => navigateTo('form')}
           >
             Edit Work Order
           </button>
           <button
             className={`tab-button ${view === 'preview' ? 'active' : ''}`}
-            onClick={() => setView('preview')}
+            onClick={() => navigateTo('preview')}
           >
             Preview
           </button>
@@ -458,7 +482,7 @@ function App() {
           <EditProfilePage
             profile={profile}
             onSave={handleEditProfileSaved}
-            onCancel={() => setView('home')}
+            onCancel={() => navigateTo('home')}
           />
         ) : view === 'work-orders' && user ? (
           <WorkOrdersPage
@@ -501,7 +525,7 @@ function App() {
             job={job}
             onChange={setJob}
             businessName={profile?.business_name}
-            onGoToPreview={() => setView('preview')}
+            onGoToPreview={() => navigateTo('preview')}
           />
         ) : (
           <AgreementPreview
