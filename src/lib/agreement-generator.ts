@@ -1,5 +1,6 @@
 import type { WelderJob, AgreementSection, SectionContentBlock, SignatureBlockData } from '../types';
 import type { BusinessProfile } from '../types/db';
+import { jobLocationSingleLine } from './job-site-address';
 
 const SERVICE_PROVIDER = 'the Service Provider';
 const SERVICE_PROVIDER_CAP = 'The Service Provider';
@@ -88,7 +89,7 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
           phone: job.customer_phone,
           email: job.customer_email || '',
         },
-        jobSiteAddress: job.job_location,
+        jobSiteAddress: jobLocationSingleLine(job.job_location),
       },
     ],
   });

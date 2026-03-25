@@ -1,5 +1,6 @@
 import type { Job, BusinessProfile, Invoice, InvoiceLineItem } from '../types/db';
 import { normalizePaymentMethods } from './payment-methods';
+import { jobLocationSingleLine } from './job-site-address';
 
 /** Fields required to render invoice HTML (persisted row or equivalent draft). */
 export type InvoiceDraft = Pick<
@@ -57,7 +58,7 @@ function partiesMarkup(
   const cuName = escapeHtml(job.customer_name);
   const cuPhone = escapeHtml(job.customer_phone ?? '');
   const cuEmail = escapeHtml(job.customer_email ?? '');
-  const jobSite = escapeHtml(job.job_location);
+  const jobSite = escapeHtml(jobLocationSingleLine(job.job_location));
 
   return `
     <div class="parties-layout">

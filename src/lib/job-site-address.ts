@@ -129,3 +129,14 @@ export function formatJobSiteAddress(parts: {
 export function governingStateFromSiteState(siteState: string): string {
   return siteState.trim().toUpperCase();
 }
+
+/** Collapse newlines / runs of whitespace for agreement and PDF job site display (single line). */
+export function jobLocationSingleLine(raw: string): string {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
