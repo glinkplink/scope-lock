@@ -30,8 +30,10 @@ COPY . .
 # Required for Vite client bundle (set in Render as Docker build args or same-name envs)
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_GEOAPIFY_API_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_GEOAPIFY_API_KEY=$VITE_GEOAPIFY_API_KEY
 RUN npm run build
 # Drop devDependencies for a smaller runtime image; keeps puppeteer-core in dependencies
 RUN npm prune --omit=dev

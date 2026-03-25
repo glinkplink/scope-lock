@@ -69,6 +69,7 @@ export interface Job {
   contractor_phone: string | null;
   contractor_email: string | null;
   customer_email: string | null;
+  governing_state: string | null;
   target_start: string | null;
   deposit_amount: number | null;
   late_payment_terms: string | null;

@@ -21,7 +21,7 @@ const VALID_PRICE_TYPES: readonly PriceType[] = ['fixed', 'estimate', 'time_and_
 function getRequiredFieldIssues(job: WelderJob): string[] {
   const issues: string[] = [];
   if (!job.customer_name?.trim()) issues.push('Customer name');
-  if (!job.job_location?.trim()) issues.push('Job site / address');
+  if (!job.job_location?.trim()) issues.push('Job site address');
   if (!job.asset_or_item_description?.trim()) issues.push('Item / structure');
   if (!job.requested_work?.trim()) issues.push('Work requested');
   if (!job.job_type?.trim()) issues.push('Job type');

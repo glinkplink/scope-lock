@@ -120,6 +120,7 @@ export const saveWorkOrder = async (
     customer_phone: job.customer_phone,
     customer_email: job.customer_email,
     job_location: job.job_location,
+    governing_state: job.governing_state?.trim() || null,
     job_type: job.job_type,
     asset_or_item_description: job.asset_or_item_description,
     requested_work: job.requested_work,

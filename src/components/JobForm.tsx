@@ -2,6 +2,29 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { WelderJob, JobType, MaterialsProvider, PriceType } from '../types';
 import type { Client } from '../types/db';
 import { searchClients } from '../lib/db/clients';
+import { formatJobSiteAddress, governingStateFromSiteState } from '../lib/job-site-address';
+import {
+  fetchGeoapifyAddressSuggestions,
+  type JobSiteAddressSuggestion,
+} from '../lib/geoapify-autocomplete';
+
+function patchJobSite(
+  base: WelderJob,
+  p: Partial<Pick<WelderJob, 'job_site_street' | 'job_site_city' | 'job_site_state' | 'job_site_zip'>>
+): WelderJob {
+  const next = { ...base, ...p };
+  const job_location = formatJobSiteAddress({
+    street: next.job_site_street,
+    city: next.job_site_city,
+    state: next.job_site_state,
+    zip: next.job_site_zip,
+  });
+  return {
+    ...next,
+    job_location,
+    governing_state: governingStateFromSiteState(next.job_site_state),
+  };
+}
 
 /** US NANP display like (571) 473-1291 — strips non-digits, keeps up to 10 digits (strips leading 1 if 11). */
 function formatUsPhoneInput(value: string): string {
@@ -51,6 +74,9 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
 
   const comboboxId = useId();
   const listboxId = `${comboboxId}-client-listbox`;
+  const siteComboboxId = useId();
+  const siteListboxId = `${siteComboboxId}-job-site-listbox`;
+  const geoapifyApiKey = (import.meta.env.VITE_GEOAPIFY_API_KEY as string | undefined)?.trim() ?? '';
 
   const [clientMatches, setClientMatches] = useState<Client[]>([]);
   const [clientListOpen, setClientListOpen] = useState(false);
@@ -60,6 +86,19 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
 
   const customerNameComboboxRef = useRef<HTMLDivElement>(null);
   const customerNameBlurCloseTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const jobSiteStreetComboboxRef = useRef<HTMLDivElement>(null);
+  const jobSiteStreetQueryRef = useRef(job.job_site_street);
+  const jobSiteStreetBlurCloseTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+
+  const [geoMatches, setGeoMatches] = useState<JobSiteAddressSuggestion[]>([]);
+  const [geoListOpen, setGeoListOpen] = useState(false);
+  const [geoHighlightIndex, setGeoHighlightIndex] = useState(-1);
+  const [geoSearchLoading, setGeoSearchLoading] = useState(false);
+  const [geoDropdownSuppressed, setGeoDropdownSuppressed] = useState(false);
+
+  useLayoutEffect(() => {
+    jobSiteStreetQueryRef.current = job.job_site_street;
+  });
 
   useEffect(() => {
     if (dropdownSuppressed) {
@@ -111,13 +150,15 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
 
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {
-      const el = customerNameComboboxRef.current;
-      if (!el || !(e.target instanceof Node) || el.contains(e.target)) {
-        return;
-      }
+      const t = e.target instanceof Node ? e.target : null;
+      if (t && customerNameComboboxRef.current?.contains(t)) return;
       setClientListOpen(false);
       setClientMatches([]);
       setClientHighlightIndex(-1);
+      if (t && jobSiteStreetComboboxRef.current?.contains(t)) return;
+      setGeoListOpen(false);
+      setGeoMatches([]);
+      setGeoHighlightIndex(-1);
     };
     document.addEventListener('mousedown', onDocMouseDown);
     return () => document.removeEventListener('mousedown', onDocMouseDown);
@@ -128,8 +169,146 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
       if (customerNameBlurCloseTimerRef.current != null) {
         window.clearTimeout(customerNameBlurCloseTimerRef.current);
       }
+      if (jobSiteStreetBlurCloseTimerRef.current != null) {
+        window.clearTimeout(jobSiteStreetBlurCloseTimerRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (geoDropdownSuppressed) {
+      const id = window.setTimeout(() => {
+        setGeoMatches([]);
+        setGeoListOpen(false);
+        setGeoHighlightIndex(-1);
+        setGeoSearchLoading(false);
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+
+    const trimmed = job.job_site_street.trim();
+    if (trimmed.length < 3 || !geoapifyApiKey) {
+      const id = window.setTimeout(() => {
+        setGeoMatches([]);
+        setGeoListOpen(false);
+        setGeoHighlightIndex(-1);
+        setGeoSearchLoading(false);
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+
+    const id = window.setTimeout(() => {
+      const q = jobSiteStreetQueryRef.current.trim();
+      if (q.length < 3) {
+        setGeoMatches([]);
+        setGeoListOpen(false);
+        setGeoHighlightIndex(-1);
+        setGeoSearchLoading(false);
+        return;
+      }
+
+      setGeoSearchLoading(true);
+      void fetchGeoapifyAddressSuggestions(q, geoapifyApiKey)
+        .then((rows) => {
+          if (jobSiteStreetQueryRef.current.trim() !== q) {
+            setGeoSearchLoading(false);
+            return;
+          }
+          setGeoSearchLoading(false);
+          setGeoMatches(rows);
+          setGeoListOpen(rows.length > 0);
+          setGeoHighlightIndex(rows.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          setGeoSearchLoading(false);
+          setGeoMatches([]);
+          setGeoListOpen(false);
+          setGeoHighlightIndex(-1);
+        });
+    }, 300);
+
+    return () => window.clearTimeout(id);
+  }, [job.job_site_street, geoapifyApiKey, geoDropdownSuppressed]);
+
+  const applyGeoSuggestion = (s: JobSiteAddressSuggestion) => {
+    onChange(
+      patchJobSite(job, {
+        job_site_street: s.street,
+        job_site_city: s.city,
+        job_site_state: s.state,
+        job_site_zip: s.zip,
+      })
+    );
+    setGeoListOpen(false);
+    setGeoMatches([]);
+    setGeoHighlightIndex(-1);
+    setGeoDropdownSuppressed(true);
+    if (jobSiteStreetBlurCloseTimerRef.current != null) {
+      window.clearTimeout(jobSiteStreetBlurCloseTimerRef.current);
+      jobSiteStreetBlurCloseTimerRef.current = null;
+    }
+  };
+
+  const handleJobSiteStreetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGeoDropdownSuppressed(false);
+    onChange(patchJobSite(job, { job_site_street: e.target.value }));
+  };
+
+  const handleJobSiteStreetBlur = () => {
+    if (jobSiteStreetBlurCloseTimerRef.current != null) {
+      window.clearTimeout(jobSiteStreetBlurCloseTimerRef.current);
+    }
+    jobSiteStreetBlurCloseTimerRef.current = window.setTimeout(() => {
+      jobSiteStreetBlurCloseTimerRef.current = null;
+      const root = jobSiteStreetComboboxRef.current;
+      if (root?.contains(document.activeElement)) {
+        return;
+      }
+      setGeoListOpen(false);
+      setGeoMatches([]);
+      setGeoHighlightIndex(-1);
+    }, 120);
+  };
+
+  const handleJobSiteStreetKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!geoListOpen || geoMatches.length === 0) {
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setGeoListOpen(false);
+      setGeoMatches([]);
+      setGeoHighlightIndex(-1);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setGeoHighlightIndex((i) => {
+        const next = i < 0 ? 0 : i + 1;
+        return next >= geoMatches.length ? 0 : next;
+      });
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setGeoHighlightIndex((i) => {
+        if (i <= 0) return geoMatches.length - 1;
+        return i - 1;
+      });
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      const idx = geoHighlightIndex;
+      if (idx >= 0 && idx < geoMatches.length) {
+        e.preventDefault();
+        applyGeoSuggestion(geoMatches[idx]);
+      }
+    }
+  };
 
   const applyClient = (client: Client) => {
     const patches: Partial<WelderJob> = {};
@@ -139,9 +318,17 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
     if (phone) patches.customer_phone = formatUsPhoneInput(phone);
     const email = client.email?.trim();
     if (email) patches.customer_email = email;
+    let next: WelderJob = { ...job, ...patches };
     const address = client.address?.trim();
-    if (address) patches.job_location = address;
-    onChange({ ...job, ...patches });
+    if (address) {
+      next = patchJobSite(next, {
+        job_site_street: address,
+        job_site_city: '',
+        job_site_state: '',
+        job_site_zip: '',
+      });
+    }
+    onChange(next);
     setClientListOpen(false);
     setClientMatches([]);
     setClientHighlightIndex(-1);
@@ -371,16 +558,92 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
             placeholder="customer@example.com"
           />
         </div>
-        <div className="form-group">
-          <label htmlFor="job_location">Job Site / Address *</label>
-          <textarea
-            id="job_location"
-            value={job.job_location}
-            onChange={(e) => updateField('job_location', e.target.value)}
-            required
-            placeholder="123 Main Street, Austin, TX 78701"
-            rows={2}
-          />
+        <div className="form-group form-group-combobox" ref={jobSiteStreetComboboxRef}>
+          <label htmlFor="job_site_street">Job Site Address *</label>
+          <div className="job-site-street-combobox">
+            <input
+              id="job_site_street"
+              type="text"
+              role="combobox"
+              aria-expanded={geoListOpen}
+              aria-controls={siteListboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                geoListOpen && geoHighlightIndex >= 0 && geoMatches[geoHighlightIndex]
+                  ? `${siteListboxId}-option-${geoHighlightIndex}`
+                  : undefined
+              }
+              value={job.job_site_street}
+              onChange={handleJobSiteStreetChange}
+              onBlur={handleJobSiteStreetBlur}
+              onKeyDown={handleJobSiteStreetKeyDown}
+              autoComplete="off"
+              required
+              placeholder="123 Main Street"
+            />
+            {geoSearchLoading && (
+              <span className="customer-name-combobox-status" aria-live="polite">
+                Searching…
+              </span>
+            )}
+            {geoListOpen && geoMatches.length > 0 && (
+              <ul id={siteListboxId} className="job-site-street-listbox" role="listbox">
+                {geoMatches.map((s, index) => (
+                  <li
+                    key={s.id}
+                    id={`${siteListboxId}-option-${index}`}
+                    role="option"
+                    aria-selected={index === geoHighlightIndex}
+                    className={
+                      index === geoHighlightIndex
+                        ? 'job-site-street-option job-site-street-option-active'
+                        : 'job-site-street-option'
+                    }
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyGeoSuggestion(s);
+                    }}
+                    onMouseEnter={() => setGeoHighlightIndex(index)}
+                  >
+                    <span className="job-site-street-option-label">{s.label}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        <div className="form-row form-row--job-site-locality">
+          <div className="form-group">
+            <label htmlFor="job_site_city">City</label>
+            <input
+              id="job_site_city"
+              type="text"
+              value={job.job_site_city}
+              onChange={(e) => onChange(patchJobSite(job, { job_site_city: e.target.value }))}
+              placeholder="Austin"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="job_site_state">State</label>
+            <input
+              id="job_site_state"
+              type="text"
+              value={job.job_site_state}
+              onChange={(e) => onChange(patchJobSite(job, { job_site_state: e.target.value }))}
+              placeholder="TX"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="job_site_zip">ZIP</label>
+            <input
+              id="job_site_zip"
+              type="text"
+              inputMode="numeric"
+              value={job.job_site_zip}
+              onChange={(e) => onChange(patchJobSite(job, { job_site_zip: e.target.value }))}
+              placeholder="78701"
+            />
+          </div>
         </div>
       </section>
 

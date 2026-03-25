@@ -18,6 +18,13 @@ export interface WelderJob {
   customer_phone: string;
   customer_email: string;
   job_location: string;
+  /** Structured job site (UI); combined into `job_location` for DB / PDF. */
+  job_site_street: string;
+  job_site_city: string;
+  job_site_state: string;
+  job_site_zip: string;
+  /** Synced from `job_site_state` for DB `governing_state`. */
+  governing_state: string;
 
   // Job Details
   job_type: JobType;
