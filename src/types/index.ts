@@ -2,7 +2,7 @@ export type JobType = 'repair' | 'fabrication' | 'installation' | 'maintenance' 
 
 export type PriceType = 'fixed' | 'estimate' | 'time_and_materials';
 
-export type MaterialsProvider = 'welder' | 'customer' | 'mixed';
+export type MaterialsProvider = 'welder' | 'customer';
 
 export interface WelderJob {
   wo_number: number;

@@ -122,9 +122,7 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   const materialsText =
     job.materials_provided_by === 'welder'
       ? `All materials will be provided by ${materialsProviderName}.`
-      : job.materials_provided_by === 'customer'
-      ? `All materials will be provided by ${CUSTOMER}.`
-      : 'Materials will be provided by both parties as agreed.';
+      : `All materials will be provided by ${CUSTOMER}.`;
 
   const scopeBlocks: SectionContentBlock[] = [];
   if (scopeItems.length > 0) {

@@ -740,7 +740,6 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
           >
             <option value="welder">{materialsWelderLabel}</option>
             <option value="customer">Customer</option>
-            <option value="mixed">Mixed</option>
           </select>
         </div>
         <div className="checkbox-group">

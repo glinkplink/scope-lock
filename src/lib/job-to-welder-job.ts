@@ -1,6 +1,6 @@
 import type { Job } from '../types/db';
 import type { BusinessProfile } from '../types/db';
-import type { JobType, WelderJob } from '../types';
+import type { JobType, MaterialsProvider, WelderJob } from '../types';
 
 const JOB_TYPES: readonly JobType[] = [
   'repair',
@@ -9,6 +9,11 @@ const JOB_TYPES: readonly JobType[] = [
   'maintenance',
   'other',
 ];
+
+/** DB may still hold legacy `mixed` or null; form/agreement only allow welder | customer. */
+function materialsProviderFromRow(value: Job['materials_provided_by']): MaterialsProvider {
+  return value === 'customer' ? 'customer' : 'welder';
+}
 
 /** Map a persisted `jobs` row + profile into `WelderJob` for `generateAgreement` / PDF. */
 export function jobRowToWelderJob(job: Job, profile: BusinessProfile | null): WelderJob {
@@ -34,7 +39,7 @@ export function jobRowToWelderJob(job: Job, profile: BusinessProfile | null): We
     other_classification: jobType === 'other' ? job.job_type : undefined,
     asset_or_item_description: job.asset_or_item_description,
     requested_work: job.requested_work,
-    materials_provided_by: job.materials_provided_by ?? 'mixed',
+    materials_provided_by: materialsProviderFromRow(job.materials_provided_by),
     installation_included: job.installation_included ?? false,
     grinding_included: job.grinding_included ?? false,
     paint_or_coating_included: job.paint_or_coating_included ?? false,

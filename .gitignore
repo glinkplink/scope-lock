@@ -14,6 +14,9 @@ dist-ssr
 .env.local
 supabase/.branches
 
+# Local Cursor agent sandbox (do not commit)
+.cursor/sandbox.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
