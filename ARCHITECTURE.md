@@ -12,7 +12,7 @@ The generated document is a concise 1–3 page agreement, not a long legal contr
 - Mobile welders doing repair or fabrication jobs
 
 ### Primary Workflow
-A welder signs up, sets up their business profile (saved to the database), then opens the app to answer a few quick questions about a job and generates a simple professional agreement they can send to the client before work begins.
+A contractor can **start a work order without signing in**. They fill the job form and preview the agreement; on first **Download & Save** they create an account (business name, email, password) and the work order is persisted. Returning users sign in from the header, then use **Work Orders**, **Invoices**, and **Edit profile** as needed. Profile defaults (exclusions, warranty, payment methods, etc.) apply to **new** drafts after they exist in `business_profiles`.
 
 ## Tech Stack
 
@@ -56,7 +56,7 @@ A welder signs up, sets up their business profile (saved to the database), then 
   replaces the left header cell. Work Order PDFs omit it and keep **`workOrderNumber`** behavior.
 - **Body** includes the centered **Work Order** title, numbered sections, tables, and signatures
   only. Section 1 uses **plain-text** Agreement Date and Job Site Address (blue label, black value,
-  no table box), then a **3-column party table** (row labels | Service Provider | Customer): header
+  no table box). **Job site** is rendered as a **single line** in agreement output (`jobLocationSingleLine`), even when the form stores a multiline `job_location`. Then a **3-column party table** (row labels | Service Provider | Customer): header
   row is all light-blue cells; **Name**, **Phone**, and **Email** label cells match other agreement
   tables; values are white. Profile fills the SP column; the form fills the customer column.
 - **Optional sections**: Exclusions and Customer Obligations omit when the **job** lists have no
@@ -67,8 +67,7 @@ A welder signs up, sets up their business profile (saved to the database), then 
   **Completion & Acceptance** instead. Workmanship Warranty (days is 0) and Dispute Resolution
   (negotiation days is 0) omit similarly. **Section numbers are assigned at render time** (1…n with
   no gaps); the signature block stays unnumbered.
-- **Governing state** is not collected on the work order form; dispute copy uses generic
-  “applicable state” language.
+- **Governing state** on the job is synced from **job site state** (`governing_state`); dispute copy references governing law using that value when present.
 
 ### Download & Save (`saveWorkOrder` in `jobs.ts` + `AgreementPreview.tsx`)
 - **Order:** The **first** click on Download & Save per preview mount runs **`saveWorkOrder`**
@@ -91,18 +90,19 @@ A welder signs up, sets up their business profile (saved to the database), then 
 scope-lock/
 ├── src/
 │   ├── components/
-│   │   ├── AuthPage.tsx              # Sign up / sign in form
-│   │   ├── BusinessProfileForm.tsx   # First-time onboarding form
+│   │   ├── AuthPage.tsx              # Sign-in only (email + password)
+│   │   ├── BusinessProfileForm.tsx   # Signed-in user with no profile row (edge case)
+│   │   ├── CaptureModal.tsx          # Anonymous first Download & Save: account + profile stub
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
-│   │   ├── HomePage.tsx              # Post-login landing page
-│   │   ├── WorkOrdersPage.tsx        # List WOs + invoice badge actions; row opens read-only detail
-│   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement HTML (scroll) + Download PDF
-│   │   ├── AgreementDocumentSections.tsx # Renders AgreementSection[] (preview + detail)
-│   │   ├── InvoiceWizard.tsx         # 3-step invoice (pricing → due date → payment methods)
-│   │   ├── InvoiceFinalPage.tsx      # After create: mini preview, download, edit, notes
+│   │   ├── HomePage.tsx              # Landing; Create Work Order
+│   │   ├── WorkOrdersPage.tsx        # List jobs + invoice actions; row opens detail
+│   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement HTML + Download PDF
+│   │   ├── AgreementDocumentSections.tsx # Renders AgreementSection[] (preview + detail + PDF body)
+│   │   ├── InvoiceWizard.tsx         # Invoice steps (pricing, due date, payment methods)
+│   │   ├── InvoiceFinalPage.tsx      # Preview, download, edit, notes
 │   │   ├── InvoicePreviewModal.tsx   # Full-screen invoice preview overlay
-│   │   ├── JobForm.tsx               # Work Agreement input form
-│   │   └── AgreementPreview.tsx      # Agreement preview + Puppeteer PDF handoff
+│   │   ├── JobForm.tsx               # Work Agreement form (structured job site, Geoapify optional)
+│   │   └── AgreementPreview.tsx      # Preview + Download & Save + PDF; hosts CaptureModal when anonymous
 │   ├── data/
 │   │   └── sample-job.json           # Fallback defaults for new agreements
 │   ├── hooks/
@@ -110,14 +110,17 @@ scope-lock/
 │   ├── lib/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
-│   │   ├── agreement-generator.ts    # Pure domain logic: agreement text generation
+│   │   ├── agreement-generator.ts    # Pure domain logic: agreement section model
 │   │   ├── agreement-pdf.ts          # PDF HTML wrapper + fetch/download blob (Puppeteer)
+│   │   ├── job-site-address.ts       # Multiline job_location, parse for client autofill, single-line PDF
+│   │   ├── us-phone-input.ts         # US phone mask (JobForm + EditProfilePage)
+│   │   ├── geoapify-autocomplete.ts  # Job site suggestions (optional API key)
 │   │   ├── job-to-welder-job.ts      # Job row + profile → WelderJob for generator/PDF
 │   │   ├── invoice-generator.ts      # Pure HTML for invoice body (preview + PDF)
 │   │   └── db/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
-│   │       ├── clients.ts            # listClients / upsertClient / deleteClient
-│   │       ├── jobs.ts               # listJobs / createJob / updateJob / deleteJob
+│   │       ├── clients.ts            # listClients / upsertClient / deleteClient (JobForm search when authed)
+│   │       ├── jobs.ts               # listJobs, saveWorkOrder, create/update/delete
 │   │       └── invoices.ts           # createInvoice (RPC counter), updateInvoice, list, get, mark downloaded
 │   ├── types/
 │   │   ├── index.ts                  # WelderJob, AgreementSection, SignatureBlockData
@@ -144,19 +147,23 @@ scope-lock/
 ```
 User visits app
       ↓
-[Not signed in] → AuthPage (sign up / sign in)
+[Anonymous] → HomePage → JobForm → AgreementPreview
+      (Header: Sign In only; no Work Orders / gear)
       ↓
-[Signed in, no profile] → BusinessProfileForm (onboarding)
+First Download & Save → CaptureModal → signUp + upsertProfile + saveWorkOrder + PDF
       ↓
-[Profile exists] → HomePage ("Create Work Agreement" + Work Orders)
+[Signed in, no profile row] → BusinessProfileForm (rare edge case)
       ↓
-Work Orders → WorkOrdersPage (badges: Invoice / Pending / Invoiced) → InvoiceWizard (3 steps) → InvoiceFinalPage → Download PDF → back to Work Orders + success banner
+[Signed in + profile] → HomePage; header: Work Orders, Edit profile (gear)
       ↓
-CTA button → JobForm (Work Agreement details)
+Work Orders → WorkOrdersPage → row → WorkOrderDetailPage (agreement + PDF)
+                      → Invoice → InvoiceWizard → InvoiceFinalPage → Download → Work Orders + success banner
       ↓
-Tab nav → AgreementPreview (Print / Download PDF)
+Create Work Order → JobForm → Preview tab → AgreementPreview (Download & Save / PDF)
       ↓
-Header "Edit Profile" → EditProfilePage (edit business info + defaults)
+Header Sign In → AuthPage (email + password only)
+      ↓
+Edit profile (gear) → EditProfilePage
 ```
 
 ## Domain Logic vs UI Logic
@@ -171,8 +178,8 @@ Header "Edit Profile" → EditProfilePage (edit business info + defaults)
 - `supabase.ts`: Supabase client, reads env vars
 - `auth.ts`: Thin wrappers over `supabase.auth`
 - `db/profile.ts`: Profile CRUD; **`updateNextWoNumber`** uses `.update()` (partial `upsert` 400s on `business_profiles` because `business_name` is NOT NULL)
-- `db/clients.ts`: Client CRUD (helpers ready, UI not yet built)
-- `db/jobs.ts`: Job CRUD (helpers ready, jobs still in-memory in UI)
+- `db/clients.ts`: Client CRUD; **JobForm** searches/suggests clients when `userId` is set; **saveWorkOrder** upserts client by `name_normalized`
+- `db/jobs.ts`: Job CRUD + **saveWorkOrder** (insert/update, client upsert); UI lists jobs on **Work Orders**
 - `db/invoices.ts`: Invoice CRUD; **`createInvoice`** calls Postgres **`next_invoice_number(p_user_id)`** for atomic numbering (increments `business_profiles.next_invoice_number`); **`updateInvoice`** full-row overwrite; **`markInvoiceDownloaded`** sets `status = 'downloaded'`
 - `invoice-generator.ts`: Invoice HTML (parties table pattern, line items, tax, payment methods, notes)
 
@@ -210,7 +217,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
 | Invoices | Yes | Created at wizard step 3; status `draft` until **Download Invoice** sets `downloaded`. The **first** download per final-page mount runs **`markInvoiceDownloaded`** and navigation callback; repeat clicks only regenerate the PDF (no duplicate status writes). |
-| Clients | Partial | Upsert on **Download & Save** (`saveWorkOrder`); list/selection UI not built |
+| Clients | Yes (rows) | Upsert on **Download & Save**; **JobForm** customer-name combobox searches when authenticated |
 | Change orders | No | Schema only |
 | Completion signoffs | No | Schema only |
 
@@ -219,7 +226,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ### Current (Web MVP)
 - Runs in browser
 - Auth + profile persistence via Supabase
-- Job agreements are in-memory (no per-job persistence yet)
+- **Work order drafts** are in-memory until **Download & Save**; saved jobs live in `jobs` and appear on **Work Orders**
 - Requires an app server for PDF generation
 
 ### Future (Capacitor iOS/Android)
@@ -244,17 +251,20 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 - [x] Print support
 - [x] Mobile-first UI
 - [x] Email/password authentication
+- [x] Open product + capture-on-save account creation
 - [x] Business profile persistence
 - [x] Default exclusions/assumptions saved to profile
 - [x] Authenticated landing page (Home)
 - [x] Edit Profile page
+- [x] Work Orders list + saved job detail + re-download PDF
+- [x] Job + client persistence on Download & Save
 
 ### Near-Term
 - [x] Research standard welder work agreements/ contracts and edit ours to match
+- [x] Generate Invoice flow from work orders (wizard + PDF + persisted invoices)
 - [ ] Deploy the app server and Puppeteer route alongside production hosting
-- [ ] Client list and client selection UI - user's clients are saved in DB so their details can we auto-filled later in future work orders.
+- [ ] Richer client management UI (beyond JobForm search + save-time upsert)
 - [ ] Custom branding (logo)
-- [ ] Add a 'Generate Invoice' function that allows the user to easily create/ send an invoice based on their work agreement. 
 
 ### Later
 - [ ] Multiple agreement templates
@@ -283,8 +293,9 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ## Environment Variables
 
 ```
-VITE_SUPABASE_URL=     # Supabase project URL
+VITE_SUPABASE_URL=      # Supabase project URL
 VITE_SUPABASE_ANON_KEY= # Supabase anon (public) key
+VITE_GEOAPIFY_API_KEY=  # optional — job site autocomplete
 ```
 
 Copy `.env.example` to `.env.local` and fill in values from the Supabase dashboard (Project Settings → API).
