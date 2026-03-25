@@ -7,6 +7,7 @@ import { BusinessProfileForm } from './components/BusinessProfileForm';
 import { HomePage } from './components/HomePage';
 import { EditProfilePage } from './components/EditProfilePage';
 import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
 import { getProfile, updateNextWoNumber, upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
@@ -141,36 +142,24 @@ function App() {
     setWoCounterPersistError(null);
     if (!isNewSave) return;
 
-    if (profile) {
-      const newCount = (profile.next_wo_number ?? 1) + 1;
-      const { error } = await updateNextWoNumber(profile.user_id, newCount);
-      if (error) {
-        console.error('Failed to persist next work order number:', error);
-        setWoCounterPersistError(
-          `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
-        );
-        return;
-      }
-      setProfile({ ...profile, next_wo_number: newCount });
+    // Use session, not `user` from closure — after capture, React may not have re-rendered yet.
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+
+    const fresh = await getProfile(uid);
+    if (!fresh) return;
+
+    const newCount = (fresh.next_wo_number ?? 1) + 1;
+    const { error } = await updateNextWoNumber(uid, newCount);
+    if (error) {
+      console.error('Failed to persist next work order number:', error);
+      setWoCounterPersistError(
+        `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
+      );
       return;
     }
-
-    const uid = user?.id;
-    if (uid) {
-      const fresh = await getProfile(uid);
-      if (fresh) {
-        const newCount = (fresh.next_wo_number ?? 1) + 1;
-        const { error } = await updateNextWoNumber(uid, newCount);
-        if (error) {
-          console.error('Failed to persist next work order number:', error);
-          setWoCounterPersistError(
-            `Work order saved, but the next WO number could not be updated (${error.message}). Refresh the page before creating another work order, or the same number may be suggested again.`
-          );
-          return;
-        }
-        setProfile({ ...fresh, next_wo_number: newCount });
-      }
-    }
+    setProfile({ ...fresh, next_wo_number: newCount });
   };
 
   const handleCaptureAndSave = async (capture: {
@@ -183,7 +172,7 @@ function App() {
       throw new Error(authError?.message || 'Failed to create account');
     }
 
-    const { error: profileError } = await upsertProfile({
+    const { data: createdProfile, error: profileError } = await upsertProfile({
       user_id: authData.user.id,
       business_name: capture.businessName,
       email: capture.email,
@@ -191,9 +180,12 @@ function App() {
       default_assumptions: getDefaultCustomerObligations(),
     });
 
-    if (profileError) {
-      throw new Error(profileError.message);
+    if (profileError || !createdProfile) {
+      throw new Error(profileError?.message || 'Failed to save profile');
     }
+
+    // Session updates before this finishes; getProfile in useEffect can race and return null.
+    setProfile(createdProfile);
 
     return { userId: authData.user.id, businessName: capture.businessName, email: capture.email };
   };
@@ -215,7 +207,12 @@ function App() {
       const run = async () => {
         setProfileLoading(true);
         const data = await getProfile(uid);
-        setProfile(data);
+        if (data) {
+          setProfile(data);
+        } else {
+          // Keep profile from capture upsert if fetch raced before the row was visible.
+          setProfile((prev) => (prev?.user_id === uid ? prev : null));
+        }
         setProfileLoading(false);
       };
       void run();
@@ -228,11 +225,20 @@ function App() {
   }, [user?.id]);
 
   const loadProfile = async (options?: { silent?: boolean }) => {
-    if (!user) return;
     const silent = options?.silent === true;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
+      if (!silent) setProfileLoading(false);
+      return;
+    }
     if (!silent) setProfileLoading(true);
-    const data = await getProfile(user.id);
-    setProfile(data);
+    const data = await getProfile(uid);
+    if (data) {
+      setProfile(data);
+    } else {
+      setProfile((prev) => (prev?.user_id === uid ? prev : null));
+    }
     if (!silent) setProfileLoading(false);
   };
 
@@ -501,7 +507,10 @@ function App() {
             existingJobId={currentJobId ?? undefined}
             onSaveSuccess={handleSaveSuccess}
             onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
-            onCaptureFlowFinished={() => setShowSuccessBanner(true)}
+            onCaptureFlowFinished={() => {
+              setShowSuccessBanner(true);
+              void loadProfile({ silent: true });
+            }}
           />
         )}
       </main>
