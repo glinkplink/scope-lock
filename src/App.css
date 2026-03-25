@@ -958,10 +958,6 @@ body {
   margin-top: 38px;
 }
 
-.home-success-banner + h1 {
-  margin-top: 32px;
-}
-
 .home-description {
   font-size: 1rem;
   color: var(--text-secondary);
@@ -1894,21 +1890,6 @@ body {
   font-size: 0.875rem;
   text-align: center;
   margin-bottom: var(--space-md);
-}
-
-/* ─── Home Page Success Banner ──────────────────────── */
-
-.home-success-banner {
-  background: #D1FAE5;
-  color: #065F46;
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius);
-  font-weight: 600;
-  font-size: calc(0.875rem + 9px);
-  letter-spacing: 0.03em;
-  text-align: center;
-  margin-top: 24px;
-  margin-bottom: var(--space-lg);
 }
 
 /* ─── Footer ─────────────────────────────────────────── */

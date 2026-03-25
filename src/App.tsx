@@ -88,7 +88,6 @@ function App() {
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
-  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [woIsOpen, setWoIsOpen] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -353,8 +352,6 @@ function App() {
     <HomePage
       onCreateAgreement={createNewAgreement}
       ownerName={profile?.owner_name || profile?.business_name}
-      showSuccessBanner={showSuccessBanner}
-      onDismissBanner={() => setShowSuccessBanner(false)}
     />
   );
 
@@ -507,7 +504,6 @@ function App() {
             onSaveSuccess={handleSaveSuccess}
             onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
             onCaptureFlowFinished={() => {
-              setShowSuccessBanner(true);
               void loadProfile({ silent: true });
             }}
           />
