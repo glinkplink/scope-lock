@@ -87,7 +87,6 @@ src/
     auth.ts                  # signUp, signIn, signOut
     agreement-generator.ts   # Pure functions: agreement section model
     agreement-pdf.ts         # Fetch/download PDF blob via /api/pdf
-    html-escape.ts           # Shared HTML escaping utility for generated HTML strings
     job-site-address.ts      # formatJobSiteAddress, parseStoredJobSiteAddress, jobLocationSingleLine, …
     us-phone-input.ts        # formatUsPhoneInput (job form + edit profile)
     geoapify-autocomplete.ts # Job site address suggestions (optional API key)
@@ -187,7 +186,7 @@ The UI should feel like a contractor's work log, not a SaaS product.
 - Co-locate page/component styles with the file that owns them.
 - `App.css` is for global tokens, shell/layout, shared utility classes, and print/PDF globals only.
 - Do not add new page-specific sections to `App.css`.
-- New shared HTML helpers belong in `src/lib/`; if multiple generators need escaping, use `src/lib/html-escape.ts` instead of copy-pasting `esc()` helpers.
+- New shared HTML helpers belong in `src/lib/`; if multiple generators need the same escaping logic, extract a shared helper there instead of copy-pasting `esc()` helpers.
 
 The app server **`POST /api/pdf`** renders HTML built in the client (agreement, invoice, change order, combined WO+CO) with Puppeteer; preview and PDF are designed to match. **Job site address** in the agreement is a **single line** in output (`jobLocationSingleLine`).
 

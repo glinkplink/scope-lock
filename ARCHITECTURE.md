@@ -343,6 +343,16 @@ The checkbox sections below track shipped work and the longer backlog; the three
 - All new tables must include RLS policies
 - DB helpers go in `src/lib/db/`
 
+### Frontend file conventions
+
+- Co-locate page/component styles with the page or component that owns them.
+- `src/App.css` is reserved for global design tokens, app shell/layout primitives, shared utility classes, and print/PDF-global rules.
+- Do not add new page-specific or feature-specific sections to `src/App.css`.
+- New pages and major components should import their own CSS file (for example `WorkOrdersPage.tsx` + `WorkOrdersPage.css`).
+- If a style is only used by one page/component, keep it with that page/component rather than promoting it to a global stylesheet.
+- Shared utility logic belongs in `src/lib/`; avoid duplicated helper functions across generators when one utility can keep behavior consistent.
+- HTML escaping is a good candidate for a future shared helper in `src/lib/`; until that exists, keep the current duplicated inline `esc()` / `escapeHtml()` helpers in mind when editing generators.
+
 ## Environment Variables
 
 ```

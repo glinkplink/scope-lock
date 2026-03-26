@@ -134,6 +134,7 @@ Session persistence is standard Supabase client behavior (refresh survives page 
 ```
 src/
   App.tsx                    # View state machine; anonymous + authenticated flows
+  App.css                    # Global tokens, shell/layout, shared utilities, print/PDF globals
   components/
     AuthPage.tsx             # Sign-in (returning users)
     BusinessProfileForm.tsx  # Signed-in user missing profile row (edge case)
@@ -160,6 +161,8 @@ server/
   app-server.mjs             # HTTP server: Vite (dev) or dist (prod) + POST /api/pdf
 supabase/migrations/       # Apply via CLI or dashboard SQL editor
 ```
+
+Styling convention: keep page/component styles co-located with the page/component that owns them. `src/App.css` is reserved for global tokens, shell/layout, shared utilities, and print/PDF-global rules.
 
 ---
 
