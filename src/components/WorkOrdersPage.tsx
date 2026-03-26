@@ -170,7 +170,14 @@ export function WorkOrdersPage({
         <p className="work-orders-loading">Loading…</p>
       ) : (
         <>
-          <div className="work-orders-summary-strip" aria-label="Work order contract totals">
+          <div
+            className="work-orders-summary-strip"
+            role="group"
+            aria-labelledby="work-orders-contract-value-label"
+          >
+            <span id="work-orders-contract-value-label" className="work-orders-summary-contract-label">
+              Contract value
+            </span>
             <span className="work-orders-summary-item work-orders-summary-invoiced">
               <span className="work-orders-summary-label">Invoiced:</span>
               <span className="work-orders-summary-amount">{formatUsd(invoicedContractTotal)}</span>

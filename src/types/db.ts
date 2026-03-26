@@ -79,12 +79,22 @@ export interface Job {
   updated_at: string;
 }
 
+export type InvoiceLineItemSource =
+  | 'original_scope'
+  | 'change_order'
+  | 'labor'
+  | 'material'
+  | 'manual'
+  | 'legacy';
+
 export interface InvoiceLineItem {
   kind: 'labor' | 'material';
   description: string;
   qty: number;
   unit_price: number;
   total: number;
+  /** Partition for invoice edit: CO snapshot rows stay fixed; missing in DB JSON => legacy */
+  source?: InvoiceLineItemSource;
 }
 
 export interface Invoice {
@@ -106,14 +116,26 @@ export interface Invoice {
   updated_at: string;
 }
 
+export interface ChangeOrderLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_rate: number;
+}
+
 export interface ChangeOrder {
   id: string;
   user_id: string;
   job_id: string;
+  co_number: number;
   description: string;
-  price_delta: number | null;
-  time_delta: number | null;
-  approved: boolean | null;
+  reason: string;
+  status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  requires_approval: boolean;
+  line_items: ChangeOrderLineItem[];
+  time_amount: number;
+  time_unit: 'hours' | 'days';
+  time_note: string;
   created_at: string;
   updated_at: string;
 }

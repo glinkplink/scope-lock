@@ -96,7 +96,8 @@ scope-lock/
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
 │   │   ├── HomePage.tsx              # Landing; Create Work Order
 │   │   ├── WorkOrdersPage.tsx        # List jobs + invoice actions; row opens detail
-│   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement HTML + Download PDF
+│   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement + change orders + PDFs
+│   │   ├── ChangeOrderWizard.tsx     # Create/edit change order (3 steps)
 │   │   ├── AgreementDocumentSections.tsx # Renders AgreementSection[] (preview + detail + PDF body)
 │   │   ├── InvoiceWizard.tsx         # Invoice steps (pricing, due date, payment methods)
 │   │   ├── InvoiceFinalPage.tsx      # Preview, download, edit, notes
@@ -111,6 +112,8 @@ scope-lock/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
 │   │   ├── agreement-generator.ts    # Pure domain logic: agreement section model
+│   │   ├── agreement-sections-html.ts # Agreement body HTML string (combined WO+CO PDFs)
+│   │   ├── change-order-generator.ts # Change order HTML + combined WO + approved COs
 │   │   ├── agreement-pdf.ts          # PDF HTML wrapper + fetch/download blob (Puppeteer)
 │   │   ├── job-site-address.ts       # Multiline job_location, parse for client autofill, single-line PDF
 │   │   ├── us-phone-input.ts         # US phone mask (JobForm + EditProfilePage)
@@ -121,6 +124,7 @@ scope-lock/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
 │   │       ├── clients.ts            # listClients / upsertClient / deleteClient (JobForm search when authed)
 │   │       ├── jobs.ts               # listJobs, saveWorkOrder, create/update/delete
+│   │       ├── change-orders.ts      # list/create/update/delete change orders; computeCOTotal
 │   │       └── invoices.ts           # createInvoice (RPC counter), updateInvoice, list, get, mark downloaded
 │   ├── types/
 │   │   ├── index.ts                  # WelderJob, AgreementSection, SignatureBlockData
@@ -156,8 +160,9 @@ First Download & Save → CaptureModal → signUp + upsertProfile + saveWorkOrde
       ↓
 [Signed in + profile] → HomePage; header: Work Orders, Edit profile (gear)
       ↓
-Work Orders → WorkOrdersPage → row → WorkOrderDetailPage (agreement + PDF)
-                      → Invoice → InvoiceWizard → InvoiceFinalPage → Download → Work Orders + success banner
+Work Orders → WorkOrdersPage → row → WorkOrderDetailPage (agreement + change orders + PDFs)
+                      → Change Order → ChangeOrderWizard → detail (refresh list)
+                      → Invoice → InvoiceWizard (optional CO lines on **new** invoices) → InvoiceFinalPage → Download → Work Orders + success banner
       ↓
 Create Work Order → JobForm → Preview tab → AgreementPreview (Download & Save / PDF)
       ↓
@@ -180,7 +185,8 @@ Edit profile (gear) → EditProfilePage
 - `db/profile.ts`: Profile CRUD; **`updateNextWoNumber`** uses `.update()` (partial `upsert` 400s on `business_profiles` because `business_name` is NOT NULL)
 - `db/clients.ts`: Client CRUD; **JobForm** searches/suggests clients when `userId` is set; **saveWorkOrder** upserts client by `name_normalized`
 - `db/jobs.ts`: Job CRUD + **saveWorkOrder** (insert/update, client upsert); UI lists jobs on **Work Orders**
-- `db/invoices.ts`: Invoice CRUD; **`createInvoice`** calls Postgres **`next_invoice_number(p_user_id)`** for atomic numbering (increments `business_profiles.next_invoice_number`); **`updateInvoice`** full-row overwrite; **`markInvoiceDownloaded`** sets `status = 'downloaded'`
+- `db/invoices.ts`: Invoice CRUD; **`createInvoice`** calls Postgres **`next_invoice_number(p_user_id)`** for atomic numbering (increments `business_profiles.next_invoice_number`); **`updateInvoice`** full-row overwrite; **`markInvoiceDownloaded`** sets `status = 'downloaded'`; **`mapInvoiceRow`** normalizes **`line_items[].source`**
+- `db/change-orders.ts`: **`listChangeOrders`**, **`createChangeOrder`** (with co_number retry), **`updateChangeOrder`**, **`deleteChangeOrder`**, **`computeCOTotal`**
 - `invoice-generator.ts`: Invoice HTML (parties table pattern, line items, tax, payment methods, notes)
 
 ### UI Components (`src/components/`)
@@ -201,12 +207,34 @@ Four tables in Supabase Postgres, all with row-level security:
 | `business_profiles` | user_id (unique), business_name, owner_name, phone, email, address, google_business_profile_url, default_exclusions[], default_assumptions[], default_tax_rate, default_payment_methods[], next_wo_number, next_invoice_number, … |
 | `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status |
-| `change_orders` | user_id, job_id, description, price_delta, time_delta, approved |
-| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, status (`draft` \| `downloaded`), line_items (jsonb), tax fields, payment_methods (jsonb snapshot), notes |
+| `change_orders` | user_id, job_id, **co_number** (per-job sequence, UNIQUE with job_id), description, reason, status (`draft` \| `pending_approval` \| `approved` \| `rejected`), **line_items** (jsonb), time_amount / time_unit / time_note, requires_approval, … — legacy `price_delta` / `time_delta` / `approved` were migrated in **0005** |
+| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, status (`draft` \| `downloaded`), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes |
 
 **Invoice numbering:** `public.next_invoice_number(uuid)` updates `business_profiles` in one statement and returns the allocated number (pre-increment value). No separate `updateNextInvoiceNumber` in app code.
 
 All tables use `auth.uid()` RLS policies: users can only read/write their own rows.
+
+### Change orders (`0005_change_orders.sql`)
+
+- Adds structured columns (`co_number`, `reason`, `status`, `line_items` jsonb, schedule fields, etc.).
+- **Backfills** existing rows from legacy `price_delta` / `time_delta` / `approved`, assigns **`co_number`** per `job_id` with `ROW_NUMBER()`, then drops the legacy columns.
+- **`UNIQUE (job_id, co_number)`**; app **`createChangeOrder`** retries the insert **once** after a unique violation (`23505`).
+
+### Combined WO + change-order PDFs (v1)
+
+- Agreement body for PDF is built as an HTML **string** via **`agreementSectionsToHtml`** (mirrors **`AgreementDocumentSections`** markup), not from live DOM `outerHTML`.
+- **`buildCombinedWorkOrderAndChangeOrdersHtml`** appends **`page-break-before: always`** and each **approved** change order only.
+- Client uses **`fetchHtmlPdfBlob`** / **`downloadPdfBlobToFile`** in **`agreement-pdf.ts`** (same `/api/pdf` JSON shape as work orders and invoices).
+
+### Invoice `line_items[].source`
+
+- **`InvoiceLineItem.source`**: `original_scope` | `change_order` | `labor` | `material` | `manual` | `legacy`. **`mapInvoiceRow`** defaults missing/invalid to **`legacy`**.
+- **New invoice:** **`InvoiceWizard`** loads change orders for the job; checkboxes (approved **on** by default) add **`change_order`** lines. All new built rows set **`source`**.
+- **Edit invoice:** Partition by **`source`**. **`change_order`** rows (and **`legacy`** rows whose description matches **`/^Change Order #/`**) are **preserved**. Rows **`original_scope`**, **`labor`**, **`material`**, **`manual`** are **replaced** from wizard state on save. **Order:** **fixed** → rebuilt original scope then preserved CO lines; **T&M** → preserved CO lines then all labor lines then all material lines. **T&M** editing round-trips **all** labor and material lines (not only the first).
+
+### Work Orders dashboard rollups (Option B)
+
+- **Invoiced** / **Pending Invoice** on **`WorkOrdersPage`** sum **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. The summary strip is labeled **Contract value** so this is explicit. Using invoice totals for rollups (**Option A**) is deferred.
 
 ## What Is and Isn't Persisted
 
@@ -218,7 +246,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
 | Invoices | Yes | Created at wizard step 3; status `draft` until **Download Invoice** sets `downloaded`. The **first** download per final-page mount runs **`markInvoiceDownloaded`** and navigation callback; repeat clicks only regenerate the PDF (no duplicate status writes). |
 | Clients | Yes (rows) | Upsert on **Download & Save**; **JobForm** customer-name combobox searches when authenticated |
-| Change orders | No | Schema only |
+| Change orders | Yes | **ChangeOrderWizard** + detail page; **`next_co_number`** RPC; insert retry once on unique violation |
 | Completion signoffs | No | Schema only |
 
 ## Portability Considerations
@@ -268,7 +296,8 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 
 ### Later
 - [ ] Multiple agreement templates
-- [ ] Change order flow (schema exists)
+- [x] Change order flow (persisted COs, wizard, PDFs, invoice integration)
+- [ ] Work Orders rollups from invoice totals (Option A)
 - [ ] Completion signoff (schema exists)
 - [ ] Capacitor iOS/Android packaging
 

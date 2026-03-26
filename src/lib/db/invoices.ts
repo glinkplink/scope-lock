@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Invoice, InvoiceLineItem } from '../../types/db';
+import type { Invoice, InvoiceLineItem, InvoiceLineItemSource } from '../../types/db';
 import { normalizePaymentMethods } from '../payment-methods';
 
 export type CreateInvoiceInput = {
@@ -16,8 +16,33 @@ export type CreateInvoiceInput = {
   notes?: string | null;
 };
 
+const VALID_LINE_SOURCES: Record<InvoiceLineItemSource, true> = {
+  original_scope: true,
+  change_order: true,
+  labor: true,
+  material: true,
+  manual: true,
+  legacy: true,
+};
+
+function normalizeLineItemSource(s: unknown): InvoiceLineItemSource {
+  if (typeof s === 'string' && s in VALID_LINE_SOURCES) return s as InvoiceLineItemSource;
+  return 'legacy';
+}
+
 function mapInvoiceRow(data: Record<string, unknown>): Invoice {
-  const line_items = (data.line_items as InvoiceLineItem[]) ?? [];
+  const rawItems = Array.isArray(data.line_items) ? data.line_items : [];
+  const line_items: InvoiceLineItem[] = rawItems.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      kind: (r.kind === 'material' ? 'material' : 'labor') as InvoiceLineItem['kind'],
+      description: String(r.description ?? ''),
+      qty: Number(r.qty),
+      unit_price: Number(r.unit_price),
+      total: Number(r.total),
+      source: normalizeLineItemSource(r.source),
+    };
+  });
   const pm = data.payment_methods;
   const payment_methods = normalizePaymentMethods(Array.isArray(pm) ? (pm as string[]) : []);
 

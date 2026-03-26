@@ -52,8 +52,9 @@ src/
     AgreementDocumentSections.tsx  # Renders agreement sections (preview, detail, PDF body)
     EditProfilePage.tsx      # Edit business profile + agreement defaults
     WorkOrdersPage.tsx       # List jobs; invoice actions; opens detail
-    WorkOrderDetailPage.tsx  # Saved job → agreement view + Download PDF
-    InvoiceWizard.tsx        # Create/edit invoice (steps)
+    WorkOrderDetailPage.tsx  # Saved job → agreement + change orders + PDFs
+    ChangeOrderWizard.tsx    # Create/edit change order (3 steps)
+    InvoiceWizard.tsx        # Create/edit invoice; CO pickers + line `source` for merge on edit
     InvoiceFinalPage.tsx     # Invoice preview, download, notes
     InvoicePreviewModal.tsx  # Full-screen invoice HTML preview
   lib/
@@ -66,12 +67,15 @@ src/
     geoapify-autocomplete.ts # Job site address suggestions (optional API key)
     job-to-welder-job.ts     # Job row + profile → WelderJob
     invoice-generator.ts     # Invoice HTML string
+    agreement-sections-html.ts # Agreement sections → HTML string (combined PDFs)
+    change-order-generator.ts # Change order HTML + WO + approved COs
     payment-methods.ts, tax.ts, defaults.ts
     db/
       profile.ts             # getProfile, upsertProfile, updateNextWoNumber
       clients.ts             # listClients, upsertClient, deleteClient
       jobs.ts                # listJobs, createJob, updateJob, deleteJob, saveWorkOrder
-      invoices.ts            # Invoice CRUD + mark downloaded
+      invoices.ts            # Invoice CRUD + mark downloaded; line item `source` in JSON
+      change-orders.ts       # Change order CRUD + totals
   hooks/
     useAuth.ts               # Supabase auth state listener
   types/
@@ -98,7 +102,7 @@ server/
 
 **Signed in but no `business_profiles` row** (edge case): full-screen **BusinessProfileForm** until a profile exists.
 
-**`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
+**`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'change-order-wizard' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
 
 ---
 
@@ -128,7 +132,7 @@ Migrations are in `supabase/migrations/` — apply via Supabase CLI (`npx supaba
 | Jobs | Yes — on **Download & Save** (`saveWorkOrder`); listed on **Work Orders** |
 | Clients | Yes — upserted on **Download & Save** keyed by `name_normalized`; **JobForm** can search/suggest when `userId` is set |
 | Invoices | Yes — wizard + final page; status `draft` / `downloaded` |
-| Change orders | No — schema only |
+| Change orders | Yes — wizard + detail; migration **0005_change_orders.sql** |
 
 ---
 

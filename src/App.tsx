@@ -11,13 +11,14 @@ import { supabase } from './lib/supabase';
 import { getProfile, updateNextWoNumber, upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
-import type { BusinessProfile, Job, Invoice } from './types/db';
+import type { BusinessProfile, Job, Invoice, ChangeOrder } from './types/db';
 import sampleJob from './data/sample-job.json';
 import { Settings } from 'lucide-react';
 import { WorkOrdersPage } from './components/WorkOrdersPage';
 import { InvoiceWizard } from './components/InvoiceWizard';
 import { InvoiceFinalPage } from './components/InvoiceFinalPage';
 import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
+import { ChangeOrderWizard } from './components/ChangeOrderWizard';
 import './App.css';
 
 type AppView =
@@ -27,6 +28,7 @@ type AppView =
   | 'profile'
   | 'work-orders'
   | 'work-order-detail'
+  | 'change-order-wizard'
   | 'invoice-wizard'
   | 'invoice-final'
   | 'auth';
@@ -40,6 +42,7 @@ const APP_VIEWS: AppView[] = [
   'profile',
   'work-orders',
   'work-order-detail',
+  'change-order-wizard',
   'invoice-wizard',
   'invoice-final',
   'auth',
@@ -89,6 +92,9 @@ function App() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [view, setView] = useState<AppView>('home');
   const [workOrderDetailJob, setWorkOrderDetailJob] = useState<Job | null>(null);
+  const [changeOrderFlowJob, setChangeOrderFlowJob] = useState<Job | null>(null);
+  const [wizardExistingCO, setWizardExistingCO] = useState<ChangeOrder | null>(null);
+  const [changeOrderListVersion, setChangeOrderListVersion] = useState(0);
   const [invoiceFlowJob, setInvoiceFlowJob] = useState<Job | null>(null);
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
@@ -378,7 +384,36 @@ function App() {
 
   const handleBackFromWorkOrderDetail = () => {
     setWorkOrderDetailJob(null);
+    setChangeOrderFlowJob(null);
+    setWizardExistingCO(null);
     navigateTo('work-orders');
+  };
+
+  const handleStartChangeOrderFromDetail = () => {
+    if (!workOrderDetailJob) return;
+    setChangeOrderFlowJob(workOrderDetailJob);
+    setWizardExistingCO(null);
+    navigateTo('change-order-wizard');
+  };
+
+  const handleEditChangeOrder = (co: ChangeOrder) => {
+    if (!workOrderDetailJob) return;
+    setChangeOrderFlowJob(workOrderDetailJob);
+    setWizardExistingCO(co);
+    navigateTo('change-order-wizard');
+  };
+
+  const handleChangeOrderWizardComplete = () => {
+    setWizardExistingCO(null);
+    setChangeOrderFlowJob(null);
+    setChangeOrderListVersion((v) => v + 1);
+    navigateTo('work-order-detail');
+  };
+
+  const handleChangeOrderWizardCancel = () => {
+    setWizardExistingCO(null);
+    setChangeOrderFlowJob(null);
+    navigateTo('work-order-detail');
   };
 
   const handleStartInvoice = (jobRow: Job) => {
@@ -487,6 +522,8 @@ function App() {
             setActiveInvoice(null);
             setWizardExistingInvoice(null);
             setWorkOrderDetailJob(null);
+            setChangeOrderFlowJob(null);
+            setWizardExistingCO(null);
           }}
         >
           ScopeLock
@@ -601,9 +638,24 @@ function App() {
           />
         ) : view === 'work-order-detail' && profile && workOrderDetailJob ? (
           <WorkOrderDetailPage
+            key={`${workOrderDetailJob.id}-${changeOrderListVersion}`}
             job={workOrderDetailJob}
             profile={profile}
+            changeOrderListVersion={changeOrderListVersion}
             onBack={handleBackFromWorkOrderDetail}
+            onStartChangeOrder={handleStartChangeOrderFromDetail}
+            onStartInvoice={() => handleStartInvoice(workOrderDetailJob)}
+            onEditChangeOrder={handleEditChangeOrder}
+          />
+        ) : view === 'change-order-wizard' && user && profile && changeOrderFlowJob ? (
+          <ChangeOrderWizard
+            key={wizardExistingCO?.id ?? 'new-co'}
+            userId={user.id}
+            job={changeOrderFlowJob}
+            profile={profile}
+            existingCO={wizardExistingCO}
+            onComplete={handleChangeOrderWizardComplete}
+            onCancel={handleChangeOrderWizardCancel}
           />
         ) : view === 'invoice-wizard' && user && profile && invoiceFlowJob ? (
           <InvoiceWizard

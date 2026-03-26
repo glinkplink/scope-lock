@@ -156,3 +156,51 @@ export function downloadAgreementPdfBlob(blob: Blob, job: WelderJob): void {
   link.remove();
   URL.revokeObjectURL(objectUrl);
 }
+
+export function getCoPdfFilename(coNumber: number, customerName: string): string {
+  const sanitized = (customerName || 'customer').replace(/\s+/g, '_');
+  return `CO-${String(coNumber).padStart(4, '0')}_${sanitized}.pdf`;
+}
+
+export async function fetchHtmlPdfBlob(options: {
+  filename: string;
+  /** Inner markup passed to buildPdfHtml (e.g. one or more `.agreement-document` roots). */
+  innerMarkup: string;
+  workOrderNumber?: string;
+  marginHeaderLeft?: string;
+  providerName: string;
+  providerPhone: string;
+}): Promise<Blob> {
+  const response = await fetch('/api/pdf', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filename: options.filename,
+      html: buildPdfHtml(options.innerMarkup),
+      workOrderNumber: options.workOrderNumber ?? '',
+      marginHeaderLeft: options.marginHeaderLeft,
+      providerName: options.providerName,
+      providerPhone: options.providerPhone,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Failed to generate PDF.');
+  }
+
+  return response.blob();
+}
+
+export function downloadPdfBlobToFile(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
