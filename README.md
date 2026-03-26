@@ -135,22 +135,33 @@ Session persistence is standard Supabase client behavior (refresh survives page 
 src/
   App.tsx                    # View state machine; anonymous + authenticated flows
   App.css                    # Global tokens, shell/layout, shared utilities, print/PDF globals
+  index.css                  # Base reset + font stack
   components/
     AuthPage.tsx             # Sign-in (returning users)
+    AuthPage.css             # AuthPage-only styles
     BusinessProfileForm.tsx  # Signed-in user missing profile row (edge case)
+    BusinessProfileForm.css  # BusinessProfileForm-only styles
     CaptureModal.tsx         # Account creation on first Download & Save
+    CaptureModal.css         # CaptureModal-only styles
     HomePage.tsx
+    HomePage.css
     JobForm.tsx
+    JobForm.css
     AgreementPreview.tsx
     AgreementDocumentSections.tsx
     EditProfilePage.tsx
-    WorkOrdersPage.tsx, WorkOrderDetailPage.tsx
-    ChangeOrderWizard.tsx
-    InvoiceWizard.tsx, InvoiceFinalPage.tsx, InvoicePreviewModal.tsx
+    EditProfilePage.css
+    WorkOrdersPage.tsx, WorkOrdersPage.css
+    WorkOrderDetailPage.tsx, WorkOrderDetailPage.css
+    ChangeOrderDetailPage.tsx, ChangeOrderDetailPage.css
+    ChangeOrderWizard.tsx, ChangeOrderWizard.css
+    InvoiceWizard.tsx, InvoiceWizard.css
+    InvoiceFinalPage.tsx, InvoiceFinalPage.css
+    InvoicePreviewModal.tsx, InvoicePreviewModal.css
   lib/
     supabase.ts, auth.ts
     agreement-generator.ts, agreement-sections-html.ts, change-order-generator.ts
-    agreement-pdf.ts, invoice-generator.ts
+    agreement-pdf.ts, invoice-generator.ts, html-escape.ts
     job-site-address.ts, us-phone-input.ts, geoapify-autocomplete.ts
     job-to-welder-job.ts
     db/                      # profile, clients, jobs, invoices, change-orders
