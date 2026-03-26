@@ -1,0 +1,86 @@
+.auth-page {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
+  min-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-page h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+.auth-page form {
+  background: var(--surface-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.auth-page input {
+  width: 100%;
+  padding: 10px var(--space-md);
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.auth-page input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px rgba(28, 58, 94, 0.08);
+}
+
+.auth-page input::placeholder {
+  color: var(--text-muted);
+}
+
+.auth-page button[type="submit"] {
+  width: 100%;
+  background: var(--primary);
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: var(--space-md);
+}
+
+.auth-page button[type="submit"]:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.auth-page button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-page .error {
+  background: var(--danger-light);
+  color: var(--danger);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  margin: 0;
+  text-align: center;
+}

@@ -915,55 +915,7 @@ body {
   color: var(--text-muted);
 }
 
-/* ─── Home Page ─────────────────────────────────────── */
-
-.home-page {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 0;
-  padding: 15vh 0 var(--space-xl);
-}
-
-.home-content {
-  text-align: center;
-  max-width: 480px;
-}
-
-.home-greeting {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--accent-gold);
-  margin-top: 1.25rem;
-  margin-bottom: 0;
-}
-
-.home-content h1 {
-  font-size: calc(1.6rem + 4px);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 0;
-  margin-bottom: var(--space-md);
-  line-height: 1.25;
-}
-
-.home-content > h1:first-child {
-  margin-top: 24px;
-}
-
-.home-greeting + h1 {
-  margin-top: 38px;
-}
-
-.home-description {
-  font-size: 1rem;
-  color: var(--text-secondary);
-  margin-bottom: calc(var(--space-xl) + var(--space-lg));
-  line-height: 1.65;
-}
+/* Large button base — HomePage.css scopes .home-content overrides */
 
 .btn-large {
   padding: 14px var(--space-xl);
@@ -981,41 +933,6 @@ body {
 
 .btn-large:hover {
   background: var(--primary-hover);
-}
-
-.home-content .btn-large {
-  font-size: 0.9375rem;
-  min-height: 48px;
-  padding: 10px var(--space-xl);
-  box-sizing: border-box;
-}
-
-.home-content .btn-primary.btn-large {
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 2px 4px rgb(0 0 0 / 0.06);
-  transition: background 0.15s, box-shadow 0.15s;
-}
-
-.home-content .btn-primary.btn-large:hover {
-  background: #234a78;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 2px 5px rgb(0 0 0 / 0.08);
-}
-
-.btn-home {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: white;
-  padding: 6px var(--space-md);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.btn-home:hover {
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .header-actions {
@@ -1520,95 +1437,6 @@ body {
   text-align: center;
   font-size: 0.875rem;
   margin-bottom: var(--space-lg);
-}
-
-/* ─── Auth Page ─────────────────────────────────────── */
-
-.auth-page {
-  max-width: 400px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-md);
-  min-height: calc(100vh - 200px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.auth-page h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-primary);
-  margin-bottom: var(--space-lg);
-  text-align: center;
-}
-
-.auth-page form {
-  background: var(--surface-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-}
-
-.auth-page input {
-  width: 100%;
-  padding: 10px var(--space-md);
-  font-size: 1rem;
-  font-family: inherit;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: white;
-  color: var(--text-primary);
-  margin-bottom: var(--space-md);
-  transition: border-color 0.15s;
-  box-sizing: border-box;
-}
-
-.auth-page input:focus {
-  outline: none;
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 2px rgba(28, 58, 94, 0.08);
-}
-
-.auth-page input::placeholder {
-  color: var(--text-muted);
-}
-
-.auth-page button[type="submit"] {
-  width: 100%;
-  background: var(--primary);
-  color: white;
-  padding: 12px;
-  border: none;
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-  margin-bottom: var(--space-md);
-}
-
-.auth-page button[type="submit"]:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
-
-.auth-page button[type="submit"]:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.auth-page .error {
-  background: var(--danger-light);
-  color: var(--danger);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  margin: 0;
-  text-align: center;
 }
 
 /* ─── Business Profile Form ─────────────────────────── */
@@ -2151,24 +1979,6 @@ body {
   .btn-header-settings-icon {
     width: 24px;
     height: 24px;
-  }
-
-  .home-content h1 {
-    font-size: calc(2rem + 9px);
-  }
-
-  .home-description {
-    font-size: calc(1rem + 9px);
-  }
-
-  .home-content .btn-large {
-    font-size: calc(1rem + 9px);
-    min-height: unset;
-    padding: 14px var(--space-xl);
-  }
-
-  .home-greeting + h1 {
-    margin-top: 52px;
   }
 
   .invoice-flow-section-title {

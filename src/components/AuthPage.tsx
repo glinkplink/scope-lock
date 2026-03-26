@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { signIn } from '../lib/auth';
+import './AuthPage.css';
 
 interface AuthPageProps {
   /** Called after successful sign-in (e.g. leave auth view). */

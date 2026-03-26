@@ -1,3 +1,5 @@
+import './HomePage.css';
+
 interface HomePageProps {
   onCreateAgreement: () => void;
   ownerName?: string;
