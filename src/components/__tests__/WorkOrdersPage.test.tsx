@@ -1,0 +1,188 @@
+// @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { Job, WorkOrderListJob } from '../../types/db';
+import { WorkOrdersPage } from '../WorkOrdersPage';
+import type { ListInvoiceStatusByJobResult } from '../../lib/db/invoices';
+
+const listJobsForWorkOrders = vi.fn();
+const getJobById = vi.fn();
+const listInvoiceStatusByJob = vi.fn();
+
+vi.mock('../../lib/db/jobs', () => ({
+  listJobsForWorkOrders: (...args: unknown[]) => listJobsForWorkOrders(...args),
+  getJobById: (...args: unknown[]) => getJobById(...args),
+}));
+
+vi.mock('../../lib/db/invoices', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/db/invoices')>();
+  return {
+    ...actual,
+    listInvoiceStatusByJob: (...args: unknown[]) => listInvoiceStatusByJob(...args),
+    getInvoice: vi.fn(),
+  };
+});
+
+const listJobA: WorkOrderListJob = {
+  id: 'job-a',
+  wo_number: 1,
+  customer_name: 'Customer A',
+  job_type: 'repair',
+  agreement_date: '2025-01-01',
+  created_at: '2025-01-01T12:00:00Z',
+  price: 100,
+};
+
+const listJobB: WorkOrderListJob = {
+  id: 'job-b',
+  wo_number: 2,
+  customer_name: 'Customer B',
+  job_type: 'repair',
+  agreement_date: '2025-01-02',
+  created_at: '2025-01-02T12:00:00Z',
+  price: 200,
+};
+
+function minimalFullJob(id: string, customer: string): Job {
+  return {
+    id,
+    user_id: 'u1',
+    client_id: null,
+    customer_name: customer,
+    customer_phone: null,
+    job_location: 'x',
+    job_type: 'repair',
+    asset_or_item_description: 'x',
+    requested_work: 'x',
+    materials_provided_by: null,
+    installation_included: null,
+    grinding_included: null,
+    paint_or_coating_included: null,
+    removal_or_disassembly_included: null,
+    hidden_damage_possible: null,
+    price_type: 'fixed',
+    price: 100,
+    deposit_required: null,
+    payment_terms: null,
+    target_completion_date: null,
+    exclusions: [],
+    assumptions: [],
+    change_order_required: null,
+    workmanship_warranty_days: null,
+    status: 'active',
+    wo_number: 1,
+    agreement_date: null,
+    contractor_phone: null,
+    contractor_email: null,
+    customer_email: null,
+    governing_state: null,
+    target_start: null,
+    deposit_amount: null,
+    late_payment_terms: null,
+    negotiation_period: null,
+    customer_obligations: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+  };
+}
+
+function renderPage() {
+  const onStartInvoice = vi.fn();
+  const onOpenPendingInvoice = vi.fn();
+  const onOpenWorkOrderDetail = vi.fn();
+  render(
+    <WorkOrdersPage
+      userId="u1"
+      profile={null}
+      successBanner={null}
+      onClearSuccessBanner={() => {}}
+      onCompleteProfileClick={() => {}}
+      onStartInvoice={onStartInvoice}
+      onOpenPendingInvoice={onOpenPendingInvoice}
+      onOpenWorkOrderDetail={onOpenWorkOrderDetail}
+    />
+  );
+  return { onStartInvoice, onOpenPendingInvoice, onOpenWorkOrderDetail };
+}
+
+describe('WorkOrdersPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listJobsForWorkOrders.mockResolvedValue([listJobA]);
+    listInvoiceStatusByJob.mockResolvedValue({
+      data: [],
+      error: null,
+    } satisfies ListInvoiceStatusByJobResult);
+    getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
+  });
+
+  it('shows invoice column loading while jobs are shown and invoice status is still loading', async () => {
+    listJobsForWorkOrders.mockResolvedValue([listJobA]);
+    listInvoiceStatusByJob.mockImplementation(
+      () => new Promise<ListInvoiceStatusByJobResult>(() => {})
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Customer A')).toBeInTheDocument();
+    });
+
+    const loadingBtn = screen.getByRole('button', { name: /loading/i });
+    expect(loadingBtn).toBeDisabled();
+  });
+
+  it('shows Unavailable when invoice-status fetch fails', async () => {
+    listInvoiceStatusByJob.mockResolvedValue({
+      data: null,
+      error: new Error('boom'),
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /unavailable/i })).toBeDisabled();
+    });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('does not block Invoice on another row while one row is hydrating', async () => {
+    listJobsForWorkOrders.mockResolvedValue([listJobA, listJobB]);
+    listInvoiceStatusByJob.mockResolvedValue({ data: [], error: null });
+
+    let releaseA: (job: Job | null) => void;
+    const hangA = new Promise<Job | null>((resolve) => {
+      releaseA = resolve;
+    });
+
+    getJobById.mockImplementation((id: string) => {
+      if (id === 'job-a') return hangA;
+      return Promise.resolve(minimalFullJob(id, id === 'job-b' ? 'Customer B' : id));
+    });
+
+    const user = userEvent.setup();
+    const { onStartInvoice } = renderPage();
+
+    const anchorB = await screen.findByText('Customer B');
+    const list = anchorB.closest('ul.work-orders-list');
+    expect(list).toBeTruthy();
+    await within(list).findAllByRole('button', { name: /^Invoice$/i });
+
+    const rows = within(list).getAllByRole('listitem');
+    const rowA = rows.find((el) => within(el).queryByText('Customer A'));
+    const rowB = rows.find((el) => within(el).queryByText('Customer B'));
+    expect(rowA && rowB).toBeTruthy();
+
+    await user.click(within(rowA!).getByRole('button', { name: /^Invoice$/i }));
+    await user.click(within(rowB!).getByRole('button', { name: /^Invoice$/i }));
+
+    await waitFor(() => {
+      expect(onStartInvoice).toHaveBeenCalledTimes(1);
+    });
+    expect(onStartInvoice.mock.calls[0][0].id).toBe('job-b');
+
+    releaseA!(minimalFullJob('job-a', 'Customer A'));
+  });
+});

@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BusinessProfile, Job, Invoice, WorkOrderListJob, WorkOrderInvoiceStatus } from '../types/db';
 import { listJobsForWorkOrders, getJobById } from '../lib/db/jobs';
-import { listInvoiceStatusByJob, getInvoice } from '../lib/db/invoices';
+import {
+  listInvoiceStatusByJob,
+  getInvoice,
+  invoiceStatusMapFromRows,
+} from '../lib/db/invoices';
 
 const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
 
@@ -31,19 +35,6 @@ function formatRowDate(job: WorkOrderListJob): string {
   });
 }
 
-/**
- * Latest invoice per job_id: list is ordered by created_at desc; first seen wins.
- */
-function invoiceStatusMapFromRows(rows: WorkOrderInvoiceStatus[]): Map<string, WorkOrderInvoiceStatus> {
-  const map = new Map<string, WorkOrderInvoiceStatus>();
-  for (const inv of rows) {
-    if (!map.has(inv.job_id)) {
-      map.set(inv.job_id, inv);
-    }
-  }
-  return map;
-}
-
 interface WorkOrdersPageProps {
   userId: string;
   profile: BusinessProfile | null;
@@ -71,7 +62,9 @@ export function WorkOrdersPage({
   const [invoiceStatusError, setInvoiceStatusError] = useState<string | null>(null);
   /** Non-null array only after a successful invoice-status fetch (may be empty). */
   const [invoiceStatusRows, setInvoiceStatusRows] = useState<WorkOrderInvoiceStatus[] | null>(null);
-  const [actionLoadingJobId, setActionLoadingJobId] = useState<string | null>(null);
+  const [actionLoadingJobIds, setActionLoadingJobIds] = useState<Set<string>>(() => new Set());
+  /** Synchronous guard so rapid double-clicks on one row do not start duplicate hydrations. */
+  const actionLoadingIdsRef = useRef<Set<string>>(new Set());
 
   const jobCacheRef = useRef<Map<string, Job>>(new Map());
   const invoiceCacheRef = useRef<Map<string, Invoice>>(new Map());
@@ -165,12 +158,23 @@ export function WorkOrdersPage({
     setHideCompleteProfileCta(true);
   };
 
+  const beginRowAction = (jobId: string) => {
+    if (actionLoadingIdsRef.current.has(jobId)) return false;
+    actionLoadingIdsRef.current.add(jobId);
+    setActionLoadingJobIds(new Set(actionLoadingIdsRef.current));
+    return true;
+  };
+
+  const endRowAction = (jobId: string) => {
+    actionLoadingIdsRef.current.delete(jobId);
+    setActionLoadingJobIds(new Set(actionLoadingIdsRef.current));
+  };
+
   const runWithJobHydration = async (
     listJob: WorkOrderListJob,
     fn: (fullJob: Job) => void
   ) => {
-    if (actionLoadingJobId) return;
-    setActionLoadingJobId(listJob.id);
+    if (!beginRowAction(listJob.id)) return;
     try {
       let full: Job | undefined = jobCacheRef.current.get(listJob.id);
       if (full === undefined) {
@@ -183,7 +187,7 @@ export function WorkOrdersPage({
       if (full) fn(full);
       else console.error('WorkOrdersPage: getJobById returned no row for', listJob.id);
     } finally {
-      setActionLoadingJobId(null);
+      endRowAction(listJob.id);
     }
   };
 
@@ -196,8 +200,7 @@ export function WorkOrdersPage({
   };
 
   const handleOpenPendingInvoice = (listJob: WorkOrderListJob, status: WorkOrderInvoiceStatus) => {
-    if (actionLoadingJobId) return;
-    setActionLoadingJobId(listJob.id);
+    if (!beginRowAction(listJob.id)) return;
     void (async () => {
       try {
         let fullJob: Job | undefined = jobCacheRef.current.get(listJob.id);
@@ -219,7 +222,7 @@ export function WorkOrdersPage({
         if (fullJob && fullInv) onOpenPendingInvoice(fullJob, fullInv);
         else console.error('WorkOrdersPage: missing full job or invoice for pending flow');
       } finally {
-        setActionLoadingJobId(null);
+        endRowAction(listJob.id);
       }
     })();
   };
@@ -314,7 +317,7 @@ export function WorkOrdersPage({
                   job.wo_number != null
                     ? `WO #${String(job.wo_number).padStart(4, '0')}`
                     : 'WO (no #)';
-                const rowBusy = actionLoadingJobId === job.id;
+                const rowBusy = actionLoadingJobIds.has(job.id);
                 return (
                   <li key={job.id} className="work-orders-row">
                     <div className="work-orders-row-main">
@@ -333,11 +336,22 @@ export function WorkOrdersPage({
                     </div>
                     <div className="work-orders-row-actions">
                       {invoiceStatusLoading ? (
-                        <span className="work-orders-action-placeholder" aria-busy="true">
+                        <button
+                          type="button"
+                          className="wo-row-create-invoice-outline work-orders-invoice-status-loading"
+                          disabled
+                          aria-busy="true"
+                        >
                           Loading…
-                        </span>
+                        </button>
                       ) : invoiceStatusError ? (
-                        <span className="work-orders-action-placeholder">Unavailable</span>
+                        <button
+                          type="button"
+                          className="wo-row-create-invoice-outline work-orders-invoice-status-unavailable"
+                          disabled
+                        >
+                          Unavailable
+                        </button>
                       ) : !inv ? (
                         <button
                           type="button"

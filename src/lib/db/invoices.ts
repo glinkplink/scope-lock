@@ -164,6 +164,21 @@ export type ListInvoiceStatusByJobResult =
   | { data: WorkOrderInvoiceStatus[]; error: null }
   | { data: null; error: Error };
 
+/**
+ * Latest invoice per job_id: caller should pass rows ordered by created_at desc; first seen wins.
+ */
+export function invoiceStatusMapFromRows(
+  rows: WorkOrderInvoiceStatus[]
+): Map<string, WorkOrderInvoiceStatus> {
+  const map = new Map<string, WorkOrderInvoiceStatus>();
+  for (const inv of rows) {
+    if (!map.has(inv.job_id)) {
+      map.set(inv.job_id, inv);
+    }
+  }
+  return map;
+}
+
 function mapInvoiceStatusRow(row: Record<string, unknown>): WorkOrderInvoiceStatus | null {
   const status = row.status;
   if (status !== 'draft' && status !== 'downloaded') return null;
@@ -200,9 +215,26 @@ export const listInvoiceStatusByJob = async (
   }
 
   const out: WorkOrderInvoiceStatus[] = [];
+  let malformedCount = 0;
   for (const row of data ?? []) {
     const mapped = mapInvoiceStatusRow(row as Record<string, unknown>);
-    if (mapped) out.push(mapped);
+    if (mapped) {
+      out.push(mapped);
+    } else {
+      malformedCount += 1;
+      console.error(
+        'listInvoiceStatusByJob: malformed invoice row (dropped); invoice actions unavailable until fixed',
+        row
+      );
+    }
+  }
+  if (malformedCount > 0) {
+    return {
+      data: null,
+      error: new Error(
+        `${malformedCount} invoice row(s) could not be read. Invoice actions are unavailable.`
+      ),
+    };
   }
   return { data: out, error: null };
 };

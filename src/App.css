@@ -2454,13 +2454,19 @@ body {
   flex-shrink: 0;
 }
 
-.work-orders-action-placeholder {
-  display: inline-block;
-  padding: 8px var(--space-md);
-  font-size: 0.8125rem;
-  font-weight: 500;
+.wo-row-create-invoice-outline.work-orders-invoice-status-loading:disabled,
+.wo-row-create-invoice-outline.work-orders-invoice-status-unavailable:disabled {
+  opacity: 0.65;
+  cursor: wait;
   color: var(--text-muted);
+  border-color: var(--border-strong);
+  text-transform: none;
+  font-weight: 500;
   letter-spacing: 0.04em;
+}
+
+.wo-row-create-invoice-outline.work-orders-invoice-status-unavailable:disabled {
+  cursor: not-allowed;
 }
 
 .work-orders-invoice-status-banner {
