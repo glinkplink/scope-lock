@@ -17,6 +17,7 @@ import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-g
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { listChangeOrders, computeCOTotal } from '../lib/db/change-orders';
 import { getInvoiceByJobId } from '../lib/db/invoices';
+import './WorkOrderDetailPage.css';
 
 interface WorkOrderDetailPageProps {
   job: Job;

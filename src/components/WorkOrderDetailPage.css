@@ -1,0 +1,34 @@
+.co-list-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.co-list-item:last-child {
+  border-bottom: none;
+}
+
+.co-list-number {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.co-list-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.co-list-amount {
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+}

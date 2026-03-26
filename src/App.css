@@ -1467,26 +1467,6 @@ body {
   align-items: center;
 }
 
-.co-detail-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: var(--space-sm) 0 var(--space-md);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-md);
-}
-
-.co-detail-total {
-  font-weight: 600;
-  font-size: 1rem;
-  flex: 1;
-}
-
-.co-detail-delete {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-}
-
 .work-order-detail-download {
   width: 100%;
 }
@@ -1717,41 +1697,6 @@ body {
 .co-status-badge.rejected {
   background: #f8d7da;
   color: #721c24;
-}
-
-.co-list-item {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.co-list-item:last-child {
-  border-bottom: none;
-}
-
-.co-list-number {
-  font-weight: 700;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.co-list-desc {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.co-list-amount {
-  font-weight: 500;
-  font-size: 14px;
-  white-space: nowrap;
 }
 
 .btn-text {

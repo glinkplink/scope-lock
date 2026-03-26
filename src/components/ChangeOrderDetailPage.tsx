@@ -10,6 +10,7 @@ import {
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
 import { computeCOTotal, deleteChangeOrder, updateChangeOrder } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
+import './ChangeOrderDetailPage.css';
 
 function statusBadgeClass(status: ChangeOrder['status']): string {
   if (status === 'pending_approval') return 'pending';

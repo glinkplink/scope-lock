@@ -1,0 +1,19 @@
+.co-detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--space-sm) 0 var(--space-md);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-md);
+}
+
+.co-detail-total {
+  font-weight: 600;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.co-detail-delete {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
