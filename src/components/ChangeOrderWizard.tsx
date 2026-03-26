@@ -174,6 +174,12 @@ export function ChangeOrderWizard({
   const woLabel =
     job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
 
+  const goBack = () => {
+    setError('');
+    if (step === 2) setStep(1);
+    else if (step === 3) setStep(2);
+  };
+
   return (
     <div className="invoice-wizard co-wizard">
       <div className="invoice-wizard-toolbar">
@@ -184,11 +190,6 @@ export function ChangeOrderWizard({
         <span className="invoice-wizard-toolbar-balance" aria-hidden="true" />
       </div>
 
-      <p className="co-wizard-step-label">
-        Step {step} of 3 —{' '}
-        {step === 1 ? 'What changed' : step === 2 ? 'Cost adjustment' : 'Review & save'}
-      </p>
-
       {error ? (
         <div className="error-banner" role="alert">
           {error}
@@ -197,44 +198,58 @@ export function ChangeOrderWizard({
 
       {step === 1 ? (
         <section className="invoice-wizard-step co-wizard-step">
-          <h2 className="invoice-flow-section-title">What changed</h2>
-          <p className="co-section-label">Description</p>
-          <div className="form-group">
-            <label htmlFor="co-desc">Describe the additional or modified work</label>
+          <header className="co-wizard-step-header">
+            <p className="co-wizard-step-indicator">Step 1 of 3</p>
+            <h1 className="co-wizard-title">What Changed</h1>
+          </header>
+
+          <div className="co-wizard-block">
+            <p className="co-section-label" id="co-desc-label">
+              Description
+            </p>
             <textarea
               id="co-desc"
               className="co-textarea"
               rows={5}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the additional or modified work…"
+              aria-labelledby="co-desc-label"
             />
           </div>
-          <p className="co-section-label">Reason</p>
-          <div className="form-group">
-            {REASON_PRESETS.map((p) => (
-              <label key={p} className="co-reason-radio">
-                <input
-                  type="radio"
-                  name="co-reason"
-                  checked={reasonPreset === p}
-                  onChange={() => setReasonPreset(p)}
-                />
-                {p}
-              </label>
-            ))}
-          </div>
-          {reasonPreset === 'Other' ? (
-            <div className="form-group">
-              <label htmlFor="co-reason-other">Describe reason</label>
-              <input
-                id="co-reason-other"
-                type="text"
-                value={reasonOther}
-                onChange={(e) => setReasonOther(e.target.value)}
-              />
+
+          <div className="co-wizard-block-divider" aria-hidden="true" />
+
+          <div className="co-wizard-block">
+            <p className="co-section-label">Reason</p>
+            <div className="co-reason-group" role="group" aria-label="Reason for change">
+              {REASON_PRESETS.map((p) => (
+                <label key={p} className="co-reason-radio">
+                  <input
+                    type="radio"
+                    name="co-reason"
+                    checked={reasonPreset === p}
+                    onChange={() => setReasonPreset(p)}
+                  />
+                  {p}
+                </label>
+              ))}
             </div>
-          ) : null}
-          <div className="invoice-wizard-step-actions">
+            {reasonPreset === 'Other' ? (
+              <div className="form-group co-wizard-field-tight">
+                <label htmlFor="co-reason-other">Describe reason</label>
+                <input
+                  id="co-reason-other"
+                  type="text"
+                  value={reasonOther}
+                  onChange={(e) => setReasonOther(e.target.value)}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="co-wizard-footer">
+            <span className="co-wizard-footer-spacer" aria-hidden="true" />
             <button
               type="button"
               className="btn-primary btn-large"
@@ -250,84 +265,89 @@ export function ChangeOrderWizard({
 
       {step === 2 ? (
         <section className="invoice-wizard-step co-wizard-step">
-          <h2 className="invoice-flow-section-title">Cost adjustment</h2>
-          <button
-            type="button"
-            className="invoice-flow-back-link"
-            onClick={() => {
-              setError('');
-              setStep(1);
-            }}
-          >
-            Back
-          </button>
+          <header className="co-wizard-step-header">
+            <p className="co-wizard-step-indicator">Step 2 of 3</p>
+            <h1 className="co-wizard-title">Cost Adjustment</h1>
+          </header>
+
           <p className="co-section-label">Line items</p>
-          {lineItems.map((row) => (
-            <div key={row.id} className="co-line-row">
-              <div className="co-field co-field-desc">
-                <label htmlFor={`d-${row.id}`}>Description</label>
-                <input
-                  id={`d-${row.id}`}
-                  type="text"
-                  placeholder="e.g. Extra welding — extend railing"
-                  value={row.description}
-                  onChange={(e) => updateLine(row.id, { description: e.target.value })}
-                />
-              </div>
-              <div className="co-field co-field-qty">
-                <label htmlFor={`q-${row.id}`}>Qty</label>
-                <input
-                  id={`q-${row.id}`}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={row.quantity || ''}
-                  onChange={(e) => updateLine(row.id, { quantity: Number(e.target.value) })}
-                />
-              </div>
-              <div className="co-field co-field-rate">
-                <label htmlFor={`r-${row.id}`}>Rate</label>
-                <div className="co-rate-wrap">
-                  <span className="co-rate-prefix" aria-hidden="true">
-                    $
-                  </span>
+          <div className="co-line-items-header" aria-hidden="true">
+            <span className="co-line-items-header-desc">Description</span>
+            <span className="co-line-items-header-qty">Qty</span>
+            <span className="co-line-items-header-rate">Rate</span>
+            <span className="co-line-items-header-total" />
+            <span className="co-line-items-header-remove" />
+          </div>
+
+          <div className="co-line-items-stack">
+            {lineItems.map((row) => (
+              <div key={row.id} className="co-line-row">
+                <div className="co-field co-field-desc">
+                  <label htmlFor={`d-${row.id}`}>Description</label>
                   <input
-                    id={`r-${row.id}`}
+                    id={`d-${row.id}`}
+                    type="text"
+                    placeholder="e.g. Extra welding — extend railing"
+                    value={row.description}
+                    onChange={(e) => updateLine(row.id, { description: e.target.value })}
+                  />
+                </div>
+                <div className="co-field co-field-qty">
+                  <label htmlFor={`q-${row.id}`}>Qty</label>
+                  <input
+                    id={`q-${row.id}`}
                     type="number"
                     min={0}
                     step="0.01"
-                    value={row.unit_rate || ''}
-                    onChange={(e) => updateLine(row.id, { unit_rate: Number(e.target.value) })}
+                    value={row.quantity || ''}
+                    onChange={(e) => updateLine(row.id, { quantity: Number(e.target.value) })}
                   />
                 </div>
+                <div className="co-field co-field-rate">
+                  <label htmlFor={`r-${row.id}`}>Rate</label>
+                  <div className="co-rate-wrap">
+                    <span className="co-rate-prefix" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id={`r-${row.id}`}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={row.unit_rate || ''}
+                      onChange={(e) => updateLine(row.id, { unit_rate: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="co-field-total" aria-label="Line total">
+                  $
+                  {(row.quantity * row.unit_rate).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
+                <button
+                  type="button"
+                  className="co-remove-btn"
+                  aria-label="Remove line"
+                  onClick={() => removeLine(row.id)}
+                >
+                  ×
+                </button>
               </div>
-              <div className="co-field-total" aria-label="Line total">
-                $
-                {(row.quantity * row.unit_rate).toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+            ))}
+            <button type="button" className="co-add-btn" onClick={addLine}>
+              + Add line item
+            </button>
+            <div className="co-line-items-total-wrap">
+              <div className="co-total-row co-total-row--stack">
+                <span className="co-total-label">Cost adjustment total</span>
+                <span className="co-total-value">${coTotal.toFixed(2)}</span>
               </div>
-              <button
-                type="button"
-                className="co-remove-btn"
-                aria-label="Remove line"
-                onClick={() => removeLine(row.id)}
-              >
-                ×
-              </button>
             </div>
-          ))}
-          <button type="button" className="co-add-btn" onClick={addLine}>
-            + Add line item
-          </button>
-          <hr className="co-divider" />
-          <div className="co-total-row">
-            <span className="co-total-label">Cost adjustment total</span>
-            <span className="co-total-value">${coTotal.toFixed(2)}</span>
           </div>
-          <hr className="co-divider" />
-          <p className="co-section-label">Additional time (optional)</p>
+
+          <p className="co-section-label co-section-label--time">Additional time (optional)</p>
           <div className="co-time-row">
             <div className="co-field co-field-time">
               <label htmlFor="co-time-amt">Amount</label>
@@ -351,7 +371,7 @@ export function ChangeOrderWizard({
                 <option value="days">Days</option>
               </select>
             </div>
-            <div className="co-field" style={{ flex: 1, minWidth: 0 }}>
+            <div className="co-field co-field-time-note">
               <label htmlFor="co-time-note">Note</label>
               <input
                 id="co-time-note"
@@ -362,7 +382,11 @@ export function ChangeOrderWizard({
               />
             </div>
           </div>
-          <div className="invoice-wizard-step-actions">
+
+          <div className="co-wizard-footer">
+            <button type="button" className="btn-secondary btn-large co-wizard-back" onClick={goBack}>
+              Back
+            </button>
             <button
               type="button"
               className="btn-primary btn-large"
@@ -378,60 +402,67 @@ export function ChangeOrderWizard({
 
       {step === 3 ? (
         <section className="invoice-wizard-step co-wizard-step">
-          <h2 className="invoice-flow-section-title">Review & save</h2>
-          <button
-            type="button"
-            className="invoice-flow-back-link"
-            onClick={() => {
-              setError('');
-              setStep(2);
-            }}
-          >
-            Back
-          </button>
+          <header className="co-wizard-step-header">
+            <p className="co-wizard-step-indicator">Step 3 of 3</p>
+            <h1 className="co-wizard-title">Review & Save</h1>
+          </header>
+
           <div className="co-review-card">
-            <p className="co-section-label">Reference</p>
-            <p className="content-paragraph">
-              {isEdit && existingCO
-                ? `Change Order #${String(existingCO.co_number).padStart(4, '0')} for ${woLabel}`
-                : `New change order for ${woLabel}`}
-            </p>
-            <p className="co-section-label">Description</p>
-            <p className="content-paragraph">{description.trim() || '—'}</p>
-            <p className="co-section-label">Reason</p>
-            <p className="content-paragraph">{reasonValue || '—'}</p>
-            <p className="co-section-label">Line items</p>
-            <ul className="content-bullets">
-              {lineItems.map((li) => (
-                <li key={li.id}>
-                  {li.description || '(no description)'} — $
-                  {(li.quantity * li.unit_rate).toFixed(2)}
-                </li>
-              ))}
-            </ul>
-            <p className="co-total-row">
+            <div className="co-review-field">
+              <span className="co-review-label">Reference</span>
+              <span className="co-review-value">
+                {isEdit && existingCO
+                  ? `Change Order #${String(existingCO.co_number).padStart(4, '0')} for ${woLabel}`
+                  : `New change order for ${woLabel}`}
+              </span>
+            </div>
+            <div className="co-review-field">
+              <span className="co-review-label">Description</span>
+              <span className="co-review-value">{description.trim() || '—'}</span>
+            </div>
+            <div className="co-review-field">
+              <span className="co-review-label">Reason</span>
+              <span className="co-review-value">{reasonValue || '—'}</span>
+            </div>
+            <div className="co-review-field co-review-field--list">
+              <span className="co-review-label">Line items</span>
+              <ul className="co-review-lines">
+                {lineItems.map((li) => (
+                  <li key={li.id}>
+                    {li.description || '(no description)'} — $
+                    {(li.quantity * li.unit_rate).toFixed(2)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="co-total-row co-review-total">
               <span className="co-total-label">Total</span>
               <span className="co-total-value">${coTotal.toFixed(2)}</span>
-            </p>
+            </div>
             {timeAmount > 0 ? (
-              <>
-                <p className="co-section-label">Schedule</p>
-                <p className="content-paragraph">
+              <div className="co-review-field">
+                <span className="co-review-label">Schedule</span>
+                <span className="co-review-value">
                   +{timeAmount} {timeUnit}
                   {timeNote.trim() ? ` — ${timeNote.trim()}` : ''}
-                </p>
-              </>
+                </span>
+              </div>
             ) : null}
           </div>
+
           <label className="co-approval-check">
             <input
               type="checkbox"
               checked={requiresApproval}
               onChange={(e) => setRequiresApproval(e.target.checked)}
             />
-            Requires client approval before invoicing
+            <span>Needs client sign-off before invoicing</span>
           </label>
-          <div className="invoice-wizard-step-actions">
+
+          <div className="co-wizard-footer">
+            <button type="button" className="btn-secondary btn-large co-wizard-back" onClick={goBack}>
+              Back
+            </button>
             <button
               type="button"
               className="btn-primary btn-large"
