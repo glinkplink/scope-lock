@@ -6,6 +6,7 @@ import {
   getInvoice,
   invoiceStatusMapFromRows,
 } from '../lib/db/invoices';
+import './WorkOrdersPage.css';
 
 const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
 

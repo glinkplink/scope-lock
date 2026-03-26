@@ -1532,132 +1532,7 @@ body {
   outline-offset: 2px;
 }
 
-/* ─── Work Orders list ─────────────────────────────── */
-
-.work-orders-page {
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.work-orders-toolbar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: var(--space-lg);
-}
-
-.work-orders-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0;
-  text-align: center;
-}
-
-.work-orders-profile-nudge {
-  margin-bottom: var(--space-lg);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--border);
-}
-
-.work-orders-profile-nudge-helper {
-  margin: 0 0 var(--space-md);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.work-orders-profile-nudge-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-.work-orders-complete-profile-btn {
-  background: var(--primary);
-  color: white;
-  padding: 10px var(--space-xl);
-  border: none;
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.work-orders-complete-profile-btn:hover {
-  background: var(--primary-hover);
-}
-
-.work-orders-nudge-not-now {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.work-orders-nudge-not-now:hover {
-  color: var(--text-primary);
-}
-
-.work-orders-summary-strip {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.9375rem;
-}
-
-.work-orders-summary-contract-label {
-  flex: 1 0 100%;
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.work-orders-summary-item {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem;
-}
-
-.work-orders-summary-label {
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.work-orders-summary-amount {
-  font-weight: 700;
-  font-size: 1.05em;
-}
-
-.work-orders-summary-invoiced .work-orders-summary-amount {
-  color: #2d6a2e;
-}
-
-.work-orders-summary-pending .work-orders-summary-amount {
-  color: #9a3412;
-}
+/* Work orders list row primitives — shared by WorkOrdersPage + detail CO lists */
 
 .work-orders-list {
   list-style: none;
@@ -1743,25 +1618,6 @@ body {
   flex-shrink: 0;
 }
 
-.wo-row-create-invoice-outline.work-orders-invoice-status-loading:disabled,
-.wo-row-create-invoice-outline.work-orders-invoice-status-unavailable:disabled {
-  opacity: 0.65;
-  cursor: wait;
-  color: var(--text-muted);
-  border-color: var(--border-strong);
-  text-transform: none;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-.wo-row-create-invoice-outline.work-orders-invoice-status-unavailable:disabled {
-  cursor: not-allowed;
-}
-
-.work-orders-invoice-status-banner {
-  margin-bottom: var(--space-md);
-}
-
 .wo-row-create-invoice-outline {
   display: inline-block;
   margin: 0;
@@ -1840,14 +1696,6 @@ body {
 
 .badge-invoiced:hover {
   filter: brightness(1.05);
-}
-
-.work-orders-success-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
 }
 
 .work-orders-loading,
