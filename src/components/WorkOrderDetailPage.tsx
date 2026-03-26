@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Job, BusinessProfile, ChangeOrder } from '../types/db';
+import type { Job, BusinessProfile, ChangeOrder, Invoice } from '../types/db';
 import { generateAgreement } from '../lib/agreement-generator';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
 import {
   downloadAgreementPdfBlob,
   fetchAgreementPdfBlob,
   fetchHtmlPdfBlob,
-  getCoPdfFilename,
   getPdfFilename,
   getPdfFooterBusinessName,
   getPdfFooterPhone,
@@ -14,22 +13,10 @@ import {
   downloadPdfBlobToFile,
 } from '../lib/agreement-pdf';
 import { agreementSectionsToHtml } from '../lib/agreement-sections-html';
-import {
-  buildCombinedWorkOrderAndChangeOrdersHtml,
-  generateChangeOrderHtml,
-} from '../lib/change-order-generator';
+import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-generator';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
-import {
-  listChangeOrders,
-  deleteChangeOrder,
-  updateChangeOrder,
-  computeCOTotal,
-} from '../lib/db/change-orders';
-
-function statusBadgeClass(status: ChangeOrder['status']): string {
-  if (status === 'pending_approval') return 'pending';
-  return status;
-}
+import { listChangeOrders, computeCOTotal } from '../lib/db/change-orders';
+import { getInvoiceByJobId } from '../lib/db/invoices';
 
 interface WorkOrderDetailPageProps {
   job: Job;
@@ -37,8 +24,8 @@ interface WorkOrderDetailPageProps {
   changeOrderListVersion?: number;
   onBack: () => void;
   onStartChangeOrder: () => void;
-  onStartInvoice: () => void;
-  onEditChangeOrder: (co: ChangeOrder) => void;
+  onStartInvoice: (inv: Invoice | null) => void;
+  onOpenCODetail: (co: ChangeOrder) => void;
 }
 
 export function WorkOrderDetailPage({
@@ -48,7 +35,7 @@ export function WorkOrderDetailPage({
   onBack,
   onStartChangeOrder,
   onStartInvoice,
-  onEditChangeOrder,
+  onOpenCODetail,
 }: WorkOrderDetailPageProps) {
   const documentRef = useRef<HTMLDivElement | null>(null);
 
@@ -57,6 +44,7 @@ export function WorkOrderDetailPage({
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [coLoading, setCoLoading] = useState(true);
   const [coError, setCoError] = useState('');
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
 
   const welderJob = useMemo(() => jobRowToWelderJob(job, profile), [job, profile]);
   const sections = useMemo(() => generateAgreement(welderJob, profile), [welderJob, profile]);
@@ -83,6 +71,10 @@ export function WorkOrderDetailPage({
     void loadCOs();
   }, [loadCOs, changeOrderListVersion]);
 
+  useEffect(() => {
+    void getInvoiceByJobId(job.id).then(setInvoice);
+  }, [job.id]);
+
   const handleDownloadPdf = async () => {
     setPdfError('');
     if (!documentRef.current) {
@@ -106,26 +98,6 @@ export function WorkOrderDetailPage({
       providerPhone: getPdfFooterPhone(profile, welderJob),
     };
   }, [profile, welderJob]);
-
-  const downloadCoPdf = async (co: ChangeOrder) => {
-    setPdfError('');
-    setDownloading(true);
-    try {
-      const inner = generateChangeOrderHtml(co, job, profile);
-      const blob = await fetchHtmlPdfBlob({
-        filename: getCoPdfFilename(co.co_number, job.customer_name),
-        innerMarkup: inner,
-        marginHeaderLeft: `CO #${String(co.co_number).padStart(4, '0')}`,
-        providerName: footerMeta.providerName,
-        providerPhone: footerMeta.providerPhone,
-      });
-      downloadPdfBlobToFile(blob, getCoPdfFilename(co.co_number, job.customer_name));
-    } catch (e) {
-      setPdfError(e instanceof Error ? e.message : 'PDF download failed.');
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const downloadCombinedPdf = async () => {
     setPdfError('');
@@ -152,34 +124,6 @@ export function WorkOrderDetailPage({
     } finally {
       setDownloading(false);
     }
-  };
-
-  const handleApprove = async (co: ChangeOrder) => {
-    const { error } = await updateChangeOrder(co.id, { status: 'approved' });
-    if (error) {
-      setPdfError(error.message);
-      return;
-    }
-    void loadCOs();
-  };
-
-  const handleReject = async (co: ChangeOrder) => {
-    const { error } = await updateChangeOrder(co.id, { status: 'rejected' });
-    if (error) {
-      setPdfError(error.message);
-      return;
-    }
-    void loadCOs();
-  };
-
-  const handleDelete = async (co: ChangeOrder) => {
-    if (!window.confirm(`Delete Change Order #${String(co.co_number).padStart(4, '0')}?`)) return;
-    const { error } = await deleteChangeOrder(co.id);
-    if (error) {
-      setPdfError(error.message);
-      return;
-    }
-    void loadCOs();
   };
 
   const approvedCount = changeOrders.filter((c) => c.status === 'approved').length;
@@ -223,37 +167,34 @@ export function WorkOrderDetailPage({
         <ul className="work-orders-list" style={{ listStyle: 'none', margin: '0 0 var(--space-lg)', padding: 0 }}>
           {changeOrders.map((co) => (
             <li key={co.id} className="co-list-item">
-              <button
-                type="button"
-                className="work-orders-row-detail-hit"
-                style={{ border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => onEditChangeOrder(co)}
-              >
-                <span className="co-list-number">CO #{String(co.co_number).padStart(4, '0')}</span>
-                <span className="co-list-desc">{co.description || '—'}</span>
-              </button>
-              <span className={`co-status-badge ${statusBadgeClass(co.status)}`}>{co.status.replace('_', ' ')}</span>
-              <span className="co-list-amount">${computeCOTotal(co.line_items).toFixed(2)}</span>
-              <div className="work-order-detail-co-actions">
-                <button type="button" className="btn-text" onClick={() => onEditChangeOrder(co)}>
-                  Edit
+              <div className="work-orders-row-main">
+                <button
+                  type="button"
+                  className="work-orders-row-detail-hit"
+                  onClick={() => onOpenCODetail(co)}
+                >
+                  <span className="co-list-number">CO #{String(co.co_number).padStart(4, '0')}</span>
+                  <span className="co-list-desc">{co.description || '—'}</span>
                 </button>
-                {co.requires_approval && co.status === 'pending_approval' ? (
-                  <>
-                    <button type="button" className="btn-text" onClick={() => void handleApprove(co)}>
-                      Approve
-                    </button>
-                    <button type="button" className="btn-text" onClick={() => void handleReject(co)}>
-                      Reject
-                    </button>
-                  </>
-                ) : null}
-                <button type="button" className="btn-text" onClick={() => void downloadCoPdf(co)}>
-                  CO PDF
-                </button>
-                <button type="button" className="btn-text" onClick={() => void handleDelete(co)}>
-                  Delete
-                </button>
+                <span className="work-orders-meta">
+                  <span className={`co-status-badge ${co.status === 'pending_approval' ? 'pending' : co.status}`}>{co.status.replace('_', ' ')}</span>
+                  {' '}${computeCOTotal(co.line_items).toFixed(2)}
+                </span>
+              </div>
+              <div className="work-orders-row-actions">
+                {!invoice ? (
+                  <button type="button" className="wo-row-create-invoice-outline" onClick={() => onStartInvoice(null)}>
+                    Invoice
+                  </button>
+                ) : invoice.status === 'draft' ? (
+                  <button type="button" className="badge-pending" onClick={() => onStartInvoice(invoice)}>
+                    Pending
+                  </button>
+                ) : (
+                  <button type="button" className="badge-invoiced" onClick={() => onStartInvoice(invoice)}>
+                    Invoiced
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -267,7 +208,7 @@ export function WorkOrderDetailPage({
           disabled={downloading}
           onClick={() => onStartChangeOrder()}
         >
-          Change Order
+          Create Change Order
         </button>
         <button
           type="button"
@@ -275,7 +216,7 @@ export function WorkOrderDetailPage({
           disabled={downloading}
           onClick={() => void handleDownloadPdf()}
         >
-          {downloading ? 'Downloading…' : 'Download PDF'}
+          {downloading ? 'Downloading…' : 'Download Work Order'}
         </button>
         <button
           type="button"
@@ -284,15 +225,7 @@ export function WorkOrderDetailPage({
           onClick={() => void downloadCombinedPdf()}
           title={approvedCount === 0 ? 'No approved change orders' : undefined}
         >
-          Updated WO PDF
-        </button>
-        <button
-          type="button"
-          className="btn-secondary btn-large work-order-detail-download"
-          disabled={downloading}
-          onClick={() => onStartInvoice()}
-        >
-          Invoice
+          Download WO + Changes
         </button>
       </div>
     </div>

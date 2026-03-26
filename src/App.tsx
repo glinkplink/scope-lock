@@ -18,6 +18,7 @@ import { WorkOrdersPage } from './components/WorkOrdersPage';
 import { InvoiceWizard } from './components/InvoiceWizard';
 import { InvoiceFinalPage } from './components/InvoiceFinalPage';
 import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
+import { ChangeOrderDetailPage } from './components/ChangeOrderDetailPage';
 import { ChangeOrderWizard } from './components/ChangeOrderWizard';
 import './App.css';
 
@@ -28,6 +29,7 @@ type AppView =
   | 'profile'
   | 'work-orders'
   | 'work-order-detail'
+  | 'co-detail'
   | 'change-order-wizard'
   | 'invoice-wizard'
   | 'invoice-final'
@@ -42,6 +44,7 @@ const APP_VIEWS: AppView[] = [
   'profile',
   'work-orders',
   'work-order-detail',
+  'co-detail',
   'change-order-wizard',
   'invoice-wizard',
   'invoice-final',
@@ -95,6 +98,7 @@ function App() {
   const [changeOrderFlowJob, setChangeOrderFlowJob] = useState<Job | null>(null);
   const [wizardExistingCO, setWizardExistingCO] = useState<ChangeOrder | null>(null);
   const [changeOrderListVersion, setChangeOrderListVersion] = useState(0);
+  const [coDetailCO, setCoDetailCO] = useState<ChangeOrder | null>(null);
   const [invoiceFlowJob, setInvoiceFlowJob] = useState<Job | null>(null);
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
@@ -386,6 +390,7 @@ function App() {
     setWorkOrderDetailJob(null);
     setChangeOrderFlowJob(null);
     setWizardExistingCO(null);
+    setCoDetailCO(null);
     navigateTo('work-orders');
   };
 
@@ -396,24 +401,49 @@ function App() {
     navigateTo('change-order-wizard');
   };
 
-  const handleEditChangeOrder = (co: ChangeOrder) => {
+  const handleOpenCODetail = (co: ChangeOrder) => {
+    setCoDetailCO(co);
+    navigateTo('co-detail');
+  };
+
+  const handleBackFromCODetail = () => {
+    setCoDetailCO(null);
+    navigateTo('work-order-detail');
+  };
+
+  const handleEditCOFromDetail = (co: ChangeOrder) => {
     if (!workOrderDetailJob) return;
     setChangeOrderFlowJob(workOrderDetailJob);
     setWizardExistingCO(co);
     navigateTo('change-order-wizard');
   };
 
-  const handleChangeOrderWizardComplete = () => {
-    setWizardExistingCO(null);
-    setChangeOrderFlowJob(null);
+  const handleDeleteCOFromDetail = () => {
+    setCoDetailCO(null);
     setChangeOrderListVersion((v) => v + 1);
     navigateTo('work-order-detail');
   };
 
-  const handleChangeOrderWizardCancel = () => {
+  const handleChangeOrderWizardComplete = () => {
+    const wasEditing = wizardExistingCO !== null;
     setWizardExistingCO(null);
     setChangeOrderFlowJob(null);
+    setChangeOrderListVersion((v) => v + 1);
+    if (wasEditing) {
+      setCoDetailCO(null);
+    }
     navigateTo('work-order-detail');
+  };
+
+  const handleChangeOrderWizardCancel = () => {
+    const wasEditing = wizardExistingCO !== null;
+    setWizardExistingCO(null);
+    setChangeOrderFlowJob(null);
+    if (wasEditing && coDetailCO) {
+      navigateTo('co-detail');
+    } else {
+      navigateTo('work-order-detail');
+    }
   };
 
   const handleStartInvoice = (jobRow: Job) => {
@@ -524,6 +554,7 @@ function App() {
             setWorkOrderDetailJob(null);
             setChangeOrderFlowJob(null);
             setWizardExistingCO(null);
+            setCoDetailCO(null);
           }}
         >
           ScopeLock
@@ -644,8 +675,27 @@ function App() {
             changeOrderListVersion={changeOrderListVersion}
             onBack={handleBackFromWorkOrderDetail}
             onStartChangeOrder={handleStartChangeOrderFromDetail}
+            onStartInvoice={(inv) => {
+              if (inv) {
+                handleOpenPendingInvoice(workOrderDetailJob, inv);
+              } else {
+                handleStartInvoice(workOrderDetailJob);
+              }
+            }}
+            onOpenCODetail={handleOpenCODetail}
+          />
+        ) : view === 'co-detail' && profile && workOrderDetailJob && coDetailCO ? (
+          <ChangeOrderDetailPage
+            key={coDetailCO.id}
+            co={coDetailCO}
+            job={workOrderDetailJob}
+            profile={profile}
+            invoice={null}
+            onBack={handleBackFromCODetail}
+            onEdit={handleEditCOFromDetail}
+            onDelete={handleDeleteCOFromDetail}
             onStartInvoice={() => handleStartInvoice(workOrderDetailJob)}
-            onEditChangeOrder={handleEditChangeOrder}
+            onOpenPendingInvoice={(inv) => handleOpenPendingInvoice(workOrderDetailJob, inv)}
           />
         ) : view === 'change-order-wizard' && user && profile && changeOrderFlowJob ? (
           <ChangeOrderWizard

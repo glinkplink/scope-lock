@@ -2562,6 +2562,27 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
+  align-items: center;
+}
+
+.co-detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--space-sm) 0 var(--space-md);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-md);
+}
+
+.co-detail-total {
+  font-weight: 600;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.co-detail-delete {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
 }
 
 .work-order-detail-download {
@@ -3094,15 +3115,11 @@ body {
 
 .co-list-item {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-}
-
-.co-list-item:hover {
-  background: var(--surface);
 }
 
 .co-list-item:last-child {
@@ -3131,16 +3148,6 @@ body {
   white-space: nowrap;
 }
 
-.work-order-detail-co-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.work-order-detail-co-actions .btn-text {
-  font-size: 0.8125rem;
-}
 
 @media (max-width: 599px) {
   .co-line-row {
