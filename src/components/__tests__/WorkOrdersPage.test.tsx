@@ -88,6 +88,17 @@ function minimalFullJob(id: string, customer: string): Job {
   };
 }
 
+/** Strict Mode can leave multiple trees in the document; use the latest mounted list. */
+function latestWorkOrdersListUl(): HTMLElement {
+  const lists = document.querySelectorAll('ul.work-orders-list');
+  expect(lists.length).toBeGreaterThan(0);
+  const last = lists.item(lists.length - 1);
+  if (!(last instanceof HTMLElement)) {
+    throw new Error('expected ul.work-orders-list to be an HTMLElement');
+  }
+  return last;
+}
+
 function renderPage() {
   const onStartInvoice = vi.fn();
   const onOpenPendingInvoice = vi.fn();
@@ -165,10 +176,12 @@ describe('WorkOrdersPage', () => {
     const user = userEvent.setup();
     const { onStartInvoice } = renderPage();
 
-    const anchorB = await screen.findByText('Customer B');
-    const list = anchorB.closest('ul.work-orders-list');
-    expect(list).toBeTruthy();
-    await within(list).findAllByRole('button', { name: /^Invoice$/i });
+    await screen.findByText('Customer B');
+    const list = await waitFor(() => {
+      const l = latestWorkOrdersListUl();
+      expect(within(l).getAllByRole('button', { name: /^Invoice$/i })).toHaveLength(2);
+      return l;
+    });
 
     const rows = within(list).getAllByRole('listitem');
     const rowA = rows.find((el) => within(el).queryByText('Customer A'));
@@ -184,5 +197,36 @@ describe('WorkOrdersPage', () => {
     expect(onStartInvoice.mock.calls[0][0].id).toBe('job-b');
 
     releaseA!(minimalFullJob('job-a', 'Customer A'));
+  });
+
+  it('uses the latest invoice status per job when two rows share the same job_id', async () => {
+    listInvoiceStatusByJob.mockResolvedValue({
+      data: [
+        {
+          id: 'inv-latest',
+          job_id: 'job-a',
+          status: 'downloaded',
+          invoice_number: 2,
+          created_at: '2025-02-02T00:00:00Z',
+        },
+        {
+          id: 'inv-older',
+          job_id: 'job-a',
+          status: 'draft',
+          invoice_number: 1,
+          created_at: '2025-01-01T00:00:00Z',
+        },
+      ],
+      error: null,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      const list = latestWorkOrdersListUl();
+      expect(
+        within(list).getByRole('button', { name: /^Invoiced$/i })
+      ).toBeInTheDocument();
+    });
   });
 });
