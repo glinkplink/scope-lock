@@ -13,6 +13,7 @@ import {
   type JobSiteAddressSuggestion,
 } from '../lib/geoapify-autocomplete';
 import { formatUsPhoneInput } from '../lib/us-phone-input';
+import './JobForm.css';
 
 function patchJobSite(
   base: WelderJob,

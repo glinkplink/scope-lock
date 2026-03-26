@@ -1,0 +1,136 @@
+.job-form-preview-footer {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 2px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+
+/* Job form section titles — same navy as agreement preview .section-title */
+.job-form .form-section h2 {
+  color: var(--agreement-section-blue);
+  border-bottom-color: var(--agreement-section-blue);
+}
+
+.form-row--job-site-locality .form-group:nth-child(1) {
+  flex: 2 1 0;
+}
+
+.form-row--job-site-locality .form-group:nth-child(2),
+.form-row--job-site-locality .form-group:nth-child(3) {
+  flex: 1 1 0;
+}
+
+@media (max-width: 359px) {
+  .form-row--job-site-locality {
+    flex-direction: column;
+  }
+
+  .form-row--job-site-locality .form-group {
+    flex: none;
+    width: 100%;
+  }
+}
+
+/* Customer name combobox (saved clients) */
+.form-group-combobox {
+  position: relative;
+}
+
+.customer-name-combobox {
+  position: relative;
+}
+
+.customer-name-combobox-status {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.customer-name-listbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.customer-name-option {
+  padding: 8px var(--space-md);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.customer-name-option:last-child {
+  border-bottom: none;
+}
+
+.customer-name-option:hover,
+.customer-name-option-active {
+  background: rgba(28, 58, 94, 0.08);
+}
+
+.customer-name-option-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.customer-name-option-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Job site street — Geoapify autocomplete (matches client listbox) */
+.job-site-street-combobox {
+  position: relative;
+}
+
+.job-site-street-listbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.job-site-street-option {
+  padding: 8px var(--space-md);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.job-site-street-option:last-child {
+  border-bottom: none;
+}
+
+.job-site-street-option:hover,
+.job-site-street-option-active {
+  background: rgba(28, 58, 94, 0.08);
+}
+
+.job-site-street-option-label {
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
