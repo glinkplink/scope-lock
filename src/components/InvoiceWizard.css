@@ -1,0 +1,119 @@
+.invoice-wizard-yesno {
+  border: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.invoice-wizard-yesno-legend {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.invoice-wizard-yesno-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.invoice-wizard-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9375rem;
+}
+
+.invoice-material-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.invoice-material-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.invoice-material-row .form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.invoice-material-row-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.invoice-material-row-grid .form-group {
+  margin-bottom: 0;
+}
+
+.invoice-material-remove {
+  margin-top: 4px;
+}
+
+.invoice-add-row-btn {
+  align-self: flex-start;
+}
+
+.invoice-co-picker {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.invoice-co-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.invoice-co-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9375rem;
+}
+
+.invoice-co-picker-row:last-child {
+  border-bottom: none;
+}
+
+.invoice-co-picker-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1 1 200px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.invoice-co-picker-label input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.invoice-co-picker-amt {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.invoice-co-picker-row .co-status-badge {
+  font-size: 0.6875rem;
+}
+
+.invoice-payment-methods-group {
+  margin-top: 0;
+}

@@ -10,6 +10,7 @@ import { createInvoice, updateInvoice } from '../lib/db/invoices';
 import { listChangeOrders, computeCOTotal } from '../lib/db/change-orders';
 import { PAYMENT_METHOD_OPTIONS, normalizePaymentMethods } from '../lib/payment-methods';
 import { DEFAULT_TAX_RATE, normalizeTaxRate, percentValueToTaxRate, taxRateToPercentValue } from '../lib/tax';
+import './InvoiceWizard.css';
 
 type PricingSubStep = 'labor' | 'materials';
 
