@@ -2264,6 +2264,65 @@ body {
   text-align: center;
 }
 
+.work-orders-profile-nudge {
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.work-orders-profile-nudge-helper {
+  margin: 0 0 var(--space-md);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.work-orders-profile-nudge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.work-orders-complete-profile-btn {
+  background: var(--primary);
+  color: white;
+  padding: 10px var(--space-xl);
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.work-orders-complete-profile-btn:hover {
+  background: var(--primary-hover);
+}
+
+.work-orders-nudge-not-now {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.work-orders-nudge-not-now:hover {
+  color: var(--text-primary);
+}
+
 .work-orders-summary-strip {
   display: flex;
   flex-wrap: wrap;

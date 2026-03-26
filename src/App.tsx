@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { WelderJob } from './types';
 import { JobForm } from './components/JobForm';
 import { AgreementPreview } from './components/AgreementPreview';
@@ -49,6 +49,11 @@ function isAppView(v: unknown): v is AppView {
   return typeof v === 'string' && (APP_VIEWS as readonly string[]).includes(v);
 }
 
+const POST_CAPTURE_KEY = 'scope-lock-post-capture';
+const POST_CAPTURE_TTL_MS = 5 * 60 * 1000;
+
+type PostCapturePayload = { userId: string; ts: number; pdfOk: boolean };
+
 function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJob {
   const today = new Date().toISOString().split('T')[0];
   const p = currentProfile;
@@ -88,6 +93,7 @@ function App() {
   const [wizardExistingInvoice, setWizardExistingInvoice] = useState<Invoice | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
+  const [profileEntrySource, setProfileEntrySource] = useState<'work-orders' | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [woIsOpen, setWoIsOpen] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
@@ -103,6 +109,116 @@ function App() {
     window.history.pushState({ view: newView }, '');
     setView(newView);
   };
+
+  const runPostCaptureRedirect = useCallback((pdfOk: boolean) => {
+    setWorkOrdersSuccessBanner(
+      pdfOk
+        ? 'Work order saved. PDF downloaded.'
+        : 'Work order saved. PDF could not be generated — open the work order to try again.'
+    );
+    window.history.replaceState({ view: 'work-orders' }, '');
+    setView('work-orders');
+  }, []);
+
+  const handleCaptureFlowFinished = useCallback(
+    async ({ pdfOk }: { pdfOk: boolean }) => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (!uid) return;
+
+      const payload: PostCapturePayload = { userId: uid, ts: Date.now(), pdfOk };
+
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        try {
+          sessionStorage.removeItem(POST_CAPTURE_KEY);
+        } catch {
+          /* ignore */
+        }
+        runPostCaptureRedirect(pdfOk);
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(POST_CAPTURE_KEY, JSON.stringify(payload));
+      } catch {
+        /* ignore */
+      }
+    },
+    [runPostCaptureRedirect]
+  );
+
+  useEffect(() => {
+    const tryFlushPendingPostCapture = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+      const uid = user?.id;
+      if (!uid) return;
+
+      let raw: string | null = null;
+      try {
+        raw = sessionStorage.getItem(POST_CAPTURE_KEY);
+      } catch {
+        return;
+      }
+      if (!raw) return;
+
+      let parsed: PostCapturePayload | null = null;
+      try {
+        parsed = JSON.parse(raw) as PostCapturePayload;
+      } catch {
+        try {
+          sessionStorage.removeItem(POST_CAPTURE_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      if (
+        !parsed ||
+        typeof parsed.ts !== 'number' ||
+        typeof parsed.userId !== 'string' ||
+        typeof parsed.pdfOk !== 'boolean'
+      ) {
+        try {
+          sessionStorage.removeItem(POST_CAPTURE_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      if (parsed.userId !== uid) {
+        try {
+          sessionStorage.removeItem(POST_CAPTURE_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      if (Date.now() - parsed.ts > POST_CAPTURE_TTL_MS) {
+        try {
+          sessionStorage.removeItem(POST_CAPTURE_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      try {
+        sessionStorage.removeItem(POST_CAPTURE_KEY);
+      } catch {
+        /* ignore */
+      }
+      runPostCaptureRedirect(parsed.pdfOk);
+    };
+
+    document.addEventListener('visibilitychange', tryFlushPendingPostCapture);
+    tryFlushPendingPostCapture();
+    return () => document.removeEventListener('visibilitychange', tryFlushPendingPostCapture);
+  }, [user?.id, runPostCaptureRedirect]);
 
   const doCreateNewAgreement = (currentProfile: BusinessProfile | null) => {
     const nextDraft = buildNewAgreementDraft(currentProfile);
@@ -244,9 +360,14 @@ function App() {
   const handleEditProfileSaved = (savedProfile: BusinessProfile | null) => {
     if (savedProfile) setProfile(savedProfile);
     else void loadProfile({ silent: true });
+    if (profileEntrySource === 'work-orders') {
+      setProfileEntrySource(null);
+      navigateTo('work-orders');
+    }
   };
 
   const openWorkOrders = () => {
+    setProfileEntrySource(null);
     navigateTo('work-orders');
   };
 
@@ -393,7 +514,10 @@ function App() {
             <button
               type="button"
               className="btn-header-settings"
-              onClick={() => navigateTo('profile')}
+              onClick={() => {
+                setProfileEntrySource(null);
+                navigateTo('profile');
+              }}
               aria-label="Edit profile"
             >
               <Settings className="btn-header-settings-icon" aria-hidden="true" />
@@ -449,15 +573,28 @@ function App() {
           <EditProfilePage
             profile={profile}
             onSave={handleEditProfileSaved}
-            onCancel={() => navigateTo('home')}
+            onCancel={() => {
+              if (profileEntrySource === 'work-orders') {
+                setProfileEntrySource(null);
+                navigateTo('work-orders');
+              } else {
+                navigateTo('home');
+              }
+            }}
           />
         ) : view === 'profile' && !profile ? (
           homePageEl
         ) : view === 'work-orders' && user ? (
           <WorkOrdersPage
+            key={user.id}
             userId={user.id}
+            profile={profile}
             successBanner={workOrdersSuccessBanner}
             onClearSuccessBanner={() => setWorkOrdersSuccessBanner(null)}
+            onCompleteProfileClick={() => {
+              setProfileEntrySource('work-orders');
+              navigateTo('profile');
+            }}
             onStartInvoice={handleStartInvoice}
             onOpenPendingInvoice={handleOpenPendingInvoice}
             onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
@@ -503,9 +640,7 @@ function App() {
             existingJobId={currentJobId ?? undefined}
             onSaveSuccess={handleSaveSuccess}
             onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
-            onCaptureFlowFinished={() => {
-              void loadProfile({ silent: true });
-            }}
+            onCaptureFlowFinished={handleCaptureFlowFinished}
           />
         )}
       </main>

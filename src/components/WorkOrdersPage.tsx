@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
-import type { Job, Invoice } from '../types/db';
+import type { BusinessProfile, Job, Invoice } from '../types/db';
 import { listJobs } from '../lib/db/jobs';
 import { listInvoices } from '../lib/db/invoices';
+
+const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
+
+function hasBusinessPhone(profile: BusinessProfile | null): boolean {
+  return Boolean(profile?.phone?.replace(/\D/g, '').length);
+}
 
 function formatUsd(amount: number): string {
   const n = Number.isFinite(amount) ? amount : 0;
@@ -27,8 +33,10 @@ function formatRowDate(job: Job): string {
 
 interface WorkOrdersPageProps {
   userId: string;
+  profile: BusinessProfile | null;
   successBanner: string | null;
   onClearSuccessBanner: () => void;
+  onCompleteProfileClick: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
   onOpenWorkOrderDetail: (job: Job) => void;
@@ -36,8 +44,10 @@ interface WorkOrdersPageProps {
 
 export function WorkOrdersPage({
   userId,
+  profile,
   successBanner,
   onClearSuccessBanner,
+  onCompleteProfileClick,
   onStartInvoice,
   onOpenPendingInvoice,
   onOpenWorkOrderDetail,
@@ -45,6 +55,14 @@ export function WorkOrdersPage({
   const [jobs, setJobs] = useState<Job[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const hideCtaKey = `${HIDE_COMPLETE_PROFILE_CTA_PREFIX}${userId}`;
+  const [hideCompleteProfileCta, setHideCompleteProfileCta] = useState(() => {
+    try {
+      return sessionStorage.getItem(`${HIDE_COMPLETE_PROFILE_CTA_PREFIX}${userId}`) === '1';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -90,11 +108,49 @@ export function WorkOrdersPage({
     return acc + contractPrice(job);
   }, 0);
 
+  const showProfileNudge = !hasBusinessPhone(profile);
+
+  const handleNotNowCompleteProfile = () => {
+    try {
+      sessionStorage.setItem(hideCtaKey, '1');
+    } catch {
+      /* ignore */
+    }
+    setHideCompleteProfileCta(true);
+  };
+
   return (
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Work Orders</h1>
       </div>
+
+      {showProfileNudge ? (
+        <div className="work-orders-profile-nudge">
+          <p className="work-orders-profile-nudge-helper">
+            Add your business phone so it appears on agreements and PDFs. Defaults you set in your
+            profile (exclusions, customer obligations) apply to new work orders.
+          </p>
+          {!hideCompleteProfileCta ? (
+            <div className="work-orders-profile-nudge-actions">
+              <button
+                type="button"
+                className="work-orders-complete-profile-btn"
+                onClick={onCompleteProfileClick}
+              >
+                Complete Profile
+              </button>
+              <button
+                type="button"
+                className="work-orders-nudge-not-now"
+                onClick={handleNotNowCompleteProfile}
+              >
+                Not now
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {successBanner ? (
         <div className="success-banner work-orders-success-banner" role="status">

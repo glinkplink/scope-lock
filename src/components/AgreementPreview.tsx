@@ -73,8 +73,8 @@ interface AgreementPreviewProps {
     email: string;
     password: string;
   }) => Promise<{ userId: string; businessName: string; email: string }>;
-  /** Called after capture modal flow completes (account + save + PDF). */
-  onCaptureFlowFinished?: () => void;
+  /** Called after PDF attempt (account + save already done). Parent may redirect. */
+  onCaptureFlowFinished?: (opts: { pdfOk: boolean }) => void;
 }
 
 export function AgreementPreview({
@@ -181,7 +181,6 @@ export function AgreementPreview({
 
       setHasPersistedViaDownloadOnce(true);
       await Promise.resolve(onSaveSuccess(data.id, true));
-      onCaptureFlowFinished?.();
 
       let pdfOk = false;
       if (documentRef.current) {
@@ -197,6 +196,8 @@ export function AgreementPreview({
           );
         }
       }
+
+      onCaptureFlowFinished?.({ pdfOk });
 
       setShowCaptureModal(false);
       setCaptureSubmitting(false);
