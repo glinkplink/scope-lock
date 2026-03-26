@@ -10,8 +10,8 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 |---|---|
 | Framework | React 19 + TypeScript + Vite |
 | Auth + DB | Supabase (email/password auth, Postgres, RLS) |
-| App Server | Node + Vite middleware |
-| PDF | Puppeteer Core using system Chrome via `/api/pdf` |
+| App Server | Node **`server/app-server.mjs`**: Vite **middleware** (dev) or static **`dist/`** when `NODE_ENV=production` |
+| PDF | Puppeteer Core + **system Chrome**; all document PDFs via **same-origin** `POST /api/pdf` |
 | Styling | Plain CSS (`App.css`, `index.css`) — no Tailwind |
 | Font | Barlow (+ Dancing Script for agreement signature) — field notebook aesthetic |
 
@@ -20,18 +20,29 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 ## Running the app
 
 ```bash
-npm run dev       # app server + frontend + /api/pdf
-npm run build     # tsc + vite build
-npm run preview   # production app server serving dist/
+npm run dev       # one process: Vite (HMR) + SPA + POST /api/pdf  (default http://127.0.0.1:3000)
+npm run build     # tsc + vite bundle → dist/  (set VITE_* first for production builds)
+npm run preview   # NODE_ENV=production: serve dist/ + /api/pdf  — run build first
 npm run lint      # eslint
 ```
 
-Env vars go in `.env.local`:
+**Client env** (Vite, `.env.local` — see `.env.example`):
+
 ```
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
-VITE_GEOAPIFY_API_KEY=...   # optional; job site street autocomplete (Geoapify)
+VITE_GEOAPIFY_API_KEY=...   # optional — job site street autocomplete
 ```
+
+**Server env** (read by `app-server.mjs` at runtime, not `VITE_`): `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` if default Chrome path is wrong; `PORT`, `HOST`; `NODE_ENV=production` for static `dist/` mode. Quick check: `GET /api/pdf/health` → `{ "ok": true }`.
+
+---
+
+## Server, PDFs, deployment (reality check)
+
+- **Not static-only hosting:** Work order, invoice, and change-order PDFs all need the **Node server** and a **local Chrome/Chromium** binary. The browser posts HTML to **`/api/pdf`** on the **same origin** as the UI.
+- **Single entrypoint:** Use `npm run dev` or `npm run preview` / `NODE_ENV=production node server/app-server.mjs` — there is no supported “Vite-only” production path if you want working downloads.
+- **Operator detail:** Env tables, reverse-proxy notes, and common deployment mistakes → **[README.md](./README.md)** and **[ARCHITECTURE.md](./ARCHITECTURE.md)** (Deployment + Portability).
 
 ---
 
@@ -94,13 +105,14 @@ server/
 **Anonymous (no session):**
 - Full app shell: **Home → Create Work Order → JobForm → Preview**.
 - Header shows **Sign In** only (no Work Orders / gear until logged in).
-- First **Download & Save** opens **CaptureModal**: business name, email, password → `signUp` + minimal `upsertProfile` → save work order → PDF download. Profile/session races are handled via `getSession`, upsert return row, and `loadProfile` where needed.
+- **Primary signup path:** first **Download & Save** → **CaptureModal** (business name, email, password) → `signUp` + minimal `upsertProfile` → `saveWorkOrder` → PDF. No separate “register” flow in the header for visitors.
 
 **Returning user:**
-- **Sign In** → `AuthPage` (email + password only; no “sign up” link — new accounts are created via capture on Download & Save).
-- After sign-in: **Home**, **Work Orders**, **gear (Edit profile)** as today.
+- **Sign In** → `AuthPage` (email + password only; new accounts still come from capture on first save, not from AuthPage).
 
 **Signed in but no `business_profiles` row** (edge case): full-screen **BusinessProfileForm** until a profile exists.
+
+**After sign-in (with profile):** **Home**, **Work Orders**, **gear (Edit profile)**; session persists via Supabase (refresh-safe).
 
 **`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'change-order-wizard' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
 
@@ -156,7 +168,7 @@ The UI should feel like a contractor's work log, not a SaaS product.
 - `--text-primary`, `--text-secondary`, `--text-muted`
 - `--radius` (4px), `--radius-lg` (6px)
 
-The PDF renderer uses the same agreement HTML/CSS as the preview through the app server's `/api/pdf` route, so preview/PDF parity is intentional. **Job site address** in the agreement is rendered as a **single line** for PDF/display (`jobLocationSingleLine`).
+The app server **`POST /api/pdf`** renders HTML built in the client (agreement, invoice, change order, combined WO+CO) with Puppeteer; preview and PDF are designed to match. **Job site address** in the agreement is a **single line** in output (`jobLocationSingleLine`).
 
 ---
 
@@ -164,3 +176,4 @@ The PDF renderer uses the same agreement HTML/CSS as the preview through the app
 
 - Main branch: `main`
 - Feature development may use branches such as `output` or `auth` before merging to `main`
+- **Product priorities** (see **ARCHITECTURE.md → Roadmap**): change orders, client e-sign, Stripe / ACH payments

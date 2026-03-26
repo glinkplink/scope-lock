@@ -136,8 +136,11 @@ scope-lock/
 ├── supabase/
 │   ├── config.toml                   # Supabase CLI config
 │   └── migrations/
-│       ├── 0001_initial_schema.sql   # Initial tables + indexes + triggers + RLS
-│       └── 0002_invoices.sql         # invoices table, next_invoice_number(), profile counter column
+│       ├── 0001_initial_schema.sql
+│       ├── 0002_invoices.sql
+│       ├── 0003_cash_app_normalization.sql
+│       ├── 0004_default_tax_rate.sql
+│       └── 0005_change_orders.sql    # structured COs + backfill + next_co_number
 ├── public/
 ├── index.html
 ├── package.json
@@ -170,6 +173,14 @@ Header Sign In → AuthPage (email + password only)
       ↓
 Edit profile (gear) → EditProfilePage
 ```
+
+### Auth and profile (behavior summary)
+
+- **Session:** Supabase email/password; session stored by the Supabase client (survives refresh).
+- **New contractors:** Primary signup path is **CaptureModal** on first **Download & Save** (`signUp` + minimal `upsertProfile` + `saveWorkOrder` + PDF). There is no separate self-serve “register” page in the header for anonymous visitors.
+- **Returning users:** **AuthPage** is sign-in only (email + password).
+- **Missing profile row** while signed in: **BusinessProfileForm** blocks the rest of the app until `business_profiles` exists.
+- **Profile data** (defaults, counters, payment methods, tax, etc.) lives in **`business_profiles`**; jobs, clients, invoices, and change orders are separate tables with RLS. See **What Is and Isn't Persisted** below.
 
 ## Domain Logic vs UI Logic
 
@@ -252,10 +263,15 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ## Portability Considerations
 
 ### Current (Web MVP)
-- Runs in browser
-- Auth + profile persistence via Supabase
-- **Work order drafts** are in-memory until **Download & Save**; saved jobs live in `jobs` and appear on **Work Orders**
-- Requires an app server for PDF generation
+
+- **Browser:** React UI; Supabase client talks to Supabase for auth, Postgres (RLS), and RPCs.
+- **Same host as UI:** PDF generation is **not** outsourced to a third-party API. The browser `POST`s rendered HTML + metadata to **`/api/pdf`** on the **same origin** as the SPA. Deployments must preserve that (single Node server, or reverse proxy routing both static assets and `/api/pdf` to the Node process).
+- **Server process:** `server/app-server.mjs` is the only supported entry for local and production runs:
+  - **Development:** `npm run dev` → Vite **middleware mode** inside the Node server + `POST /api/pdf`.
+  - **Production:** `npm run preview` (or `NODE_ENV=production node server/app-server.mjs`) serves **`dist/`** after `npm run build`, still with `POST /api/pdf`.
+- **Chrome/Chromium:** Puppeteer **Core** launches a **system** binary (`PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, or default `/usr/bin/google-chrome-stable`). The PDF route will not work without it.
+- **Work order drafts** are in-memory until **Download & Save**; saved jobs live in `jobs` and appear on **Work Orders**.
+- **Health:** `GET /api/pdf/health` returns `{ ok: true }` for simple readiness checks.
 
 ### Future (Capacitor iOS/Android)
 - Can be wrapped with Capacitor
@@ -270,6 +286,14 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 5. Add native plugins as needed
 
 ## Roadmap
+
+### Top priorities (current focus)
+
+1. **Change orders**
+2. **Client e-sign**
+3. **Stripe / ACH payments**
+
+The checkbox sections below track shipped work and the longer backlog; the three items above are the **near-term product focus** regardless of where they also appear.
 
 ### Completed
 - [x] Job input form (Work Agreement)
@@ -356,10 +380,21 @@ npx supabase db push
 
 ## Deployment
 
-This app now requires a Node app server for PDF generation, so deployment needs to run the server alongside Chrome/Chromium.
+ScopeLock is **not** deployable as a static export only. The product contract includes **Download PDF** for work orders, invoices, change orders, and combined documents; all of those use **`POST /api/pdf`** on the app server.
 
-Recommended deployment shape:
-- Run `npm run build`
-- Start the app with `npm run preview` or `node server/app-server.mjs`
-- Ensure `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` points to an installed Chrome/Chromium binary if the default path is not valid
-- Expose the same origin for both the frontend and `/api/pdf`
+### Runtime checklist
+
+1. **Build the client** with production env: set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (and optional `VITE_GEOAPIFY_API_KEY`) in the environment used by `npm run build`, then run **`npm run build`**.
+2. **Start the Node server** with **`NODE_ENV=production`** so it serves **`dist/`** instead of Vite dev middleware. **`npm run preview`** does this; alternatively `NODE_ENV=production node server/app-server.mjs`.
+3. **Install Chrome or Chromium** on the host (or container image) and set **`PUPPETEER_EXECUTABLE_PATH`** or **`CHROME_PATH`** if the default **`/usr/bin/google-chrome-stable`** is wrong (common on macOS, Windows, Alpine, or minimal CI images).
+4. **Bind address:** default **`HOST=127.0.0.1`** is fine locally; for containers and PaaS, set **`HOST=0.0.0.0`** and the platform’s **`PORT`**.
+5. **Reverse proxy:** Terminate TLS in front of this process if needed; route **both** static assets and **`/api/pdf`** to the same Node listener (or equivalent path-preserving upstream) so relative `/api/pdf` requests from the browser succeed.
+6. **Readiness:** Use **`GET /api/pdf/health`** to verify the HTTP server is up; a full PDF smoke test confirms Chrome launch and Puppeteer.
+
+### Common mistakes
+
+- Serving only **`dist/`** from nginx/S3/Netlify **without** a compatible **`POST /api/pdf`** implementation — PDF buttons will fail or return errors.
+- Building without **`VITE_*`** variables set — the bundle will have empty Supabase config.
+- Omitting Chrome in Docker — add a package such as Chromium and point **`PUPPETEER_EXECUTABLE_PATH`** at the installed binary (the server already passes `--no-sandbox` / `--disable-setuid-sandbox` for typical container use).
+
+See **[README.md](./README.md)** for a concise operator-facing summary and env var tables.
