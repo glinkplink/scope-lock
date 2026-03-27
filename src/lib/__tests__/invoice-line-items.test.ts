@@ -380,4 +380,69 @@ describe('generateInvoiceHtml', () => {
 
     expect(html.indexOf('Material first')).toBeLessThan(html.indexOf('Labor second'));
   });
+
+  it('shows a pricing reference block for estimate invoices', () => {
+    const html = generateInvoiceHtml(
+      baseInvoice([
+        {
+          kind: 'labor',
+          description: 'Labor',
+          qty: 40,
+          unit_price: 90,
+          total: 3600,
+        },
+      ]),
+      { ...baseJob, price_type: 'estimate', price: 1250 },
+      profile
+    );
+
+    expect(html).toContain('Work order pricing reference');
+    expect(html).toContain('Pricing type');
+    expect(html).toContain('Estimate');
+    expect(html).toContain('Original quoted amount');
+    expect(html).toContain('$1,250.00');
+    expect(html).toContain('Final billed charges');
+    expect(html).toContain('final billed labor, materials, and approved change-order charges');
+  });
+
+  it('shows time and materials wording in the pricing reference block', () => {
+    const html = generateInvoiceHtml(
+      baseInvoice([
+        {
+          kind: 'labor',
+          description: 'Shop labor',
+          qty: 12,
+          unit_price: 110,
+          total: 1320,
+        },
+      ]),
+      { ...baseJob, price_type: 'time_and_materials', price: 900 },
+      profile
+    );
+
+    expect(html).toContain('Work order pricing reference');
+    expect(html).toContain('Time &amp; Materials');
+    expect(html).toContain('$900.00');
+    expect(html).toContain('Final billed charges');
+  });
+
+  it('keeps fixed-price invoices on the original line items presentation', () => {
+    const html = generateInvoiceHtml(
+      baseInvoice([
+        {
+          kind: 'labor',
+          description: 'Original scope',
+          qty: 1,
+          unit_price: 350,
+          total: 350,
+        },
+      ]),
+      { ...baseJob, price_type: 'fixed', price: 350 },
+      profile
+    );
+
+    expect(html).not.toContain('Work order pricing reference');
+    expect(html).toContain('Line items');
+    expect(html).not.toContain('Final billed charges');
+  });
 });

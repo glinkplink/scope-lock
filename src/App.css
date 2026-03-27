@@ -1784,6 +1784,18 @@ body {
   margin: var(--space-md) 0 var(--space-lg);
 }
 
+.invoice-pricing-summary-block {
+  margin: 0 0 var(--space-lg);
+}
+
+.invoice-pricing-summary-table {
+  margin-bottom: var(--space-sm);
+}
+
+.invoice-pricing-summary-note {
+  margin-top: 0;
+}
+
 .invoice-due-date {
   font-weight: 600;
 }

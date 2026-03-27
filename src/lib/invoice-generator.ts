@@ -40,6 +40,10 @@ function formatTaxPercent(rate: number): string {
   return (rate * 100).toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%';
 }
 
+function invoicePricingTypeLabel(priceType: Job['price_type']): string {
+  return priceType === 'estimate' ? 'Estimate' : 'Time & Materials';
+}
+
 function partiesMarkup(
   invoiceDateLabel: string,
   profile: BusinessProfile | null,
@@ -136,6 +140,28 @@ export function generateInvoiceHtml(
           <p class="content-paragraph">${esc(invoice.notes.trim()).replaceAll('\n', '<br />')}</p>
         </div>`
       : '';
+  const showPricingReference = job.price_type !== 'fixed';
+  const pricingReferenceBlock = showPricingReference
+    ? `<div class="invoice-pricing-summary-block">
+        <h3 class="section-title">Work order pricing reference</h3>
+        <table class="content-table invoice-pricing-summary-table">
+          <tbody>
+            <tr>
+              <td class="table-label">Pricing type</td>
+              <td class="table-value">${esc(invoicePricingTypeLabel(job.price_type))}</td>
+            </tr>
+            <tr>
+              <td class="table-label">Original quoted amount</td>
+              <td class="table-value">${esc(formatPrice(job.price))}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="content-note invoice-pricing-summary-note">
+          This invoice totals the final billed labor, materials, and approved change-order charges for the completed work.
+        </p>
+      </div>`
+    : '';
+  const lineItemsHeading = showPricingReference ? 'Final billed charges' : 'Line items';
 
   return `
     <div class="agreement-document invoice-document">
@@ -155,7 +181,8 @@ export function generateInvoiceHtml(
           </tbody>
         </table>
       </div>
-      <h3 class="section-title">Line items</h3>
+      ${pricingReferenceBlock}
+      <h3 class="section-title">${lineItemsHeading}</h3>
       <table class="content-table invoice-line-table">
         <thead>
           <tr>
