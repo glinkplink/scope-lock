@@ -1,6 +1,6 @@
 # Agent instructions — ScopeLock
 
-This file is for **every** automated assistant (Cursor, Claude, Codex, and others). It defines **non‑negotiable** repo conventions. Full product context lives in **[CLAUDE.md](./CLAUDE.md)**.
+This file is for **every** automated assistant (Cursor, Claude, Codex, and others). It defines **non‑negotiable** repo conventions. Full product context lives in **[CLAUDE.md](./CLAUDE.md)**, and deeper system/deployment reference lives in **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
 ---
 
@@ -12,12 +12,13 @@ The following are **living documents**, not one-time setup notes:
 |------|------|
 | **[AGENTS.md](./AGENTS.md)** (this file) | Short canonical rules for all agents; first stop for shared repo rules |
 | **[CLAUDE.md](./CLAUDE.md)** | Deep project memory: stack, flows, structure, design system, and detailed architecture notes |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System architecture, deployment, operational constraints, and longer-form implementation reference |
 | **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** | Cursor: full project + product rules (`alwaysApply`); should mirror the same global rules |
 | **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)** | Cursor: terse guardrails (`alwaysApply`); should reinforce the same highest-priority global rules |
 
 **After each substantive code change** (new pages/components, new routes, new patterns, dependency or stack changes, security or styling conventions), **review and update** whichever of these files are affected so they stay true to the codebase.
 
-**When you edit any one of these files**, **compare the same topic** in the others (especially CSS co-location, HTML/`esc()` rules, architecture, and file-creation discipline). **Align wording and intent** so no agent inherits conflicting guidance. If a rule is global, propagate it everywhere that carries global rules, or replace duplication with a single explicit pointer—**do not leave one file silent while another mandates behavior**.
+**When you edit any one of these files**, **compare the same topic** in the others (especially CSS co-location, HTML/`esc()` rules, architecture/deployment constraints, and file-creation discipline). **Align wording and intent** so no agent inherits conflicting guidance. If a rule is global, propagate it everywhere that carries global rules, or replace duplication with a single explicit pointer—**do not leave one file silent while another mandates behavior**.
 
 ---
 
@@ -43,4 +44,4 @@ The following are **living documents**, not one-time setup notes:
 - **Shared rules stay shared:** If you add or tighten a repo-wide rule here, mirror it in `CLAUDE.md` and the Cursor rule files in the same change.
 - **Domain vs UI, minimal diffs, no mystery dependencies:** See **ScopeLock-Project-Rules.mdc** and **high-priority.mdc**.
 
-When in doubt, read **CLAUDE.md** for full context, then apply the rules above.
+When in doubt, read **CLAUDE.md** for product/context detail and **ARCHITECTURE.md** for system/deployment detail, then apply the rules above.

@@ -15,8 +15,8 @@ alwaysApply: true
 - Keep the product mobile-first, short-form, and practical.
 
 ## Living docs & alignment
-- **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, **ScopeLock-Project-Rules.mdc**, and **this file** are **living documents**. After **substantive code changes**, update affected docs so they stay accurate.
-- When changing rules in **any** of those files, **compare the same topic in the others** and **keep them aligned** (especially CSS co-location, HTML/`esc()` rules, architecture, and minimal-diff discipline).
+- **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, **[ARCHITECTURE.md](../../ARCHITECTURE.md)**, **ScopeLock-Project-Rules.mdc**, and **this file** are **living documents**. After **substantive code changes**, update affected docs so they stay accurate.
+- When changing rules in **any** of those files, **compare the same topic in the others** and **keep them aligned** (especially CSS co-location, HTML/`esc()` rules, architecture/deployment constraints, and minimal-diff discipline).
 - If a rule is meant to be global, mirror it across the shared rule files or replace duplication with a single explicit pointer.
 
 ## CSS (mandatory)

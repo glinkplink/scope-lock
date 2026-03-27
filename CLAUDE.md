@@ -10,10 +10,12 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 
 **Cursor:** **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** (full rules, `alwaysApply`) and **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)** (terse guardrails, `alwaysApply`).
 
-`AGENTS.md`, `CLAUDE.md`, and those Cursor rule files are **living documents** and should describe the same global rules with different levels of detail.
+**Architecture reference:** **[ARCHITECTURE.md](./ARCHITECTURE.md)** (system design, deployment constraints, portability, and roadmap detail).
+
+`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, and those Cursor rule files are **living documents** and should describe the same project reality with different levels of detail.
 
 - **After each substantive code change** (new UI, routes, patterns, stack or dependencies, security or style conventions), **review and update** whichever files are affected.
-- **When editing any of these agent-facing files**, **compare the same topic across the others** and **align** them so guidance does not drift or contradict—especially **CSS co-location**, **HTML / `esc()`** (see below), **architecture**, and **file-creation / minimal-diff discipline**.
+- **When editing any of these agent-facing files**, **compare the same topic across the others** and **align** them so guidance does not drift or contradict—especially **CSS co-location**, **HTML / `esc()`** (see below), **architecture / deployment constraints**, and **file-creation / minimal-diff discipline**.
 - If a rule is intended to be global, mirror it in every file that carries global rules or replace duplication with a single explicit pointer. Do not let one file silently become stricter than the others.
 
 ---

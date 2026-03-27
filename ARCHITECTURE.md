@@ -1,5 +1,19 @@
 # ScopeLock Architecture
 
+## Agent documentation & living documents
+
+**Canonical short rules for all agents:** **[AGENTS.md](./AGENTS.md)**.
+
+**Detailed project context:** **[CLAUDE.md](./CLAUDE.md)**.
+
+**Cursor enforcement:** **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** and **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)**.
+
+`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, and those Cursor rule files are **living documents** and should stay aligned.
+
+- **After each substantive code change** that affects architecture, deployment, system boundaries, routes, patterns, stack/dependencies, or cross-cutting implementation conventions, update whichever of these files are affected.
+- **When editing any of these agent-facing files**, compare the same topic across the others and keep them aligned, especially for architecture/deployment constraints, CSS co-location, HTML/`esc()` rules, and minimal-diff/file-discipline guidance.
+- `AGENTS.md` remains the first-stop rules file; this document is the deeper system and deployment reference.
+
 ## Product Purpose
 
 ScopeLock helps independent welders quickly generate short, professional job agreements for small jobs. The goal is to prevent disputes, clarify scope, and protect the welder from being blamed for issues outside their work.
