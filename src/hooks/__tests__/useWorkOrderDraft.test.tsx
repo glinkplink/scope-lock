@@ -64,7 +64,7 @@ describe('useWorkOrderDraft', () => {
     const loadProfile = vi.fn();
 
     const { result } = renderHook(() =>
-      useWorkOrderDraft(null, vi.fn(), loadProfile)
+      useWorkOrderDraft(null, null, vi.fn(), loadProfile)
     );
 
     await act(async () => {
@@ -81,7 +81,7 @@ describe('useWorkOrderDraft', () => {
     const loadProfile = vi.fn();
 
     const { result } = renderHook(() =>
-      useWorkOrderDraft(null, vi.fn(), loadProfile)
+      useWorkOrderDraft(null, null, vi.fn(), loadProfile)
     );
 
     await act(async () => {
@@ -98,7 +98,7 @@ describe('useWorkOrderDraft', () => {
     const loadProfile = vi.fn();
 
     const { result } = renderHook(() =>
-      useWorkOrderDraft(null, vi.fn(), loadProfile)
+      useWorkOrderDraft(null, null, vi.fn(), loadProfile)
     );
 
     await act(async () => {
@@ -114,7 +114,7 @@ describe('useWorkOrderDraft', () => {
   it('skips counter path when not a new save', async () => {
     const loadProfile = vi.fn();
     const { result } = renderHook(() =>
-      useWorkOrderDraft(null, vi.fn(), loadProfile)
+      useWorkOrderDraft(null, null, vi.fn(), loadProfile)
     );
 
     await act(async () => {
@@ -123,5 +123,66 @@ describe('useWorkOrderDraft', () => {
 
     expect(getProfile).not.toHaveBeenCalled();
     expect(loadProfile).not.toHaveBeenCalled();
+  });
+
+  it('clears unsaved draft on sign-out so createNewAgreement does not open the modal', async () => {
+    const navigateTo = vi.fn();
+    const loadProfile = vi.fn();
+    const p = baseProfile();
+    let userId: string | null = 'u1';
+
+    const { result, rerender } = renderHook(() =>
+      useWorkOrderDraft(p, userId, navigateTo, loadProfile)
+    );
+
+    act(() => {
+      result.current.actions.doCreateNewAgreement(p);
+    });
+    act(() => {
+      result.current.actions.setJob((j) => ({ ...j, requested_work: 'Dirty scope' }));
+    });
+
+    userId = null;
+    rerender();
+
+    await waitFor(() => {
+      expect(navigateTo).toHaveBeenCalledWith('home');
+    });
+
+    expect(result.current.state.showUnsavedModal).toBe(false);
+    expect(result.current.state.woIsOpen).toBe(false);
+
+    navigateTo.mockClear();
+    act(() => {
+      result.current.actions.createNewAgreement();
+    });
+
+    expect(result.current.state.showUnsavedModal).toBe(false);
+    expect(navigateTo).toHaveBeenCalledWith('form');
+  });
+
+  it('does not reset draft when userId goes from null to signed-in', () => {
+    const navigateTo = vi.fn();
+    const loadProfile = vi.fn();
+    const p = baseProfile();
+    let userId: string | null = null;
+
+    const { result, rerender } = renderHook(() =>
+      useWorkOrderDraft(p, userId, navigateTo, loadProfile)
+    );
+
+    act(() => {
+      result.current.actions.doCreateNewAgreement(null);
+    });
+    act(() => {
+      result.current.actions.setJob((j) => ({ ...j, requested_work: 'Guest work' }));
+    });
+
+    userId = 'u-new';
+    rerender();
+
+    expect(result.current.state.woIsOpen).toBe(true);
+    expect(result.current.state.job.requested_work).toBe('Guest work');
+    expect(navigateTo).not.toHaveBeenCalledWith('home');
   });
 });

@@ -27,6 +27,15 @@ const initialDraftJob: WelderJob = {
   contractor_name: '',
 };
 
+const draftInitialState: WorkOrderDraftState = {
+  job: initialDraftJob,
+  draftBaseline: null,
+  currentJobId: null,
+  woIsOpen: false,
+  showUnsavedModal: false,
+  woCounterPersistError: null,
+};
+
 function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJob {
   const today = new Date().toISOString().split('T')[0];
   const p = currentProfile;
@@ -57,22 +66,41 @@ function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJ
 
 export function useWorkOrderDraft(
   profile: BusinessProfile | null,
+  userId: string | null,
   navigateTo: (view: AppView) => void,
   loadProfile: LoadProfileFn
 ) {
   const [draft, setDraft] = useState<WorkOrderDraftState>(() => ({
-    job: initialDraftJob,
-    draftBaseline: null,
-    currentJobId: null,
-    woIsOpen: false,
-    showUnsavedModal: false,
-    woCounterPersistError: null,
+    ...draftInitialState,
   }));
 
   const draftRef = useRef(draft);
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const next = userId ?? null;
+    const prev = prevUserIdRef.current;
+
+    if (prev === undefined) {
+      prevUserIdRef.current = next;
+      return;
+    }
+
+    if (prev !== next) {
+      const loggedOut = prev != null && next == null;
+      const switchedAccount = prev != null && next != null && prev !== next;
+      if (loggedOut || switchedAccount) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- draft must clear when auth identity changes; batches with navigate in React 18
+        setDraft({ ...draftInitialState });
+        navigateTo('home');
+      }
+    }
+
+    prevUserIdRef.current = next;
+  }, [userId, navigateTo]);
 
   const setJob = useCallback((next: WelderJob | ((prev: WelderJob) => WelderJob)) => {
     setDraft((d) => ({
