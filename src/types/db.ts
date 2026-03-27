@@ -108,6 +108,7 @@ export type InvoiceLineItemSource =
   | 'legacy';
 
 export interface InvoiceLineItem {
+  id?: string;
   kind: 'labor' | 'material';
   description: string;
   qty: number;

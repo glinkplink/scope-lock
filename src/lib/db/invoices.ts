@@ -35,17 +35,28 @@ function normalizeLineItemSource(s: unknown): InvoiceLineItemSource {
   return 'legacy';
 }
 
-function mapInvoiceRow(data: Record<string, unknown>): Invoice {
+function normalizeLineItemPosition(value: unknown): number | undefined {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+export function mapInvoiceRow(data: Record<string, unknown>): Invoice {
   const rawItems = Array.isArray(data.line_items) ? data.line_items : [];
   const line_items: InvoiceLineItem[] = rawItems.map((row) => {
     const r = row as Record<string, unknown>;
     return {
+      id: typeof r.id === 'string' && r.id.trim() ? r.id : undefined,
       kind: (r.kind === 'material' ? 'material' : 'labor') as InvoiceLineItem['kind'],
       description: String(r.description ?? ''),
       qty: Number(r.qty),
       unit_price: Number(r.unit_price),
       total: Number(r.total),
       source: normalizeLineItemSource(r.source),
+      position: normalizeLineItemPosition(r.position),
+      change_order_id:
+        typeof r.change_order_id === 'string' && r.change_order_id.trim()
+          ? r.change_order_id
+          : undefined,
     };
   });
   const pm = data.payment_methods;

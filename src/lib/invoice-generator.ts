@@ -2,6 +2,7 @@ import type { Job, BusinessProfile, Invoice, InvoiceLineItem } from '../types/db
 import { normalizePaymentMethods } from './payment-methods';
 import { jobLocationSingleLine } from './job-site-address';
 import { esc } from './html-escape';
+import { sortInvoiceLineItems } from './invoice-line-items';
 
 /** Fields required to render invoice HTML (persisted row or equivalent draft). */
 export type InvoiceDraft = Pick<
@@ -95,9 +96,7 @@ function partiesMarkup(
 }
 
 function lineItemsRows(items: InvoiceLineItem[]): string {
-  const labor = items.filter((i) => i.kind === 'labor');
-  const material = items.filter((i) => i.kind === 'material');
-  const ordered = [...labor, ...material];
+  const ordered = sortInvoiceLineItems(items);
 
   return ordered
     .map(

@@ -3,28 +3,21 @@ import type {
   Job,
   BusinessProfile,
   Invoice,
-  InvoiceLineItem,
   ChangeOrder,
 } from '../types/db';
 import { createInvoice, updateInvoice } from '../lib/db/invoices';
-import { listChangeOrders, computeCOTotal } from '../lib/db/change-orders';
+import { listChangeOrders } from '../lib/db/change-orders';
+import {
+  buildInvoiceLineItems,
+  formatChangeOrderPickerAmount,
+  parseExistingIntoInvoiceState,
+} from '../lib/invoice-line-items';
+import type { MaterialRow, LaborRow } from '../lib/invoice-line-items';
 import { PAYMENT_METHOD_OPTIONS, normalizePaymentMethods } from '../lib/payment-methods';
 import { DEFAULT_TAX_RATE, normalizeTaxRate, percentValueToTaxRate, taxRateToPercentValue } from '../lib/tax';
 import './InvoiceWizard.css';
 
 type PricingSubStep = 'labor' | 'materials';
-
-interface MaterialRow {
-  description: string;
-  qty: string;
-  unit_price: string;
-}
-
-interface LaborRow {
-  description: string;
-  qty: string;
-  rate: string;
-}
 
 function defaultDueDateYmd(): string {
   const d = new Date();
@@ -38,162 +31,6 @@ function defaultPaymentSelection(profile: BusinessProfile): string[] {
   return [...PAYMENT_METHOD_OPTIONS];
 }
 
-function isChangeOrderLine(li: InvoiceLineItem): boolean {
-  if (li.source === 'change_order') return true;
-  if (!li.source || li.source === 'legacy') {
-    return /^Change Order\s*#/i.test(li.description.trim());
-  }
-  return false;
-}
-
-function mergeInvoiceLineItems(
-  job: Job,
-  preservedCO: InvoiceLineItem[],
-  wizardItems: InvoiceLineItem[]
-): InvoiceLineItem[] {
-  if (job.price_type === 'fixed') {
-    return [...wizardItems, ...preservedCO];
-  }
-  return [...preservedCO, ...wizardItems];
-}
-
-function originalScopeDescription(job: Job): string {
-  const s = [job.asset_or_item_description, job.requested_work]
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .join(' — ');
-  return (s || 'Original scope').slice(0, 500);
-}
-
-function parseExistingIntoState(job: Job, existing: Invoice, profile: BusinessProfile) {
-  const rest = existing.line_items.filter((i) => !isChangeOrderLine(i));
-  const laborItems = rest.filter((i) => i.kind === 'labor');
-  const matItems = rest.filter((i) => i.kind === 'material');
-
-  let fixedTotal = job.price;
-  const materialsYes = matItems.length > 0;
-  const materialRows: MaterialRow[] =
-    matItems.length > 0
-      ? matItems.map((m) => ({
-          description: m.description,
-          qty: String(m.qty),
-          unit_price: String(m.unit_price),
-        }))
-      : [{ description: '', qty: '1', unit_price: '' }];
-
-  let laborRows: LaborRow[];
-
-  if (job.price_type === 'fixed') {
-    const scopeLine =
-      laborItems.find((i) => i.source === 'original_scope') ||
-      laborItems.find((i) => !/^Change Order\s*#/i.test(i.description)) ||
-      laborItems[0];
-    fixedTotal = scopeLine && scopeLine.total > 0 ? scopeLine.total : job.price;
-    laborRows = [{ description: 'Labor', qty: '1', rate: '0' }];
-  } else {
-    laborRows =
-      laborItems.length > 0
-        ? laborItems.map((i) => ({
-            description: i.description,
-            qty: String(i.qty),
-            rate: String(i.unit_price),
-          }))
-        : [{ description: 'Labor', qty: '', rate: '' }];
-  }
-
-  return {
-    fixedTotal,
-    laborRows,
-    materialsYes,
-    materialRows,
-    due_date: existing.due_date,
-    taxPercent: taxRateToPercentValue(existing.tax_rate ?? profile.default_tax_rate ?? DEFAULT_TAX_RATE),
-    selectedPaymentMethods: defaultPaymentSelection(profile),
-  };
-}
-
-type BuildOpts = {
-  job: Job;
-  fixedTotal: number;
-  laborRows: LaborRow[];
-  materialsYes: boolean;
-  materialRows: MaterialRow[];
-  selectedCOs: ChangeOrder[];
-};
-
-function buildInvoiceLineItems(opts: BuildOpts): InvoiceLineItem[] {
-  const { job, fixedTotal, laborRows, materialsYes, materialRows, selectedCOs } = opts;
-  const items: InvoiceLineItem[] = [];
-
-  if (job.price_type === 'fixed') {
-    const t = Math.max(0, Number(fixedTotal) || 0);
-    items.push({
-      kind: 'labor',
-      description: originalScopeDescription(job),
-      qty: 1,
-      unit_price: t,
-      total: Math.round(t * 100) / 100,
-      source: 'original_scope',
-    });
-    for (const co of selectedCOs) {
-      const amt = computeCOTotal(co.line_items);
-      items.push({
-        kind: 'labor',
-        description: `Change Order #${String(co.co_number).padStart(4, '0')}: ${co.description.trim().slice(0, 60)}`,
-        qty: 1,
-        unit_price: amt,
-        total: amt,
-        source: 'change_order',
-      });
-    }
-  } else {
-    for (const co of selectedCOs) {
-      const amt = computeCOTotal(co.line_items);
-      items.push({
-        kind: 'labor',
-        description: `Change Order #${String(co.co_number).padStart(4, '0')}: ${co.description.trim().slice(0, 60)}`,
-        qty: 1,
-        unit_price: amt,
-        total: amt,
-        source: 'change_order',
-      });
-    }
-    for (const row of laborRows) {
-      const h = Number(row.qty);
-      const r = Number(row.rate);
-      if (!row.description.trim() || !Number.isFinite(h) || h <= 0 || !Number.isFinite(r) || r < 0) {
-        continue;
-      }
-      const total = Math.round(h * r * 100) / 100;
-      items.push({
-        kind: 'labor',
-        description: row.description.trim(),
-        qty: h,
-        unit_price: r,
-        total,
-        source: 'labor',
-      });
-    }
-    if (materialsYes) {
-      for (const row of materialRows) {
-        const q = Number(row.qty);
-        const up = Number(row.unit_price);
-        if (!row.description.trim() || !Number.isFinite(q) || !Number.isFinite(up) || q <= 0) continue;
-        const total = Math.round(q * up * 100) / 100;
-        items.push({
-          kind: 'material',
-          description: row.description.trim(),
-          qty: q,
-          unit_price: up,
-          total,
-          source: 'material',
-        });
-      }
-    }
-  }
-
-  return items;
-}
 
 function formatTaxPercent(rate: number): string {
   return `${(rate * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
@@ -247,7 +84,10 @@ export function InvoiceWizard({
 }: InvoiceWizardProps) {
   const initial = useMemo(() => {
     if (existingInvoice) {
-      return parseExistingIntoState(job, existingInvoice, profile);
+      return {
+        ...parseExistingIntoInvoiceState(job, existingInvoice, profile),
+        selectedPaymentMethods: defaultPaymentSelection(profile),
+      };
     }
     return {
       fixedTotal: job.price,
@@ -257,6 +97,7 @@ export function InvoiceWizard({
       due_date: defaultDueDateYmd(),
       taxPercent: taxRateToPercentValue(profile.default_tax_rate ?? DEFAULT_TAX_RATE),
       selectedPaymentMethods: defaultPaymentSelection(profile),
+      structuredLineMetadata: false,
     };
   }, [job, existingInvoice, profile]);
 
@@ -278,6 +119,7 @@ export function InvoiceWizard({
 
   const [changeOrdersOnJob, setChangeOrdersOnJob] = useState<ChangeOrder[]>([]);
   const [selectedCoIds, setSelectedCoIds] = useState<Set<string>>(() => new Set());
+  // Ref avoids rerendering while preventing async CO load from reapplying defaults.
   const coSelectionInitialized = useRef(false);
 
   const [error, setError] = useState('');
@@ -307,27 +149,19 @@ export function InvoiceWizard({
     coSelectionInitialized.current = true;
   }, [changeOrdersOnJob, existingInvoice]);
 
-  const preservedCO = useMemo(
-    () => (existingInvoice ? existingInvoice.line_items.filter(isChangeOrderLine) : []),
-    [existingInvoice]
-  );
-
   const selectedCOs = existingInvoice
     ? []
     : changeOrdersOnJob.filter((c) => selectedCoIds.has(c.id));
 
-  const wizardBuilt = buildInvoiceLineItems({
+  const mergedLineItems = buildInvoiceLineItems({
     job,
     fixedTotal,
     laborRows,
     materialsYes: materialsYes === true,
     materialRows,
     selectedCOs,
+    existingLineItems: existingInvoice?.line_items,
   });
-
-  const mergedLineItems = existingInvoice
-    ? mergeInvoiceLineItems(job, preservedCO, wizardBuilt)
-    : wizardBuilt;
 
   const subtotal = Math.round(mergedLineItems.reduce((s, i) => s + i.total, 0) * 100) / 100;
   const taxRate = normalizeTaxRate(percentValueToTaxRate(taxPercent));
@@ -532,7 +366,7 @@ export function InvoiceWizard({
                   {co.description.length > 56 ? '…' : ''}
                 </span>
               </label>
-              <span className="invoice-co-picker-amt">${computeCOTotal(co.line_items).toFixed(2)}</span>
+              <span className="invoice-co-picker-amt">${formatChangeOrderPickerAmount(co)}</span>
               <span className={`co-status-badge ${co.status === 'pending_approval' ? 'pending' : co.status}`}>
                 {co.status.replace(/_/g, ' ')}
               </span>
