@@ -14,12 +14,16 @@ dist-ssr
 .env.local
 supabase/.branches
 
-# Local Cursor agent sandbox (do not commit)
-.cursor/sandbox.json
+# Scratch / roadmap notes (not part of the product tree)
+future/
+
+# Local agent / IDE state (do not commit)
+.cursor/
+.sally/
+.claude/
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
 .DS_Store
 *.suo
