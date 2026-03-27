@@ -122,6 +122,12 @@ server/
 
 ---
 
+## Generated HTML strings (security)
+
+All user- or client-supplied text interpolated into HTML string generators (`invoice-generator.ts`, `change-order-generator.ts`, `agreement-sections-html.ts`, and any combined PDF HTML builders) must go through `esc()` from `src/lib/html-escape.ts`. React text in components (e.g. `AgreementDocumentSections`) is escaped by default; do not add new `dangerouslySetInnerHTML` pipelines built from raw user input without `esc()`.
+
+---
+
 ## Auth and product flow
 
 **Anonymous (no session):**

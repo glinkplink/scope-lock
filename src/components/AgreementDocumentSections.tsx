@@ -10,7 +10,7 @@ export function AgreementDocumentSections({ sections }: AgreementDocumentSection
     <>
       {sections.map((section) => (
         <div
-          key={section.title}
+          key={String(section.number)}
           className={`agreement-section ${section.signatureData ? 'signature-section' : ''}`}
         >
           <h3 className="section-title">

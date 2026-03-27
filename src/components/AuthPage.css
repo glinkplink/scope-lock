@@ -25,6 +25,18 @@
   padding: 24px;
 }
 
+.auth-page-form-group {
+  margin-bottom: var(--space-md);
+}
+
+.auth-page-form-group label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
 .auth-page input {
   width: 100%;
   padding: 10px var(--space-md);
@@ -34,7 +46,6 @@
   border-radius: var(--radius);
   background: white;
   color: var(--text-primary);
-  margin-bottom: var(--space-md);
   transition: border-color 0.15s;
   box-sizing: border-box;
 }
@@ -63,6 +74,7 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: background 0.15s;
+  margin-top: var(--space-xs);
   margin-bottom: var(--space-md);
 }
 

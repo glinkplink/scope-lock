@@ -33,23 +33,29 @@ export function AuthPage({ onSignInSuccess }: AuthPageProps) {
     <div className="auth-page">
       <h1>Sign In</h1>
       <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          aria-label="Email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          aria-label="Password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-        />
+        <div className="auth-page-form-group">
+          <label htmlFor="auth-email">Email</label>
+          <input
+            id="auth-email"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="auth-page-form-group">
+          <label htmlFor="auth-password">Password</label>
+          <input
+            id="auth-password"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+        </div>
         <button type="submit" disabled={loading}>
           {loading ? 'Loading...' : 'Sign In'}
         </button>
