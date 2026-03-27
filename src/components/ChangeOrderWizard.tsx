@@ -150,7 +150,7 @@ export function ChangeOrderWizard({
     try {
       if (existingCO) {
         const nextStatus: ChangeOrder['status'] = requiresApproval ? 'pending_approval' : 'approved';
-        const { data, error: upErr } = await updateChangeOrder(existingCO.id, {
+        const { data, error: upErr } = await updateChangeOrder(userId, existingCO.id, {
           ...fields,
           status: nextStatus,
         });

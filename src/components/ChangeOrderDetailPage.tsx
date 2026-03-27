@@ -18,6 +18,7 @@ function statusBadgeClass(status: ChangeOrder['status']): string {
 }
 
 interface ChangeOrderDetailPageProps {
+  userId: string;
   co: ChangeOrder;
   job: Job;
   profile: BusinessProfile | null;
@@ -30,6 +31,7 @@ interface ChangeOrderDetailPageProps {
 }
 
 export function ChangeOrderDetailPage({
+  userId,
   co,
   job,
   profile,
@@ -76,7 +78,7 @@ export function ChangeOrderDetailPage({
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete ${coLabel}?`)) return;
-    const { error } = await deleteChangeOrder(co.id);
+    const { error } = await deleteChangeOrder(userId, co.id);
     if (error) {
       setPdfError(error.message);
       return;
@@ -85,13 +87,13 @@ export function ChangeOrderDetailPage({
   };
 
   const handleApprove = async () => {
-    const { error } = await updateChangeOrder(co.id, { status: 'approved' });
+    const { error } = await updateChangeOrder(userId, co.id, { status: 'approved' });
     if (error) { setPdfError(error.message); return; }
     onBack();
   };
 
   const handleReject = async () => {
-    const { error } = await updateChangeOrder(co.id, { status: 'rejected' });
+    const { error } = await updateChangeOrder(userId, co.id, { status: 'rejected' });
     if (error) { setPdfError(error.message); return; }
     onBack();
   };

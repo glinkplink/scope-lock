@@ -573,9 +573,10 @@ function App() {
             }}
             onOpenCODetail={handleOpenCODetail}
           />
-        ) : view === 'co-detail' && profile && workOrderDetailJob && changeOrder.coDetailCO ? (
+        ) : view === 'co-detail' && user && profile && workOrderDetailJob && changeOrder.coDetailCO ? (
           <ChangeOrderDetailPage
             key={changeOrder.coDetailCO.id}
+            userId={user.id}
             co={changeOrder.coDetailCO}
             job={workOrderDetailJob}
             profile={profile}

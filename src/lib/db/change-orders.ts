@@ -1,10 +1,24 @@
 import { supabase } from '../supabase';
 import type { ChangeOrder, ChangeOrderLineItem } from '../../types/db';
 
+const VALID_CO_STATUSES: ChangeOrder['status'][] = [
+  'draft',
+  'pending_approval',
+  'approved',
+  'rejected',
+];
+
+function roundCurrency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function computeCOTotal(lineItems: ChangeOrderLineItem[]): number {
-  return (
-    Math.round(lineItems.reduce((sum, item) => sum + item.quantity * item.unit_rate, 0) * 100) / 100
-  );
+  const totalCents = lineItems.reduce((sum, item) => {
+    const lineTotal = Number(item.quantity) * Number(item.unit_rate);
+    return sum + Math.round((lineTotal + Number.EPSILON) * 100);
+  }, 0);
+
+  return totalCents / 100;
 }
 
 function mapLineItem(raw: Record<string, unknown>): ChangeOrderLineItem {
@@ -16,8 +30,19 @@ function mapLineItem(raw: Record<string, unknown>): ChangeOrderLineItem {
   };
 }
 
+function parseStatus(raw: unknown): ChangeOrder['status'] {
+  return VALID_CO_STATUSES.includes(raw as ChangeOrder['status'])
+    ? (raw as ChangeOrder['status'])
+    : 'draft';
+}
+
 function mapChangeOrderRow(data: Record<string, unknown>): ChangeOrder {
-  const li = Array.isArray(data.line_items) ? data.line_items : [];
+  const li = Array.isArray(data.line_items)
+    ? data.line_items.filter(
+        (value): value is Record<string, unknown> => typeof value === 'object' && value !== null
+      )
+    : [];
+
   return {
     id: data.id as string,
     user_id: data.user_id as string,
@@ -25,10 +50,10 @@ function mapChangeOrderRow(data: Record<string, unknown>): ChangeOrder {
     co_number: Number(data.co_number),
     description: String(data.description ?? ''),
     reason: String(data.reason ?? ''),
-    status: data.status as ChangeOrder['status'],
+    status: parseStatus(data.status),
     requires_approval: Boolean(data.requires_approval),
-    line_items: li.map((x) => mapLineItem(x as Record<string, unknown>)),
-    time_amount: Number(data.time_amount) || 0,
+    line_items: li.map((x) => mapLineItem(x)),
+    time_amount: roundCurrency(Number(data.time_amount) || 0),
     time_unit: (data.time_unit === 'hours' ? 'hours' : 'days') as ChangeOrder['time_unit'],
     time_note: String(data.time_note ?? ''),
     created_at: String(data.created_at ?? ''),
@@ -70,52 +95,37 @@ export async function createChangeOrder(
   fields: CreateChangeOrderFields
 ): Promise<{ data: ChangeOrder | null; error: Error | null }> {
   const status: ChangeOrder['status'] = fields.requires_approval ? 'pending_approval' : 'approved';
+  const row = {
+    p_user_id: userId,
+    p_job_id: jobId,
+    p_description: fields.description,
+    p_reason: fields.reason,
+    p_status: status,
+    p_requires_approval: fields.requires_approval,
+    p_line_items: fields.line_items,
+    p_time_amount: roundCurrency(fields.time_amount),
+    p_time_unit: fields.time_unit,
+    p_time_note: fields.time_note,
+  };
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { data: coNumRaw, error: rpcError } = await supabase.rpc('next_co_number', {
-      p_job_id: jobId,
-    });
+  const { data, error } = await supabase.rpc('create_change_order', row);
 
-    if (rpcError) {
-      return { data: null, error: new Error(rpcError.message) };
+  if (error) {
+    if (isUniqueViolation(error)) {
+      return { data: null, error: new Error('Could not save change order. Try again.') };
     }
-
-    const co_number = typeof coNumRaw === 'number' ? coNumRaw : Number(coNumRaw);
-    if (!Number.isFinite(co_number)) {
-      return { data: null, error: new Error('Failed to allocate change order number') };
-    }
-
-    const row = {
-      user_id: userId,
-      job_id: jobId,
-      co_number,
-      description: fields.description,
-      reason: fields.reason,
-      status,
-      requires_approval: fields.requires_approval,
-      line_items: fields.line_items,
-      time_amount: fields.time_amount,
-      time_unit: fields.time_unit,
-      time_note: fields.time_note,
-    };
-
-    const { data, error } = await supabase.from('change_orders').insert(row).select().single();
-
-    if (!error && data) {
-      return { data: mapChangeOrderRow(data as Record<string, unknown>), error: null };
-    }
-
-    if (error && isUniqueViolation(error) && attempt === 0) {
-      continue;
-    }
-
-    return { data: null, error: new Error(error?.message || 'Failed to create change order') };
+    return { data: null, error: new Error(error.message) };
   }
 
-  return { data: null, error: new Error('Could not save change order. Try again.') };
+  if (!data) {
+    return { data: null, error: new Error('Failed to create change order') };
+  }
+
+  return { data: mapChangeOrderRow(data as Record<string, unknown>), error: null };
 }
 
 export async function updateChangeOrder(
+  userId: string,
   id: string,
   fields: Partial<
     Pick<
@@ -131,10 +141,16 @@ export async function updateChangeOrder(
     >
   >
 ): Promise<{ data: ChangeOrder | null; error: Error | null }> {
+  const nextFields = {
+    ...fields,
+    ...(fields.time_amount != null ? { time_amount: roundCurrency(fields.time_amount) } : {}),
+  };
+
   const { data, error } = await supabase
     .from('change_orders')
-    .update(fields)
+    .update(nextFields)
     .eq('id', id)
+    .eq('user_id', userId)
     .select()
     .single();
 
@@ -144,8 +160,11 @@ export async function updateChangeOrder(
   return { data: mapChangeOrderRow(data as Record<string, unknown>), error: null };
 }
 
-export async function deleteChangeOrder(id: string): Promise<{ error: Error | null }> {
-  const { error } = await supabase.from('change_orders').delete().eq('id', id);
+export async function deleteChangeOrder(
+  userId: string,
+  id: string
+): Promise<{ error: Error | null }> {
+  const { error } = await supabase.from('change_orders').delete().eq('id', id).eq('user_id', userId);
   if (error) {
     return { error: new Error(error.message) };
   }
