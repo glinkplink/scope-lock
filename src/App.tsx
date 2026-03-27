@@ -57,9 +57,8 @@ function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJ
         agreement_date: today,
         exclusions: getDefaultExclusions(p.default_exclusions),
         customer_obligations: getDefaultCustomerObligations(p.default_assumptions),
-        late_payment_terms:
-          p.default_late_payment_terms ||
-          'Balances unpaid 7 days after completion accrue 1.5% per month.',
+        payment_terms_days: p.default_payment_terms_days ?? 14,
+        late_fee_rate: p.default_late_fee_rate ?? 1.5,
         workmanship_warranty_days: p.default_warranty_period ?? 30,
         negotiation_period: p.default_negotiation_period ?? 10,
       }

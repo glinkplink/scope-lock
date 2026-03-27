@@ -18,6 +18,8 @@ export interface BusinessProfile {
   default_payment_methods: string[];
   default_tax_rate: number;
   default_late_payment_terms: string;
+  default_payment_terms_days: number;
+  default_late_fee_rate: number;
   default_card_fee_note: boolean;
   created_at: string;
   updated_at: string;
@@ -73,6 +75,8 @@ export interface Job {
   target_start: string | null;
   deposit_amount: number | null;
   late_payment_terms: string | null;
+  payment_terms_days: number | null;
+  late_fee_rate: number | null;
   negotiation_period: number | null;
   customer_obligations: string[] | null;
   created_at: string;
@@ -116,6 +120,8 @@ export interface InvoiceLineItem {
   total: number;
   /** Partition for invoice edit: CO snapshot rows stay fixed; missing in DB JSON => legacy */
   source?: InvoiceLineItemSource;
+  position?: number;
+  change_order_id?: string;
 }
 
 export interface Invoice {
@@ -160,4 +166,3 @@ export interface ChangeOrder {
   created_at: string;
   updated_at: string;
 }
-

@@ -52,7 +52,8 @@ export interface WelderJob {
   price_type: PriceType;
   price: number;
   deposit_amount: number;
-  late_payment_terms: string;
+  payment_terms_days: number;
+  late_fee_rate: number;
 
   // Scope Control
   exclusions: string[];

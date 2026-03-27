@@ -57,6 +57,8 @@ function buildCapturedProfileStub(
     default_payment_methods: [],
     default_tax_rate: 0,
     default_late_payment_terms: '',
+    default_payment_terms_days: 14,
+    default_late_fee_rate: 1.5,
     default_card_fee_note: false,
     created_at: '',
     updated_at: '',

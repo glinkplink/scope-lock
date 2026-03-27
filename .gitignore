@@ -14,7 +14,7 @@ dist-ssr
 .env.local
 supabase/.branches
 
-# Scratch / roadmap notes (not part of the product tree)
+# Scratch / roadmap notes (not part of the product tree), e.g. future/Product_Overview.md
 future/
 
 # Local agent / IDE state (do not commit)

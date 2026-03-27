@@ -168,10 +168,14 @@ export function generateAgreement(job: WelderJob, profile: BusinessProfile | nul
   const salesTaxNote =
     'Note: Customers are subject to applicable state and local sales tax on labor and materials as required by law. Service Provider will include applicable taxes on the final invoice.';
   pricingBlocks.push({ type: 'note', text: salesTaxNote });
-  const lateTerms = job.late_payment_terms?.trim();
-  if (lateTerms) {
-    pricingBlocks.push({ type: 'note', text: lateTerms });
-  }
+  pricingBlocks.push({
+    type: 'paragraph',
+    text: `Payment is due within ${job.payment_terms_days} days of invoice date. Overdue balances accrue a late fee of ${job.late_fee_rate}% per month.`,
+  });
+  pricingBlocks.push({
+    type: 'paragraph',
+    text: `${SERVICE_PROVIDER_CAP} may suspend work if payment is more than ${job.payment_terms_days} days overdue, and is not liable for project delays caused by non-payment.`,
+  });
   drafts.push({ title: 'Pricing & Payment Terms', blocks: pricingBlocks });
 
   const completionOpeningWithWarranty =

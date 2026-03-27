@@ -81,6 +81,8 @@ function minimalFullJob(id: string, customer: string): Job {
     target_start: null,
     deposit_amount: null,
     late_payment_terms: null,
+    payment_terms_days: null,
+    late_fee_rate: null,
     negotiation_period: null,
     customer_obligations: null,
     created_at: '2025-01-01T00:00:00Z',

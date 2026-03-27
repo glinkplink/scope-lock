@@ -895,15 +895,50 @@ export function JobForm({ userId, job, onChange, businessName, onGoToPreview }: 
             />
           </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="late_payment_terms">Late Payment Terms</label>
-          <textarea
-            id="late_payment_terms"
-            value={job.late_payment_terms}
-            onChange={(e) => updateField('late_payment_terms', e.target.value)}
-            rows={2}
-              placeholder="Balances unpaid 7 days after completion accrue 1.5% per month."
-          />
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="payment_terms">Payment Terms</label>
+            <select
+              id="payment_terms"
+              value={[7, 14, 30].includes(job.payment_terms_days) ? `net_${job.payment_terms_days}` : 'custom'}
+              onChange={(e) => {
+                const preset = e.target.value;
+                if (preset !== 'custom') {
+                  updateField('payment_terms_days', parseInt(preset.replace('net_', ''), 10));
+                }
+              }}
+            >
+              <option value="net_7">Net 7</option>
+              <option value="net_14">Net 14</option>
+              <option value="net_30">Net 30</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          {![7, 14, 30].includes(job.payment_terms_days) && (
+            <div className="form-group">
+              <label htmlFor="payment_terms_days">Days</label>
+              <input
+                id="payment_terms_days"
+                type="number"
+                value={job.payment_terms_days}
+                onChange={(e) => updateField('payment_terms_days', parseInt(e.target.value) || 0)}
+                min="1"
+                placeholder="14"
+              />
+            </div>
+          )}
+          <div className="form-group">
+            <label htmlFor="late_fee_rate">Late Fee (%/month)</label>
+            <input
+              id="late_fee_rate"
+              type="number"
+              value={job.late_fee_rate}
+              onChange={(e) => updateField('late_fee_rate', parseFloat(e.target.value) || 0)}
+              min="0"
+              step="0.1"
+              placeholder="1.5"
+            />
+          </div>
         </div>
       </section>
 

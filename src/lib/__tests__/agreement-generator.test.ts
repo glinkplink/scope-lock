@@ -31,7 +31,8 @@ const baseJob: WelderJob = {
   price_type: 'fixed',
   price: 350,
   deposit_amount: 0,
-  late_payment_terms: '',
+  payment_terms_days: 14,
+  late_fee_rate: 1.5,
   exclusions: [],
   customer_obligations: [],
   change_order_required: false,
@@ -55,6 +56,8 @@ const baseProfile: BusinessProfile = {
   default_warranty_period: 90,
   default_negotiation_period: 30,
   default_late_payment_terms: '',
+  default_payment_terms_days: 14,
+  default_late_fee_rate: 1.5,
   default_card_fee_note: false,
   next_wo_number: 2,
   next_invoice_number: 1,
@@ -297,5 +300,41 @@ describe('Completion & Acceptance fallback', () => {
 
   it('does NOT appear when warranty > 0', () => {
     expect(titles(baseJob)).not.toContain('Completion & Acceptance');
+  });
+});
+
+// ── Payment Terms & Work Halt Clause ─────────────────────────────────────────
+
+describe('payment terms and work halt clause', () => {
+  it('generates payment due language with default Net 14', () => {
+    const text = textOf(baseJob, 'Pricing & Payment Terms');
+    expect(text).toContain('Payment is due within 14 days of invoice date');
+    expect(text).toContain('1.5% per month');
+  });
+
+  it('generates work halt clause with correct days', () => {
+    const text = textOf(baseJob, 'Pricing & Payment Terms');
+    expect(text).toContain('may suspend work if payment is more than 14 days overdue');
+  });
+
+  it('uses custom payment_terms_days and late_fee_rate', () => {
+    const job: WelderJob = { ...baseJob, payment_terms_days: 30, late_fee_rate: 2.0 };
+    const text = textOf(job, 'Pricing & Payment Terms');
+    expect(text).toContain('Payment is due within 30 days of invoice date');
+    expect(text).toContain('2% per month');
+    expect(text).toContain('may suspend work if payment is more than 30 days overdue');
+  });
+
+  it('payment paragraphs are always present regardless of other job settings', () => {
+    const job: WelderJob = {
+      ...baseJob,
+      price_type: 'time_and_materials',
+      deposit_amount: 100,
+      payment_terms_days: 7,
+      late_fee_rate: 1.5,
+    };
+    const text = textOf(job, 'Pricing & Payment Terms');
+    expect(text).toContain('Payment is due within 7 days of invoice date');
+    expect(text).toContain('may suspend work if payment is more than 7 days overdue');
   });
 });

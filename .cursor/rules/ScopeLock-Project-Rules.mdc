@@ -8,7 +8,7 @@ alwaysApply: true
 - Keep the codebase small, boring, and easy to inspect manually.
 - Prefer the simplest implementation that satisfies the requirement.
 - Do not add features, files, abstractions, dependencies, or configuration unless explicitly required.
-- Do not "future-proof" by adding speculative architecture.
+- Always prefer the future-proofed option, as long as that option is approved and explained to the user.
 - Do not refactor unrelated code.
 
 ## Instruction discipline
@@ -47,6 +47,11 @@ alwaysApply: true
 - Keep UI components simple, readable, and easy to edit.
 - Do not add visual complexity, animation libraries, or design systems unless explicitly requested.
 - Prioritize function over polish.
+- Co-locate styles with the page or component that owns them.
+- Keep `src/App.css` limited to design tokens, app shell/layout primitives, shared utility classes, print/PDF globals, and other truly global rules.
+- Do not add new page-specific or feature-specific styles to `src/App.css`.
+- New pages and major components should import their own CSS file (for example `ComponentName.tsx` + `ComponentName.css`).
+- If a style is only used by one page or component, it belongs with that page or component.
 
 ## Type safety and consistency
 - Do not invent fields not present in the canonical schema.
@@ -93,6 +98,8 @@ Before concluding any task, verify:
 - Agreements must remain short, plain-language, and practical.
 - Do not turn the agreement into a large corporate subcontract.
 - Do not add legal-advice features.
+- Shared utility logic belongs in `src/lib/`; do not duplicate small helper functions across multiple files when one shared utility would keep behavior consistent.
+- HTML escaping must come from a shared utility (`src/lib/html-escape.ts`) rather than repeated inline `esc()` / `escapeHtml()` implementations.
 - Keep generated agreements focused on:
   - scope of work
   - exclusions
