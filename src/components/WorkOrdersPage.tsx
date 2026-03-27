@@ -64,6 +64,7 @@ export function WorkOrdersPage({
   const [jobsLoading, setJobsLoading] = useState(true);
   const [invoiceStatusLoading, setInvoiceStatusLoading] = useState(true);
   const [invoiceStatusError, setInvoiceStatusError] = useState<string | null>(null);
+  const [invoiceStatusWarning, setInvoiceStatusWarning] = useState<string | null>(null);
   /** Non-null array only after a successful invoice-status fetch (may be empty). */
   const [invoiceStatusRows, setInvoiceStatusRows] = useState<WorkOrderInvoiceStatus[] | null>(null);
 
@@ -96,6 +97,7 @@ export function WorkOrdersPage({
     setJobsLoading(true);
     setInvoiceStatusLoading(true);
     setInvoiceStatusError(null);
+    setInvoiceStatusWarning(null);
     setInvoiceStatusRows(null);
     setJobs([]);
 
@@ -118,6 +120,7 @@ export function WorkOrdersPage({
       } else {
         setInvoiceStatusError(null);
         setInvoiceStatusRows(result.data);
+        setInvoiceStatusWarning(result.warning);
       }
     })();
 
@@ -224,6 +227,12 @@ export function WorkOrdersPage({
       {invoiceStatusError ? (
         <div className="error-banner work-orders-invoice-status-banner" role="alert">
           {invoiceStatusError}
+        </div>
+      ) : null}
+
+      {invoiceStatusWarning && !invoiceStatusError ? (
+        <div className="work-orders-invoice-warning-banner" role="status">
+          {invoiceStatusWarning}
         </div>
       ) : null}
 

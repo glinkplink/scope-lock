@@ -154,6 +154,34 @@ export function WorkOrderDetailPage({
       </div>
 
       <p className="co-section-label" style={{ marginTop: 'var(--space-lg)' }}>
+        Invoice
+      </p>
+      <div className="work-orders-row wo-detail-invoice-strip">
+        <div className="work-orders-row-main">
+          <span className="work-orders-meta wo-detail-invoice-meta">
+            {invoice
+              ? `Invoice #${String(invoice.invoice_number).padStart(4, '0')}`
+              : 'No invoice yet for this work order.'}
+          </span>
+        </div>
+        <div className="work-orders-row-actions">
+          {!invoice ? (
+            <button type="button" className="wo-row-create-invoice-outline" onClick={() => onStartInvoice(null)}>
+              Invoice
+            </button>
+          ) : invoice.status === 'draft' ? (
+            <button type="button" className="badge-pending" onClick={() => onStartInvoice(invoice)}>
+              Pending
+            </button>
+          ) : (
+            <button type="button" className="badge-invoiced" onClick={() => onStartInvoice(invoice)}>
+              Invoiced
+            </button>
+          )}
+        </div>
+      </div>
+
+      <p className="co-section-label" style={{ marginTop: 'var(--space-lg)' }}>
         Change orders
       </p>
       {coError ? (
@@ -181,21 +209,6 @@ export function WorkOrderDetailPage({
                   <span className={`co-status-badge ${co.status === 'pending_approval' ? 'pending' : co.status}`}>{co.status.replace('_', ' ')}</span>
                   {' '}${computeCOTotal(co.line_items).toFixed(2)}
                 </span>
-              </div>
-              <div className="work-orders-row-actions">
-                {!invoice ? (
-                  <button type="button" className="wo-row-create-invoice-outline" onClick={() => onStartInvoice(null)}>
-                    Invoice
-                  </button>
-                ) : invoice.status === 'draft' ? (
-                  <button type="button" className="badge-pending" onClick={() => onStartInvoice(invoice)}>
-                    Pending
-                  </button>
-                ) : (
-                  <button type="button" className="badge-invoiced" onClick={() => onStartInvoice(invoice)}>
-                    Invoiced
-                  </button>
-                )}
               </div>
             </li>
           ))}

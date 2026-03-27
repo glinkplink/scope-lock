@@ -200,7 +200,7 @@ Edit profile (gear) → EditProfilePage
 - `db/clients.ts`: Client CRUD; **JobForm** searches/suggests clients when `userId` is set; **saveWorkOrder** upserts client by `name_normalized`
 - `db/jobs.ts`: Job CRUD + **saveWorkOrder** (insert/update, client upsert); UI lists jobs on **Work Orders**
 - `db/invoices.ts`: Invoice CRUD; **`createInvoice`** calls Postgres **`next_invoice_number(p_user_id)`** for atomic numbering (increments `business_profiles.next_invoice_number`); **`updateInvoice`** full-row overwrite; **`markInvoiceDownloaded`** sets `status = 'downloaded'`; **`mapInvoiceRow`** normalizes **`line_items[].source`**
-- `db/change-orders.ts`: **`listChangeOrders`**, **`createChangeOrder`** (with co_number retry), **`updateChangeOrder`**, **`deleteChangeOrder`**, **`computeCOTotal`**
+- `db/change-orders.ts`: **`listChangeOrders`**, **`createChangeOrder`** (RPC to **`public.create_change_order`**: per-job advisory lock + `MAX(co_number)+1` in SQL), **`updateChangeOrder`**, **`deleteChangeOrder`**, **`computeCOTotal`**
 - `invoice-generator.ts`: Invoice HTML (parties table pattern, line items, tax, payment methods, notes)
 
 ### UI Components (`src/components/`)
@@ -232,7 +232,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 
 - Adds structured columns (`co_number`, `reason`, `status`, `line_items` jsonb, schedule fields, etc.).
 - **Backfills** existing rows from legacy `price_delta` / `time_delta` / `approved`, assigns **`co_number`** per `job_id` with `ROW_NUMBER()`, then drops the legacy columns.
-- **`UNIQUE (job_id, co_number)`**; app **`createChangeOrder`** retries the insert **once** after a unique violation (`23505`).
+- **`UNIQUE (job_id, co_number)`**; numbering is allocated inside **`create_change_order`** (see **0006**), so a `23505` from the RPC is unexpected. The client may still show a generic “try again” if it occurs; there is **no** client-side insert retry loop.
 
 ### Combined WO + change-order PDFs (v1)
 

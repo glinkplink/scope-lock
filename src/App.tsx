@@ -55,7 +55,7 @@ function App() {
     setChangeOrderListVersion
   );
 
-  const { state: draft, actions: draftFlow } = useWorkOrderDraft(profile, navigateTo, setProfile);
+  const { state: draft, actions: draftFlow } = useWorkOrderDraft(profile, navigateTo, loadProfile);
 
   const handleCaptureAndSave = async (capture: {
     businessName: string;

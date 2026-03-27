@@ -8,7 +8,7 @@ alwaysApply: true
 - Keep the codebase small, boring, and easy to inspect manually.
 - Prefer the simplest implementation that satisfies the requirement.
 - Do not add features, files, abstractions, dependencies, or configuration unless explicitly required.
-- Always prefer the future-proofed option, as long as that option is approved and explained to the user.
+- Default to the simplest viable implementation. Future-proof only when it directly supports an approved near-term requirement, and explain that choice to the user.
 - Do not refactor unrelated code.
 
 ## Instruction discipline

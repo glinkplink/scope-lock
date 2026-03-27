@@ -71,6 +71,7 @@ describe('listInvoiceStatusByJob', () => {
     ];
     const result = await listInvoiceStatusByJob('user-1');
     expect(result.error).toBeNull();
+    expect(result.warning).toBeNull();
     expect(result.data).toEqual([
       {
         id: 'i1',
@@ -86,10 +87,11 @@ describe('listInvoiceStatusByJob', () => {
     supabaseState.error = { message: 'network' };
     const result = await listInvoiceStatusByJob('user-1');
     expect(result.data).toBeNull();
+    expect(result.warning).toBeNull();
     expect(result.error?.message).toContain('network');
   });
 
-  it('returns error and logs when any row is malformed', async () => {
+  it('returns partial data, warning, and logs when any row is malformed', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     supabaseState.rows = [
       {
@@ -108,8 +110,17 @@ describe('listInvoiceStatusByJob', () => {
       },
     ];
     const result = await listInvoiceStatusByJob('user-1');
-    expect(result.data).toBeNull();
-    expect(result.error?.message).toMatch(/could not be read/i);
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([
+      {
+        id: 'i-good',
+        job_id: 'j1',
+        status: 'draft',
+        invoice_number: 1,
+        created_at: '2025-01-02T00:00:00Z',
+      },
+    ]);
+    expect(result.warning).toMatch(/skipped/i);
     expect(errSpy).toHaveBeenCalled();
     errSpy.mockRestore();
   });

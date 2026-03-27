@@ -11,6 +11,8 @@ import {
 } from '../lib/payment-terms';
 import type { AppView } from './useAppNavigation';
 
+export type LoadProfileFn = (options?: { silent?: boolean }) => void | Promise<void>;
+
 export type WorkOrderDraftState = {
   job: WelderJob;
   draftBaseline: WelderJob | null;
@@ -56,7 +58,7 @@ function buildNewAgreementDraft(currentProfile: BusinessProfile | null): WelderJ
 export function useWorkOrderDraft(
   profile: BusinessProfile | null,
   navigateTo: (view: AppView) => void,
-  setProfile: (p: BusinessProfile) => void
+  loadProfile: LoadProfileFn
 ) {
   const [draft, setDraft] = useState<WorkOrderDraftState>(() => ({
     job: initialDraftJob,
@@ -134,7 +136,7 @@ export function useWorkOrderDraft(
       if (!uid) return;
 
       const fresh = await getProfile(uid);
-      if (!fresh) return;
+      if (!fresh || fresh.user_id !== uid) return;
 
       const newCount = (fresh.next_wo_number ?? 1) + 1;
       const { error } = await updateNextWoNumber(uid, newCount);
@@ -146,9 +148,9 @@ export function useWorkOrderDraft(
         }));
         return;
       }
-      setProfile({ ...fresh, next_wo_number: newCount });
+      void loadProfile({ silent: true });
     },
-    [setProfile]
+    [loadProfile]
   );
 
   const dismissWoCounterError = useCallback(() => {

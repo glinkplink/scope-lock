@@ -88,6 +88,16 @@
   margin-bottom: var(--space-md);
 }
 
+.work-orders-invoice-warning-banner {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-white);
+}
+
 .work-orders-summary-strip {
   display: flex;
   flex-wrap: wrap;

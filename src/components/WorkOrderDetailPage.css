@@ -1,8 +1,18 @@
+.wo-detail-invoice-strip {
+  border-bottom: none;
+  padding-top: 0;
+}
+
+.wo-detail-invoice-meta {
+  display: block;
+  margin-top: 2px;
+}
+
 .co-list-item {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
 }

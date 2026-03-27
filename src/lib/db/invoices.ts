@@ -172,8 +172,8 @@ export const markInvoiceDownloaded = async (
 };
 
 export type ListInvoiceStatusByJobResult =
-  | { data: WorkOrderInvoiceStatus[]; error: null }
-  | { data: null; error: Error };
+  | { data: WorkOrderInvoiceStatus[]; error: null; warning: string | null }
+  | { data: null; error: Error; warning: null };
 
 /**
  * Latest invoice per job_id: caller should pass rows ordered by created_at desc; first seen wins.
@@ -210,7 +210,7 @@ function mapInvoiceStatusRow(row: Record<string, unknown>): WorkOrderInvoiceStat
   };
 }
 
-/** Narrow invoice rows for Work Orders list. On query failure returns `{ data: null, error }` — do not treat as empty success. */
+/** Narrow invoice rows for Work Orders list. Query failure: `{ data: null, error, warning: null }`. Malformed rows are skipped with a non-blocking `warning`. */
 export const listInvoiceStatusByJob = async (
   userId: string
 ): Promise<ListInvoiceStatusByJobResult> => {
@@ -222,7 +222,7 @@ export const listInvoiceStatusByJob = async (
 
   if (error) {
     console.error('Error listing invoice status:', error);
-    return { data: null, error: new Error(error.message) };
+    return { data: null, error: new Error(error.message), warning: null };
   }
 
   const out: WorkOrderInvoiceStatus[] = [];
@@ -233,21 +233,14 @@ export const listInvoiceStatusByJob = async (
       out.push(mapped);
     } else {
       malformedCount += 1;
-      console.error(
-        'listInvoiceStatusByJob: malformed invoice row (dropped); invoice actions unavailable until fixed',
-        row
-      );
+      console.error('listInvoiceStatusByJob: malformed invoice row (skipped)', row);
     }
   }
-  if (malformedCount > 0) {
-    return {
-      data: null,
-      error: new Error(
-        `${malformedCount} invoice row(s) could not be read. Invoice actions are unavailable.`
-      ),
-    };
-  }
-  return { data: out, error: null };
+  const warning =
+    malformedCount > 0
+      ? `${malformedCount} invoice row(s) could not be read and were skipped. Other invoices still work.`
+      : null;
+  return { data: out, error: null, warning };
 };
 
 export const listInvoices = async (userId: string): Promise<Invoice[]> => {

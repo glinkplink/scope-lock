@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Job, WorkOrderListJob } from '../../types/db';
 import { WorkOrdersPage } from '../WorkOrdersPage';
@@ -121,12 +121,17 @@ function renderPage() {
 }
 
 describe('WorkOrdersPage', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     listJobsForWorkOrders.mockResolvedValue([listJobA]);
     listInvoiceStatusByJob.mockResolvedValue({
       data: [],
       error: null,
+      warning: null,
     } satisfies ListInvoiceStatusByJobResult);
     getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
   });
@@ -151,6 +156,7 @@ describe('WorkOrdersPage', () => {
     listInvoiceStatusByJob.mockResolvedValue({
       data: null,
       error: new Error('boom'),
+      warning: null,
     });
 
     renderPage();
@@ -163,7 +169,7 @@ describe('WorkOrdersPage', () => {
 
   it('does not block Invoice on another row while one row is hydrating', async () => {
     listJobsForWorkOrders.mockResolvedValue([listJobA, listJobB]);
-    listInvoiceStatusByJob.mockResolvedValue({ data: [], error: null });
+    listInvoiceStatusByJob.mockResolvedValue({ data: [], error: null, warning: null });
 
     let releaseA: (job: Job | null) => void;
     const hangA = new Promise<Job | null>((resolve) => {
@@ -220,6 +226,7 @@ describe('WorkOrdersPage', () => {
         },
       ],
       error: null,
+      warning: null,
     });
 
     renderPage();
@@ -230,5 +237,32 @@ describe('WorkOrdersPage', () => {
         within(list).getByRole('button', { name: /^Invoiced$/i })
       ).toBeInTheDocument();
     });
+  });
+
+  it('shows a warning banner when some invoice rows are skipped but keeps Invoice actions enabled', async () => {
+    listInvoiceStatusByJob.mockResolvedValue({
+      data: [
+        {
+          id: 'i1',
+          job_id: 'job-a',
+          status: 'draft',
+          invoice_number: 1,
+          created_at: '2025-01-02T00:00:00Z',
+        },
+      ],
+      error: null,
+      warning: '1 invoice row(s) could not be read and were skipped. Other invoices still work.',
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(/skipped/i);
+    });
+    expect(screen.queryByText(/Could not load invoice status \(boom\)/)).not.toBeInTheDocument();
+
+    const list = latestWorkOrdersListUl();
+    const pendingBtn = within(list).getByRole('button', { name: /^Pending$/i });
+    expect(pendingBtn).not.toBeDisabled();
   });
 });
