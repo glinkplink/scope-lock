@@ -4,6 +4,20 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 
 ---
 
+## Agent documentation & living documents
+
+**Canonical short rules for all agents:** **[AGENTS.md](./AGENTS.md)** (Codex and others should start there for shared repo rules).
+
+**Cursor:** **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** (full rules, `alwaysApply`) and **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)** (terse guardrails, `alwaysApply`).
+
+`AGENTS.md`, `CLAUDE.md`, and those Cursor rule files are **living documents** and should describe the same global rules with different levels of detail.
+
+- **After each substantive code change** (new UI, routes, patterns, stack or dependencies, security or style conventions), **review and update** whichever files are affected.
+- **When editing any of these agent-facing files**, **compare the same topic across the others** and **align** them so guidance does not drift or contradict—especially **CSS co-location**, **HTML / `esc()`** (see below), **architecture**, and **file-creation / minimal-diff discipline**.
+- If a rule is intended to be global, mirror it in every file that carries global rules or replace duplication with a single explicit pointer. Do not let one file silently become stricter than the others.
+
+---
+
 ## Stack
 
 | Layer | Tech |
@@ -201,10 +215,16 @@ The UI should feel like a contractor's work log, not a SaaS product.
 - `--text-primary`, `--text-secondary`, `--text-muted`
 - `--radius` (4px), `--radius-lg` (6px)
 
-**Frontend file rules:**
-- Co-locate page/component styles with the file that owns them.
-- `App.css` is for global tokens, shell/layout, shared utility classes, and print/PDF globals only.
-- Do not add new page-specific sections to `App.css`.
+**CSS co-location (mandatory — keep in sync with [AGENTS.md](./AGENTS.md) and [.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)):**
+
+1. **Own your styles:** Co-locate with the owning page or component; `ComponentName.tsx` imports `./ComponentName.css` (or the repo’s established pairing).
+2. **`App.css` scope only:** `src/App.css` holds design tokens (`:root`), app shell/layout, **shared** utility classes, print/PDF globals, and **truly cross-cutting** rules—not styles that mainly serve one screen, wizard, modal, or feature.
+3. **No new feature CSS in `App.css`:** Do not add page-specific or feature-specific rules there; use the owner’s co-located CSS file.
+4. **New UI surfaces:** New pages and major components **must** ship with a paired CSS file (e.g. `FooPage.tsx` + `FooPage.css`).
+5. **Single owner:** Styles used by only one page or component belong in **that** CSS file, not `App.css` or an unrelated sibling.
+6. **Global exceptions:** Intentionally shared primitives (e.g. reused badges, header chrome) may stay in `App.css`; follow comments in the structure tree above.
+
+**Other frontend file rules:**
 - New shared HTML helpers belong in `src/lib/`; if multiple generators need the same escaping logic, extract a shared helper there instead of copy-pasting `esc()` helpers.
 
 The app server **`POST /api/pdf`** renders HTML built in the client (agreement, invoice, change order, combined WO+CO) with Puppeteer; preview and PDF are designed to match. **Job site address** in the agreement is a **single line** in output (`jobLocationSingleLine`).

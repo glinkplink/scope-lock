@@ -4,6 +4,14 @@ alwaysApply: true
 
 # ScopeLock Project Rules
 
+## Living documentation & cross-agent alignment
+
+These instructions plus **[AGENTS.md](../../AGENTS.md)** and **[CLAUDE.md](../../CLAUDE.md)** are **living documents** and should describe the same global rules with different levels of detail.
+
+- **After each substantive code change** (new UI surfaces, routes, patterns, stack or dependency changes, security or styling conventions), **review and update** the affected doc(s) so they match the repo.
+- **When editing any agent-facing file** (`AGENTS.md`, `CLAUDE.md`, this file, or **high-priority.mdc**), **compare the same topic across the others** and **keep rules aligned**—especially CSS co-location, HTML/`esc()` discipline, architecture, and file-creation/minimal-diff discipline. Do not let one file mandate what another omits or contradicts.
+- If a rule is intended to be global, mirror it across every global-rules file or replace repetition with a single explicit pointer.
+
 ## Core principles
 - Keep the codebase small, boring, and easy to inspect manually.
 - Prefer the simplest implementation that satisfies the requirement.
@@ -47,11 +55,14 @@ alwaysApply: true
 - Keep UI components simple, readable, and easy to edit.
 - Do not add visual complexity, animation libraries, or design systems unless explicitly requested.
 - Prioritize function over polish.
-- Co-locate styles with the page or component that owns them.
-- Keep `src/App.css` limited to design tokens, app shell/layout primitives, shared utility classes, print/PDF globals, and other truly global rules.
-- Do not add new page-specific or feature-specific styles to `src/App.css`.
-- New pages and major components should import their own CSS file (for example `ComponentName.tsx` + `ComponentName.css`).
-- If a style is only used by one page or component, it belongs with that page or component.
+
+### CSS co-location (mandatory)
+- **Own your styles:** Co-locate with the owning page or component (same directory); `ComponentName.tsx` imports `./ComponentName.css` (or the repo’s established pairing).
+- **`App.css` scope only:** `src/App.css` is for design tokens (`:root`), app shell/layout, **shared** utility classes, print/PDF globals, and **truly cross-cutting** rules—not for one screen, wizard, modal, or feature.
+- **No new feature CSS in `App.css`:** Do not add page-specific or feature-specific styles there; put them in the owner’s co-located CSS file.
+- **New UI surfaces:** New pages and major components **must** include a paired CSS file (e.g. `FooPage.tsx` + `FooPage.css`).
+- **Single owner:** Styles used by only one page or component live in **that** file’s CSS, not `App.css` and not a sibling’s CSS.
+- **Global exceptions:** Intentionally shared primitives (e.g. reused badges, header chrome) may remain in `App.css`; follow existing patterns and CLAUDE.md structure notes.
 
 ## Type safety and consistency
 - Do not invent fields not present in the canonical schema.
