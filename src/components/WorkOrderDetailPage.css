@@ -21,24 +21,48 @@
   border-bottom: none;
 }
 
-.co-list-number {
+.co-list-item .work-orders-row-detail-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.co-list-heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  font-size: 18px;
   font-weight: 700;
-  font-size: 14px;
-  white-space: nowrap;
+  color: var(--primary);
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.co-list-heading span {
+  display: inline-block;
+  padding-bottom: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-bottom: 2px solid var(--text-primary);
+}
+
+.co-list-number {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .co-list-desc {
-  flex: 1;
-  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  color: var(--text-secondary);
+  max-width: 22ch;
 }
 
 .co-list-amount {
-  font-weight: 500;
   font-size: 14px;
-  white-space: nowrap;
+  font-weight: 600;
+  color: #2a7a3b;
 }

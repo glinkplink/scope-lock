@@ -219,9 +219,7 @@ export function WorkOrderDetailPage({
         </div>
       </div>
 
-      <p className="co-section-label" style={{ marginTop: 'var(--space-lg)' }}>
-        Change orders
-      </p>
+      <h2 className="co-list-heading"><span>Change Orders</span></h2>
       {coNewCoBlockError ? (
         <p className="work-orders-empty" role="alert">
           {coNewCoBlockError}
@@ -255,15 +253,10 @@ export function WorkOrderDetailPage({
                     className="work-orders-row-detail-hit"
                     onClick={() => onOpenCODetail(co)}
                   >
-                    <span className="co-list-number">CO #{String(co.co_number).padStart(4, '0')}</span>
                     <span className="co-list-desc">{co.description || '—'}</span>
+                    <span className="co-list-amount">${computeCOTotal(co.line_items).toFixed(2)}</span>
+                    <span className="co-list-number">CO #{String(co.co_number).padStart(4, '0')}</span>
                   </button>
-                  <span className="work-orders-meta">
-                    <span className={`co-status-badge ${co.status === 'pending_approval' ? 'pending' : co.status}`}>
-                      {co.status.replace('_', ' ')}
-                    </span>
-                    {' '}${computeCOTotal(co.line_items).toFixed(2)}
-                  </span>
                 </div>
                 <div className="work-orders-row-actions">
                   {coInvoiceStatusLoading ? (

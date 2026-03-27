@@ -168,9 +168,7 @@ export function generateChangeOrderHtml(
   return `
     <div class="agreement-document change-order-document">
       <h2 class="invoice-title">${coNum}</h2>
-      <p class="content-paragraph" style="text-align:center;margin-top:-0.5rem;">
-        For ${esc(woNum)} — ${esc(job.asset_or_item_description || 'Work order')}
-      </p>
+      <p class="co-doc-wo-ref">Applies to ${esc(woNum)}</p>
       ${partiesMarkup(dateStr, profile, job)}
       <h3 class="section-title">Description of change</h3>
       <p class="content-paragraph">${esc(co.description).replaceAll('\n', '<br />')}</p>

@@ -55,10 +55,12 @@ export function ChangeOrderDetailPage({
     try {
       const inner = generateChangeOrderHtml(co, job, profile);
       const filename = getCoPdfFilename(co.co_number, job.customer_name);
+      const woLabel = job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : '';
       const blob = await fetchHtmlPdfBlob({
         filename,
         innerMarkup: inner,
         marginHeaderLeft: coLabel,
+        workOrderNumber: woLabel,
         providerName: footerMeta.providerName,
         providerPhone: footerMeta.providerPhone,
       });
@@ -100,13 +102,6 @@ export function ChangeOrderDetailPage({
         </div>
       ) : null}
 
-      <div className="co-detail-meta-row">
-        <span className={`co-status-badge ${statusBadgeClass(co.status)}`}>
-          {co.status.replace('_', ' ')}
-        </span>
-        <span className="co-detail-total">${total.toFixed(2)}</span>
-      </div>
-
       <div className="work-order-detail-scroll">
         <div
           className="agreement-document work-order-detail-document"
@@ -132,7 +127,7 @@ export function ChangeOrderDetailPage({
         </button>
         <button
           type="button"
-          className="btn-text co-detail-delete"
+          className="btn-secondary btn-large work-order-detail-download"
           onClick={() => void handleDelete()}
         >
           Delete

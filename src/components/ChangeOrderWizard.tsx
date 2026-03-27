@@ -316,13 +316,6 @@ export function ChangeOrderWizard({
                     />
                   </div>
                 </div>
-                <div className="co-field-total" aria-label="Line total">
-                  $
-                  {(row.quantity * row.unit_rate).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </div>
                 <button
                   type="button"
                   className="co-remove-btn"
