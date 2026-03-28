@@ -1,8 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import { buildEsignRowFromSubmission, pickCustomerSubmitter } from './docuseal-esign-state.mjs';
-
-const DOCUSEAL_CUSTOMER_ROLE = 'Customer';
+import { buildEsignRowFromSubmission, pickCustomerSubmitter, DOCUSEAL_CUSTOMER_ROLE } from './docuseal-esign-state.mjs';
 
 function env(name, fallback = '') {
   const v = process.env[name];
@@ -103,23 +101,28 @@ function publicEsignPayload(row) {
   };
 }
 
-async function resolveJobIdForWebhook(supabase, webhookData, verifiedSubmission) {
+async function resolveJobForWebhook(supabase, webhookData, verifiedSubmission) {
   const d = webhookData || {};
   const ext =
     d.external_id ||
     pickCustomerSubmitter(verifiedSubmission)?.external_id ||
     d.submitters?.[0]?.external_id;
   if (ext && isUuid(ext)) {
-    return String(ext);
+    const { data: row } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', String(ext))
+      .maybeSingle();
+    return row ? { job: row, resolvedBy: 'external_id' } : null;
   }
   const sid = verifiedSubmission?.id ?? d.submission?.id;
   if (sid == null) return null;
   const { data: row } = await supabase
     .from('jobs')
-    .select('id')
+    .select('*')
     .eq('esign_submission_id', String(sid))
     .maybeSingle();
-  return row?.id ?? null;
+  return row ? { job: row, resolvedBy: 'submission_id' } : null;
 }
 
 function matchEsignPath(method, pathname) {
@@ -301,6 +304,23 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
     }
   }
 
+  // Fallback patch: if the optional submission refresh below fails, we still
+  // know the resend happened, so write a consistent "sent" state rather than
+  // returning the stale pre-resend row.
+  const resendFallbackPatch = reconcileFromSubmission
+    ? null
+    : {
+        esign_status: 'sent',
+        esign_sent_at: new Date().toISOString(),
+        esign_submission_state: 'sent',
+        esign_submitter_state: 'sent',
+        esign_opened_at: null,
+        esign_completed_at: null,
+        esign_declined_at: null,
+        esign_decline_reason: null,
+        esign_signed_document_url: null,
+      };
+
   let submission = null;
   if (job.esign_submission_id) {
     try {
@@ -339,6 +359,22 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
         sendJson(res, 200, { jobId, ...publicEsignPayload(updated) });
         return;
       }
+    }
+  }
+
+  // Submission refresh failed or returned no usable patch — apply the
+  // fallback so the UI reflects "sent" rather than stale pre-resend state.
+  if (resendFallbackPatch) {
+    const { data: fallbackUpdated, error: fbErr } = await supabase
+      .from('jobs')
+      .update(resendFallbackPatch)
+      .eq('id', jobId)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
+    if (!fbErr && fallbackUpdated) {
+      sendJson(res, 200, { jobId, ...publicEsignPayload(fallbackUpdated) });
+      return;
     }
   }
 
@@ -393,19 +429,21 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   }
 
   const supabase = createServiceSupabase();
-  const jobId = await resolveJobIdForWebhook(supabase, data, verified);
-  if (!jobId) {
+  const resolved = await resolveJobForWebhook(supabase, data, verified);
+  if (!resolved) {
     sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
 
-  const { data: job } = await supabase.from('jobs').select('*').eq('id', jobId).maybeSingle();
-  if (!job) {
-    sendJson(res, 200, { ok: true, ignored: true });
-    return;
-  }
+  const { job, resolvedBy } = resolved;
 
-  if (job.esign_submission_id && String(verified.id) !== String(job.esign_submission_id)) {
+  // Stale-submission check only applies when the job was found via external_id.
+  // When resolved by submission_id the match is guaranteed by the query itself.
+  if (
+    resolvedBy === 'external_id' &&
+    job.esign_submission_id &&
+    String(verified.id) !== String(job.esign_submission_id)
+  ) {
     sendJson(res, 200, { ok: true, ignored: true, reason: 'stale_submission' });
     return;
   }
@@ -416,7 +454,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     return;
   }
 
-  const { error: upErr } = await supabase.from('jobs').update(patch).eq('id', jobId);
+  const { error: upErr } = await supabase.from('jobs').update(patch).eq('id', job.id);
   if (upErr) {
     console.error('Webhook job update failed:', upErr);
     sendJson(res, 500, { error: 'Database update failed.' });

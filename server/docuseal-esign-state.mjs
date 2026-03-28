@@ -1,6 +1,6 @@
 /** DocuSeal submission/submitter → DB patch fields. Keep server-only; tested via Vitest importing this module. */
 
-const DOCUSEAL_CUSTOMER_ROLE = 'Customer';
+export const DOCUSEAL_CUSTOMER_ROLE = 'Customer';
 
 export function pickCustomerSubmitter(submission) {
   const list = submission?.submitters || [];

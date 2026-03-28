@@ -1,4 +1,5 @@
 declare module '@scope-server/docuseal-esign-state.mjs' {
+  export const DOCUSEAL_CUSTOMER_ROLE: string;
   export function pickCustomerSubmitter(submission: unknown): unknown;
   export function deriveEsignStatus(submission: unknown, submitter: unknown): string;
   export function pickSignedDocumentUrl(

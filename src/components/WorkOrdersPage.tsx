@@ -7,7 +7,7 @@ import type {
   WorkOrderListJob,
   WorkOrderInvoiceStatus,
 } from '../types/db';
-import { listJobsForWorkOrders, getJobById } from '../lib/db/jobs';
+import { listJobsForWorkOrders, listInFlightEsignJobs, getJobById } from '../lib/db/jobs';
 import { listInvoiceStatusByJob, getInvoice, invoiceStatusMapFromRows } from '../lib/db/invoices';
 import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
 import { ESIGN_POLL_INTERVAL_MS, shouldPollEsignStatus } from '../lib/esign-live';
@@ -183,10 +183,11 @@ export function WorkOrdersPage({
         schedule();
         return;
       }
-      const rows = await listJobsForWorkOrders(userId);
+      const updatedRows = await listInFlightEsignJobs(userId);
       if (cancelled) return;
-      setJobs(rows);
-      if (rows.some((job) => shouldPollEsignStatus(job.esign_status))) {
+      const updatedById = new Map(updatedRows.map((r) => [r.id, r]));
+      setJobs((prev) => prev.map((job) => updatedById.get(job.id) ?? job));
+      if (updatedRows.some((job) => shouldPollEsignStatus(job.esign_status))) {
         schedule();
       }
     };

@@ -52,6 +52,24 @@ export const listJobsForWorkOrders = async (userId: string): Promise<WorkOrderLi
   return (data ?? []).map((row) => mapWorkOrderListRow(row as Record<string, unknown>));
 };
 
+export const listInFlightEsignJobs = async (userId: string): Promise<WorkOrderListJob[]> => {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(
+      'id, wo_number, customer_name, job_type, other_classification, agreement_date, created_at, price, esign_status'
+    )
+    .eq('user_id', userId)
+    .in('esign_status', ['sent', 'opened'])
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error listing in-flight esign jobs:', error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => mapWorkOrderListRow(row as Record<string, unknown>));
+};
+
 export const getJobById = async (id: string): Promise<Job | null> => {
   const { data, error } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle();
 

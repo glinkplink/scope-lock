@@ -27,7 +27,7 @@ export function buildDocusealHtmlHeader(workOrderLabel: string): string {
   <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cccccc;padding:0 0 4px;width:100%;">
     <span style="flex:1;text-align:left;white-space:nowrap;"><span style="font-size:calc(9px + 1pt);font-weight:700;">${left}</span></span>
     <span style="flex:1;text-align:center;white-space:nowrap;text-transform:uppercase;">Confidential</span>
-    <span style="flex:1;text-align:right;white-space:nowrap;"><span style="font-size:calc(9px + 1pt);font-weight:700;">${left}</span></span>
+    <span style="flex:1;text-align:right;white-space:nowrap;">&nbsp;</span>
   </div>
   <div style="height:10px;"></div>
 </div>
