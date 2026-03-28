@@ -8,6 +8,9 @@ const searchClients = vi.fn();
 vi.mock('../../lib/db/clients', () => ({
   searchClients: (...args: unknown[]) => searchClients(...args),
 }));
+vi.mock('../../lib/geoapify-autocomplete', () => ({
+  fetchGeoapifyAddressSuggestions: vi.fn().mockResolvedValue([]),
+}));
 import { JobForm } from '../JobForm';
 import type { WelderJob } from '../../types';
 import type { Client } from '../../types/db';
