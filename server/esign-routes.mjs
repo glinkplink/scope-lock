@@ -783,12 +783,11 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
     return;
   }
 
-  let body;
+  let body = {};
   try {
     body = await readJsonBody(req);
   } catch {
-    sendJson(res, 400, { error: 'Invalid JSON body.' });
-    return;
+    body = {};
   }
 
   const supabase = getServiceSupabase();
@@ -814,62 +813,91 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
     sendJson(res, 404, { error: 'Change order not found.' });
     return;
   }
-  if (!co.esign_submitter_id) {
-    sendJson(res, 400, { error: 'Change order has not been sent for signature yet.' });
+
+  const submitterId = co.esign_submitter_id;
+  if (!submitterId) {
+    sendJson(res, 400, { error: 'No signature request to resend. Send first.' });
     return;
   }
 
-  let submission;
+  const putBody = { send_email: true };
+  if (body.message && typeof body.message === 'object') {
+    putBody.message = body.message;
+  }
+
+  let reconcileFromSubmission = false;
   try {
-    submission = await docusealFetchJson(`/submitters/${co.esign_submitter_id}`, {
+    await docusealFetchJson(`/submitters/${submitterId}`, {
       method: 'PUT',
-      body: JSON.stringify({
-        ...(body.message && typeof body.message === 'object'
-          ? { message: body.message }
-          : {}),
-      }),
+      body: JSON.stringify(putBody),
     });
   } catch (e) {
-    const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-    sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal resend failed.' });
-    return;
-  }
-
-  const coJobId = co.job_id;
-
-  // Re-fetch from DocuSeal to get fresh status
-  let freshSubmission = null;
-  try {
-    freshSubmission = await docusealFetchJson(`/submissions/${co.esign_submission_id}`);
-  } catch {
-    // Fallback: use response from PUT /submitters
-    freshSubmission = submission;
-  }
-
-  const patch = freshSubmission ? buildEsignRowFromSubmission(freshSubmission) : null;
-
-  // Fallback: preserve timestamps if no new state available
-  const resendFallbackPatch = {
-    esign_status: 'sent',
-    esign_submitter_state: submission.status,
-    esign_sent_at: co.esign_sent_at || new Date().toISOString(),
-  };
-
-  if (patch) {
-    const { data: updated, error: upErr } = await supabase
-      .from('change_orders')
-      .update(patch)
-      .eq('id', coId)
-      .eq('user_id', userId)
-      .select('*')
-      .single();
-    if (!upErr && updated) {
-      sendJson(res, 200, { coId, jobId: coJobId, ...publicCoEsignPayload(updated) });
+    if (e?.status === 422 && co.esign_submission_id) {
+      reconcileFromSubmission = true;
+    } else {
+      const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+      sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal resend failed.' });
       return;
     }
   }
 
-  // Fallback
+  const resendFallbackPatch = reconcileFromSubmission
+    ? null
+    : {
+        esign_status: 'sent',
+        esign_sent_at: new Date().toISOString(),
+        esign_submission_state: 'sent',
+        esign_submitter_state: 'sent',
+        esign_opened_at: null,
+        esign_completed_at: null,
+        esign_declined_at: null,
+        esign_decline_reason: null,
+        esign_signed_document_url: null,
+      };
+
+  let submission = null;
+  if (co.esign_submission_id) {
+    try {
+      submission = await docusealFetchJson(`/submissions/${co.esign_submission_id}`, {
+        method: 'GET',
+      });
+    } catch (submissionErr) {
+      if (reconcileFromSubmission) {
+        const status =
+          submissionErr?.status && submissionErr.status >= 400 && submissionErr.status < 600
+            ? submissionErr.status
+            : 502;
+        sendJson(res, status, {
+          error:
+            submissionErr instanceof Error
+              ? submissionErr.message
+              : 'DocuSeal refresh after resend failed.',
+        });
+        return;
+      }
+      submission = null;
+    }
+  }
+
+  const coJobId = co.job_id;
+
+  if (submission) {
+    const patch = buildEsignRowFromSubmission(submission);
+    if (patch) {
+      const { data: updated, error: upErr } = await supabase
+        .from('change_orders')
+        .update(patch)
+        .eq('id', coId)
+        .eq('user_id', userId)
+        .select('*')
+        .single();
+      if (!upErr && updated) {
+        sendJson(res, 200, { coId, jobId: coJobId, ...publicCoEsignPayload(updated) });
+        return;
+      }
+    }
+  }
+
   if (resendFallbackPatch) {
     const { data: fallbackUpdated, error: fbErr } = await supabase
       .from('change_orders')
@@ -959,7 +987,15 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
           sendJson(res, 502, { error: 'Could not verify submission with DocuSeal.' });
           return;
         }
-        await handleChangeOrderWebhookUpdate(supabase, coResolved.co, verifiedInfo, sendJson);
+        if (!verifiedInfo || !verifiedInfo.verified) {
+          console.log('[webhook] ignored: could not determine submission to verify (change order)', {
+            coId: String(coResolved.co.id),
+            submitterId: submitterId != null ? String(submitterId) : null,
+          });
+          sendJson(res, 200, { ok: true, ignored: true });
+          return;
+        }
+        await handleChangeOrderWebhookUpdate(supabase, coResolved.co, verifiedInfo, sendJson, res);
         return;
       }
       console.log('[webhook] ignored: missing correlation', {
@@ -1025,7 +1061,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
       // Try CO resolution as fallback
       const coResolved = await resolveChangeOrderForVerifiedSubmissionWebhook(supabase, data, verifiedInfo.verified);
       if (coResolved) {
-        await handleChangeOrderWebhookUpdate(supabase, coResolved.co, verifiedInfo, sendJson);
+        await handleChangeOrderWebhookUpdate(supabase, coResolved.co, verifiedInfo, sendJson, res);
         return;
       }
       console.log('[webhook] ignored: no matching job', {
@@ -1150,7 +1186,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
 }
 
 /** Handle webhook update for a change order (simplified form-webhook path). */
-async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, sendJson) {
+async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, sendJson, res) {
   if (!verifiedInfo || !verifiedInfo.verified) {
     console.log('[webhook] CO ignored: could not verify submission');
     sendJson(res, 200, { ok: true, ignored: true });

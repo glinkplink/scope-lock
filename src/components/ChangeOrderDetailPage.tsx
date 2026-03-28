@@ -8,12 +8,12 @@ import {
   downloadPdfBlobToFile,
 } from '../lib/agreement-pdf';
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
-import { buildDocusealChangeOrderHtmlDocument } from '../lib/docuseal-change-order-html';
+import { buildDocusealChangeOrderEsignParts } from '../lib/docuseal-change-order-html';
 import '../lib/change-order-document.css';
 import { deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
-import { shouldPollEsignStatus } from '../lib/esign-live';
-import { getEsignProgressModel, formatEsignTimestamp } from '../lib/esign-progress';
+import { shouldPollEsignStatus, formatEsignTimestamp } from '../lib/esign-live';
+import { getEsignProgressModel } from '../lib/esign-progress';
 import { useEsignPoller } from '../hooks/useEsignPoller';
 import {
   sendChangeOrderForSignature,
@@ -82,7 +82,7 @@ export function ChangeOrderDetailPage({
   const copySigningLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const esignProgress = useMemo(
-    () => getEsignProgressModel(co.esign_status),
+    () => getEsignProgressModel(co.esign_status, 'change_order'),
     [co.esign_status]
   );
 
@@ -98,7 +98,8 @@ export function ChangeOrderDetailPage({
     enabled: Boolean(onCoUpdated) && shouldPollEsignStatus(co.esign_status),
     pollOnce: async () => {
       const row = await refreshCoRow();
-      return Boolean(row) && shouldPollEsignStatus(row.esign_status);
+      if (!row) return false;
+      return shouldPollEsignStatus(row.esign_status);
     },
   });
 
@@ -120,14 +121,31 @@ export function ChangeOrderDetailPage({
 
   const buildCoEsignPayload = async () => {
     const coLabelNum = String(co.co_number).padStart(4, '0');
-    const html = buildDocusealChangeOrderHtmlDocument(co, job, profile);
+    const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile);
     return {
-      documents: [{ html, name: `Change Order #${coLabelNum}` }],
+      name: `Change Order #${coLabelNum}`,
+      send_email: true,
+      documents: [
+        {
+          name: `Change Order #${coLabelNum}`,
+          html,
+          html_header,
+          html_footer,
+        },
+      ],
+      message: {
+        subject: `Please sign: Change Order #${coLabelNum}`,
+        body: `Please review and sign the change order.\n\n{{submitter.link}}`,
+      },
     };
   };
 
   const handleSendForSignature = async () => {
     setPdfError('');
+    if (!(job.customer_email || '').trim()) {
+      setPdfError('Customer email is missing on this work order. Edit the job to add it.');
+      return;
+    }
     setCoEsignBusy(true);
     try {
       const r = await sendChangeOrderForSignature(co.id, await buildCoEsignPayload());
@@ -195,56 +213,117 @@ export function ChangeOrderDetailPage({
         </div>
       ) : null}
 
-      {/* E-sign section */}
-      {co.esign_status === 'not_sent' ? (
-        <div className="wo-esign-section">
-          <button
-            type="button"
-            className="btn-primary btn-large"
-            disabled={coEsignBusy}
-            onClick={() => void handleSendForSignature()}
-          >
-            {coEsignBusy ? 'Sending…' : 'Send for Signature'}
-          </button>
+      <section className="wo-esign-card" aria-labelledby="co-esign-heading">
+        <h2 id="co-esign-heading" className="wo-esign-heading">
+          Customer signature
+        </h2>
+        <div
+          className="wo-esign-timeline"
+          role="group"
+          aria-label={`Customer signature status: ${esignProgress.title}`}
+        >
+          {esignProgress.steps.map((step, index) => (
+            <div
+              key={step.key}
+              className={`wo-esign-step wo-esign-step-${step.tone}`}
+              aria-current={step.tone !== 'inactive' ? 'step' : undefined}
+            >
+              <span
+                className={`wo-esign-step-dot${step.tone === 'inactive' ? '' : ' wo-esign-step-dot-filled'}`}
+                aria-hidden="true"
+              />
+              <span className="wo-esign-step-label">{step.label}</span>
+              {index < esignProgress.steps.length - 1 ? (
+                <span className="wo-esign-step-line" aria-hidden="true" />
+              ) : null}
+            </div>
+          ))}
         </div>
-      ) : (
-        <div className="wo-esign-section">
-          {esignProgress ? (
-            <div className="wo-esign-progress-strip">
-              <span className={`wo-esign-status-badge wo-esign-status-${co.esign_status}`}>
-                {esignProgress.label}
-              </span>
-              {esignProgress.tone === 'success' && co.esign_completed_at && (
-                <span className="wo-esign-timestamp">
-                  {formatEsignTimestamp(co.esign_completed_at)}
-                </span>
-              )}
+        <p className="wo-esign-summary">{esignProgress.summary}</p>
+        <dl className="wo-esign-meta">
+          {co.esign_sent_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Sent</dt>
+              <dd>{formatEsignTimestamp(co.esign_sent_at)}</dd>
             </div>
           ) : null}
-
-          <div className="wo-esign-actions">
-            {(co.esign_status === 'sent' || co.esign_status === 'opened') && (
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={coEsignBusy}
-                onClick={() => void handleResendSignature()}
-              >
-                {coEsignBusy ? 'Resending…' : 'Resend'}
-              </button>
-            )}
-            {co.esign_embed_src && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => handleCopySigningLink()}
-              >
-                {coSigningLinkCopied ? 'Copied!' : 'Copy signing link'}
-              </button>
-            )}
-          </div>
+          {co.esign_opened_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Opened</dt>
+              <dd>{formatEsignTimestamp(co.esign_opened_at)}</dd>
+            </div>
+          ) : null}
+          {co.esign_completed_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Signed</dt>
+              <dd>{formatEsignTimestamp(co.esign_completed_at)}</dd>
+            </div>
+          ) : null}
+          {co.esign_declined_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Declined</dt>
+              <dd>{formatEsignTimestamp(co.esign_declined_at)}</dd>
+            </div>
+          ) : null}
+          {co.esign_decline_reason ? (
+            <div className="wo-esign-meta-row wo-esign-meta-row-reason">
+              <dt>Decline reason</dt>
+              <dd>{co.esign_decline_reason}</dd>
+            </div>
+          ) : null}
+        </dl>
+        <div className="wo-esign-actions">
+          {!co.esign_submitter_id ? (
+            <button
+              type="button"
+              className="btn-primary btn-action wo-esign-actions-primary"
+              disabled={coEsignBusy || !job.customer_email?.trim()}
+              title={
+                !job.customer_email?.trim() ? 'Customer email is required to send for signature' : undefined
+              }
+              onClick={() => void handleSendForSignature()}
+            >
+              {coEsignBusy ? 'Sending…' : 'Send for signature'}
+            </button>
+          ) : co.esign_status !== 'completed' ? (
+            <button
+              type="button"
+              className="btn-primary btn-action wo-esign-actions-primary"
+              disabled={coEsignBusy}
+              onClick={() => void handleResendSignature()}
+            >
+              {coEsignBusy ? 'Sending…' : 'Resend change order'}
+            </button>
+          ) : null}
+          {co.esign_embed_src ? (
+            <button
+              type="button"
+              className="btn-secondary btn-action wo-esign-actions-copy"
+              disabled={coEsignBusy}
+              onClick={() => void handleCopySigningLink()}
+            >
+              <span aria-live="polite">
+                {coSigningLinkCopied ? 'Copied to clipboard' : 'Copy signing link'}
+              </span>
+            </button>
+          ) : null}
+          {co.esign_signed_document_url &&
+          co.esign_signed_document_url.trim().startsWith('https://') ? (
+            <a
+              className="btn-secondary btn-action"
+              href={co.esign_signed_document_url.trim()}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              View signed PDF
+            </a>
+          ) : co.esign_signed_document_url ? (
+            <span className="btn-secondary btn-action wo-esign-signed-link-fallback" title={co.esign_signed_document_url}>
+              Signed PDF link unavailable
+            </span>
+          ) : null}
         </div>
-      )}
+      </section>
 
       <div className="work-order-detail-scroll">
         <div

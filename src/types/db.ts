@@ -204,7 +204,7 @@ export interface ChangeOrder {
   esign_submission_id?: string | null;
   esign_submitter_id?: string | null;
   esign_embed_src?: string | null;
-  esign_status?: EsignJobStatus;
+  esign_status: EsignJobStatus;
   esign_submission_state?: string | null;
   esign_submitter_state?: string | null;
   esign_sent_at?: string | null;

@@ -210,7 +210,8 @@ export function WorkOrderDetailPage({
     enabled: Boolean(onJobUpdated) && shouldPollEsignStatus(job.esign_status),
     pollOnce: async () => {
       const row = await refreshJobRow();
-      return Boolean(row) && shouldPollEsignStatus(row.esign_status);
+      if (!row) return false;
+      return shouldPollEsignStatus(row.esign_status);
     },
   });
 

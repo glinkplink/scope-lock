@@ -104,13 +104,14 @@ const FIELD_STYLE_DATE =
   'width: 140px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
 
 /**
- * Build DocuSeal HTML document for a change order with signature fields.
+ * DocuSeal submission parts for a change order: full `documents[].html` plus repeating
+ * `html_header` / `html_footer` (matches work order e-sign payload shape).
  */
-export function buildDocusealChangeOrderHtmlDocument(
+export function buildDocusealChangeOrderEsignParts(
   co: ChangeOrder,
   job: Job,
   profile: BusinessProfile | null
-): string {
+): { html: string; html_header: string; html_footer: string } {
   const woNum = job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const coNum = `Change Order #${String(co.co_number).padStart(4, '0')}`;
   const coLabel = coNum;
@@ -203,12 +204,12 @@ export function buildDocusealChangeOrderHtmlDocument(
     </div>
   `;
 
-  const header = buildDocusealHtmlHeader(coLabel);
   const welderJob: WelderJob = jobRowToWelderJob(job, profile);
   const footerLine = buildDocusealEsignFooterLine(profile, welderJob);
-  const footer = buildDocusealHtmlFooter(footerLine);
+  const html_header = buildDocusealHtmlHeader(coLabel);
+  const html_footer = buildDocusealHtmlFooter(footerLine);
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -216,9 +217,9 @@ export function buildDocusealChangeOrderHtmlDocument(
   ${docusealAgreementEmbeddedStyles()}
 </head>
 <body>
-${header}
 ${bodyContent}
-${footer}
 </body>
 </html>`;
+
+  return { html, html_header, html_footer };
 }

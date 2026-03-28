@@ -20,8 +20,17 @@ function buildBaseSteps(): [EsignProgressStep, EsignProgressStep, EsignProgressS
   ];
 }
 
-export function getEsignProgressModel(status: EsignJobStatus): EsignProgressModel {
+export function getEsignProgressModel(
+  status: EsignJobStatus,
+  documentKind: 'work_order' | 'change_order' = 'work_order'
+): EsignProgressModel {
   const steps = buildBaseSteps();
+  const docCompleted =
+    documentKind === 'change_order' ? 'Change order has been signed.' : 'Work order has been signed.';
+  const docDeclined =
+    documentKind === 'change_order'
+      ? 'Customer declined the change order.'
+      : 'Customer declined the work order.';
 
   switch (status) {
     case 'sent':
@@ -35,13 +44,13 @@ export function getEsignProgressModel(status: EsignJobStatus): EsignProgressMode
       steps[0].tone = 'active';
       steps[1].tone = 'active';
       steps[2].tone = 'success';
-      return { title: 'Signed', summary: 'Work order has been signed.', steps };
+      return { title: 'Signed', summary: docCompleted, steps };
     case 'declined':
       steps[0].tone = 'active';
       steps[1].tone = 'active';
       steps[2].label = 'Declined';
       steps[2].tone = 'danger';
-      return { title: 'Declined', summary: 'Customer declined the work order.', steps };
+      return { title: 'Declined', summary: docDeclined, steps };
     case 'expired':
       steps[0].tone = 'active';
       steps[2].label = 'Expired';

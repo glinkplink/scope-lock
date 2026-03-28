@@ -120,6 +120,7 @@ function makeCO(n: number, description: string): ChangeOrder {
     time_note: '',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
+    esign_status: 'not_sent',
   };
 }
 

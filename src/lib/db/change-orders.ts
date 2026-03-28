@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { ChangeOrder, ChangeOrderLineItem } from '../../types/db';
+import type { ChangeOrder, ChangeOrderLineItem, EsignJobStatus } from '../../types/db';
 
 /** Same text as RAISE in migration `0008_block_co_after_job_invoice.sql`. */
 export const CHANGE_ORDER_BLOCKED_AFTER_FINALIZED_WO_INVOICE =
@@ -40,6 +40,12 @@ function parseStatus(raw: unknown): ChangeOrder['status'] {
     : 'draft';
 }
 
+function optStringCol(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === 'string') return v;
+  return String(v);
+}
+
 function mapChangeOrderRow(data: Record<string, unknown>): ChangeOrder {
   const li = Array.isArray(data.line_items)
     ? data.line_items.filter(
@@ -48,7 +54,7 @@ function mapChangeOrderRow(data: Record<string, unknown>): ChangeOrder {
     : [];
 
   const esignRaw = data.esign_status;
-  const esign_status: ChangeOrder['esign_status'] =
+  const esign_status: EsignJobStatus =
     esignRaw === 'sent' ||
     esignRaw === 'opened' ||
     esignRaw === 'completed' ||
@@ -72,18 +78,18 @@ function mapChangeOrderRow(data: Record<string, unknown>): ChangeOrder {
     time_note: String(data.time_note ?? ''),
     created_at: String(data.created_at ?? ''),
     updated_at: String(data.updated_at ?? ''),
-    esign_submission_id: data.esign_submission_id ?? null,
-    esign_submitter_id: data.esign_submitter_id ?? null,
-    esign_embed_src: data.esign_embed_src ?? null,
+    esign_submission_id: optStringCol(data.esign_submission_id),
+    esign_submitter_id: optStringCol(data.esign_submitter_id),
+    esign_embed_src: optStringCol(data.esign_embed_src),
     esign_status,
-    esign_submission_state: data.esign_submission_state ?? null,
-    esign_submitter_state: data.esign_submitter_state ?? null,
-    esign_sent_at: data.esign_sent_at ?? null,
-    esign_opened_at: data.esign_opened_at ?? null,
-    esign_completed_at: data.esign_completed_at ?? null,
-    esign_declined_at: data.esign_declined_at ?? null,
-    esign_decline_reason: data.esign_decline_reason ?? null,
-    esign_signed_document_url: data.esign_signed_document_url ?? null,
+    esign_submission_state: optStringCol(data.esign_submission_state),
+    esign_submitter_state: optStringCol(data.esign_submitter_state),
+    esign_sent_at: optStringCol(data.esign_sent_at),
+    esign_opened_at: optStringCol(data.esign_opened_at),
+    esign_completed_at: optStringCol(data.esign_completed_at),
+    esign_declined_at: optStringCol(data.esign_declined_at),
+    esign_decline_reason: optStringCol(data.esign_decline_reason),
+    esign_signed_document_url: optStringCol(data.esign_signed_document_url),
   };
 }
 

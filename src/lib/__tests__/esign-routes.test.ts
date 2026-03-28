@@ -9,6 +9,12 @@ function requestUrl(input: string | URL | Request): string {
   return input.url;
 }
 
+/** Vitest `vi.fn` mock.calls is typed as `[]`; unwrap first argument safely for strict TS. */
+function firstMockCallArg(mockFn: { mock: { calls: unknown[][] } }): unknown {
+  const row = mockFn.mock.calls[0];
+  return row?.[0];
+}
+
 const createClientMock = vi.fn();
 vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
@@ -28,6 +34,7 @@ function nodeEnv(): ProcEnv {
 const JOB_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const OTHER_JOB_UUID = '550e8400-e29b-41d4-a716-446655440099';
 const USER_UUID = '660e8400-e29b-41d4-a716-446655440001';
+const CO_UUID = '770e8400-e29b-41d4-a716-446655440002';
 
 function captureRes() {
   let status = 0;
@@ -78,7 +85,22 @@ function baseJobRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function docusealSubmissionResponse(submissionId: number | string) {
+/** Loose DocuSeal submission fixture for fetch mocks (extra fields allowed). */
+function docusealSubmissionResponse(submissionId: number | string): {
+  id: string | number;
+  status: string;
+  completed_at?: string;
+  submitters: Array<{
+    id: number;
+    role: string;
+    status: string;
+    external_id?: string;
+    embed_src: string;
+    opened_at?: string;
+    completed_at?: string;
+    documents?: unknown[];
+  }>;
+} {
   return {
     id: submissionId,
     status: 'pending',
@@ -112,6 +134,66 @@ function mockWebhookSupabase(findJob: (column: string, value: string) => unknown
       })),
       update: updateMock,
     })),
+  });
+
+  return { updateEqMock, updateMock };
+}
+
+function baseCORow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: CO_UUID,
+    user_id: USER_UUID,
+    job_id: JOB_UUID,
+    co_number: 3,
+    esign_submission_id: null,
+    esign_submitter_id: null,
+    esign_embed_src: null,
+    esign_status: 'not_sent',
+    ...overrides,
+  };
+}
+
+/** Jobs lookups return null so webhook falls through to change_orders resolution. */
+function mockWebhookSupabaseChangeOrderOnly(findCo: (column: string, value: string) => unknown) {
+  const updateEqMock = vi.fn(async () => ({ error: null }));
+  const updateMock = vi.fn(() => ({
+    eq: updateEqMock,
+  }));
+
+  createClientMock.mockReturnValue({
+    from: vi.fn((table: string) => {
+      if (table === 'jobs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
+          update: updateMock,
+        };
+      }
+      if (table === 'change_orders') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((column: string, value: string) => ({
+              maybeSingle: vi.fn(async () => ({
+                data: findCo(column, value) ?? null,
+                error: null,
+              })),
+            })),
+          })),
+          update: updateMock,
+        };
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          })),
+        })),
+        update: updateMock,
+      };
+    }),
   });
 
   return { updateEqMock, updateMock };
@@ -872,7 +954,7 @@ describe('tryHandleEsignRoute', () => {
     expect(res.status).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ ok: true });
     expect(updateEqMock).toHaveBeenCalledWith('id', JOB_UUID);
-    expect(updateEqMock.mock.calls[0]?.[0]).toBe('id');
+    expect(firstMockCallArg(updateEqMock)).toBe('id');
   });
 
   it('webhook updates opened state from form.started without payload submission id', async () => {
@@ -912,7 +994,8 @@ describe('tryHandleEsignRoute', () => {
     );
 
     expect(res.status).toBe(200);
-    const patch = updateMock.mock.calls[0]?.[0] as { esign_status?: string };
+    expect(updateMock).toHaveBeenCalled();
+    const patch = firstMockCallArg(updateMock) as { esign_status?: string };
     expect(patch.esign_status).toBe('opened');
   });
 
@@ -963,7 +1046,8 @@ describe('tryHandleEsignRoute', () => {
     );
 
     expect(res.status).toBe(200);
-    const patch = updateMock.mock.calls[0]?.[0] as { esign_status?: string };
+    expect(updateMock).toHaveBeenCalled();
+    const patch = firstMockCallArg(updateMock) as { esign_status?: string };
     expect(patch.esign_status).toBe('completed');
     expect(updateEqMock).toHaveBeenCalledWith('id', JOB_UUID);
   });
@@ -1015,7 +1099,8 @@ describe('tryHandleEsignRoute', () => {
     );
 
     expect(res.status).toBe(200);
-    const patch = updateMock.mock.calls[0]?.[0] as { esign_status?: string };
+    expect(updateMock).toHaveBeenCalled();
+    const patch = firstMockCallArg(updateMock) as { esign_status?: string };
     expect(patch.esign_status).toBe('completed');
     expect(updateEqMock).toHaveBeenCalledWith('id', JOB_UUID);
   });
@@ -1152,5 +1237,47 @@ describe('tryHandleEsignRoute', () => {
     expect(res.status).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ ok: true });
     expect(updateEqMock).toHaveBeenCalledWith('id', JOB_UUID);
+  });
+
+  it('webhook updates change order opened state from form.viewed via external_id', async () => {
+    const res = captureRes();
+    const { updateEqMock } = mockWebhookSupabaseChangeOrderOnly((column, value) => {
+      if (column === 'id' && value === CO_UUID) {
+        return baseCORow({
+          esign_submission_id: '900',
+          esign_submitter_id: '77',
+          esign_status: 'sent',
+        });
+      }
+      return null;
+    });
+
+    const submission = docusealSubmissionResponse(900);
+    submission.submitters[0].status = 'opened';
+    submission.submitters[0].opened_at = '2026-03-28T12:00:00Z';
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify(submission), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const req = {
+      method: 'POST',
+      url: '/api/webhooks/docuseal',
+      headers: { 'x-docuseal-webhook-secret': 'correct-secret' },
+    };
+    await tryHandleEsignRoute(
+      req as never,
+      res as never,
+      defaultHelpers(async () => ({
+        event_type: 'form.viewed',
+        data: { id: 77, external_id: CO_UUID },
+      }))
+    );
+
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(updateEqMock).toHaveBeenCalledWith('id', CO_UUID);
   });
 });
