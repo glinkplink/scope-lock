@@ -29,6 +29,7 @@ import {
   sendWorkOrderForSignature,
 } from '../lib/esign-api';
 import { getJobById } from '../lib/db/jobs';
+import { ESIGN_POLL_INTERVAL_MS, formatEsignTimestamp, shouldPollEsignStatus } from '../lib/esign-live';
 import { getEsignProgressModel } from '../lib/esign-progress';
 import { agreementSectionsToHtml } from '../lib/agreement-sections-html';
 import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-generator';
@@ -193,12 +194,68 @@ export function WorkOrderDetailPage({
     return changeOrderInvoiceStatusMapFromRows(coInvoiceStatusRows);
   }, [coInvoiceStatusRows]);
 
-  const refreshJobRow = async () => {
+  const refreshJobRow = useCallback(async () => {
     const row = await getJobById(job.id);
     if (row && onJobUpdated) {
       onJobUpdated(row);
     }
-  };
+    return row;
+  }, [job.id, onJobUpdated]);
+
+  useEffect(() => {
+    if (!onJobUpdated || !shouldPollEsignStatus(job.esign_status)) return;
+
+    let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTimer = () => {
+      if (timerId !== null) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
+    };
+
+    const schedule = () => {
+      clearTimer();
+      timerId = setTimeout(() => {
+        void pollOnce();
+      }, ESIGN_POLL_INTERVAL_MS);
+    };
+
+    const pollOnce = async () => {
+      if (cancelled) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        schedule();
+        return;
+      }
+      const row = await refreshJobRow();
+      if (cancelled) return;
+      if (row && shouldPollEsignStatus(row.esign_status)) {
+        schedule();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (cancelled) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        clearTimer();
+        void pollOnce();
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    schedule();
+
+    return () => {
+      cancelled = true;
+      clearTimer();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [job.esign_status, onJobUpdated, refreshJobRow]);
 
   const buildEsignPayload = () => {
     const wo = String(welderJob.wo_number).padStart(4, '0');
@@ -315,7 +372,10 @@ export function WorkOrderDetailPage({
               className={`wo-esign-step wo-esign-step-${step.tone}`}
               aria-current={step.tone !== 'inactive' ? 'step' : undefined}
             >
-              <span className="wo-esign-step-dot" aria-hidden="true" />
+              <span
+                className={`wo-esign-step-dot${step.tone === 'inactive' ? '' : ' wo-esign-step-dot-filled'}`}
+                aria-hidden="true"
+              />
               <span className="wo-esign-step-label">{step.label}</span>
               {index < esignProgress.steps.length - 1 ? (
                 <span className="wo-esign-step-line" aria-hidden="true" />
@@ -326,31 +386,31 @@ export function WorkOrderDetailPage({
         <p className="wo-esign-summary">{esignProgress.summary}</p>
         <dl className="wo-esign-meta">
           {job.esign_sent_at ? (
-            <div className="wo-esign-meta-row">
+            <div className="wo-esign-meta-row" data-testid="wo-esign-meta-sent">
               <dt>Sent</dt>
-              <dd>{new Date(job.esign_sent_at).toLocaleString()}</dd>
+              <dd>{formatEsignTimestamp(job.esign_sent_at)}</dd>
             </div>
           ) : null}
           {job.esign_opened_at ? (
-            <div className="wo-esign-meta-row">
+            <div className="wo-esign-meta-row" data-testid="wo-esign-meta-opened">
               <dt>Opened</dt>
-              <dd>{new Date(job.esign_opened_at).toLocaleString()}</dd>
+              <dd>{formatEsignTimestamp(job.esign_opened_at)}</dd>
             </div>
           ) : null}
           {job.esign_completed_at ? (
-            <div className="wo-esign-meta-row">
+            <div className="wo-esign-meta-row" data-testid="wo-esign-meta-signed">
               <dt>Signed</dt>
-              <dd>{new Date(job.esign_completed_at).toLocaleString()}</dd>
+              <dd>{formatEsignTimestamp(job.esign_completed_at)}</dd>
             </div>
           ) : null}
           {job.esign_declined_at ? (
-            <div className="wo-esign-meta-row">
+            <div className="wo-esign-meta-row" data-testid="wo-esign-meta-declined">
               <dt>Declined</dt>
-              <dd>{new Date(job.esign_declined_at).toLocaleString()}</dd>
+              <dd>{formatEsignTimestamp(job.esign_declined_at)}</dd>
             </div>
           ) : null}
           {job.esign_decline_reason ? (
-            <div className="wo-esign-meta-row">
+            <div className="wo-esign-meta-row wo-esign-meta-row-reason">
               <dt>Decline reason</dt>
               <dd>{job.esign_decline_reason}</dd>
             </div>

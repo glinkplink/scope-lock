@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';
+import { useState } from 'react';
 import type { Job, BusinessProfile, ChangeOrder } from '../../types/db';
 import { WorkOrderDetailPage } from '../WorkOrderDetailPage';
+import { ESIGN_POLL_INTERVAL_MS } from '../../lib/esign-live';
 
 const mockFns = vi.hoisted(() => {
   const listChangeOrders = vi.fn();
   const listInvoiceStatusByChangeOrder = vi.fn();
+  const getJobById = vi.fn();
+  const sendWorkOrderForSignature = vi.fn();
+  const resendWorkOrderSignature = vi.fn();
   const coBlockState = { blocks: false, error: null as Error | null };
   const getBlocksNewChangeOrdersForJob: ReturnType<typeof vi.fn<(userId: string, jobId: string) => Promise<{ blocks: boolean; error: Error | null }>>> = vi.fn(async () => ({
     blocks: coBlockState.blocks,
@@ -16,6 +21,9 @@ const mockFns = vi.hoisted(() => {
   return {
     listChangeOrders,
     listInvoiceStatusByChangeOrder,
+    getJobById,
+    sendWorkOrderForSignature,
+    resendWorkOrderSignature,
     getBlocksNewChangeOrdersForJob,
     setCoBlockResult(next: { blocks: boolean; error: Error | null }) {
       coBlockState.blocks = next.blocks;
@@ -38,6 +46,25 @@ vi.mock('../../lib/db/invoices', async (importOriginal) => {
     ...actual,
     listInvoiceStatusByChangeOrder: (jobId: string) => mockFns.listInvoiceStatusByChangeOrder(jobId),
     getBlocksNewChangeOrdersForJob: (userId: string, jobId: string) => mockFns.getBlocksNewChangeOrdersForJob(userId, jobId),
+  };
+});
+
+vi.mock('../../lib/db/jobs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/db/jobs')>();
+  return {
+    ...actual,
+    getJobById: (id: string) => mockFns.getJobById(id),
+  };
+});
+
+vi.mock('../../lib/esign-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/esign-api')>();
+  return {
+    ...actual,
+    sendWorkOrderForSignature: (jobId: string, payload: unknown) =>
+      mockFns.sendWorkOrderForSignature(jobId, payload),
+    resendWorkOrderSignature: (jobId: string, message?: unknown) =>
+      mockFns.resendWorkOrderSignature(jobId, message),
   };
 });
 
@@ -184,16 +211,57 @@ function jobWithEsign(status: Job['esign_status']): Job {
   return job;
 }
 
+async function flushAsync() {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('WorkOrderDetailPage', () => {
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
-    mockFns.listInvoiceStatusByChangeOrder.mockClear();
-    mockFns.listChangeOrders.mockClear();
+    mockFns.listInvoiceStatusByChangeOrder.mockReset();
+    mockFns.listChangeOrders.mockReset();
+    mockFns.getJobById.mockReset();
+    mockFns.sendWorkOrderForSignature.mockReset();
+    mockFns.resendWorkOrderSignature.mockReset();
     mockFns.listInvoiceStatusByChangeOrder.mockResolvedValue({ data: [], error: null, warning: null });
     mockFns.listChangeOrders.mockResolvedValue([makeCO(1, 'First'), makeCO(2, 'Second')]);
+    mockFns.getJobById.mockResolvedValue(minimalJob());
+    mockFns.sendWorkOrderForSignature.mockResolvedValue({
+      jobId: 'job-1',
+      esign_submission_id: 'sub-1',
+      esign_submitter_id: 'submitter-1',
+      esign_embed_src: 'https://example.com/sign',
+      esign_status: 'sent',
+      esign_submission_state: 'sent',
+      esign_submitter_state: 'sent',
+      esign_sent_at: '2025-01-01T08:00:00Z',
+      esign_opened_at: null,
+      esign_completed_at: null,
+      esign_declined_at: null,
+      esign_decline_reason: null,
+      esign_signed_document_url: null,
+    });
+    mockFns.resendWorkOrderSignature.mockResolvedValue({
+      jobId: 'job-1',
+      esign_submission_id: 'sub-1',
+      esign_submitter_id: 'submitter-1',
+      esign_embed_src: 'https://example.com/sign',
+      esign_status: 'sent',
+      esign_submission_state: 'sent',
+      esign_submitter_state: 'sent',
+      esign_sent_at: '2025-01-01T08:00:00Z',
+      esign_opened_at: null,
+      esign_completed_at: null,
+      esign_declined_at: null,
+      esign_decline_reason: null,
+      esign_signed_document_url: null,
+    });
     mockFns.setCoBlockResult({ blocks: false, error: null });
   });
 
@@ -257,6 +325,79 @@ describe('WorkOrderDetailPage', () => {
       expect(screen.getByText(summary)).toBeInTheDocument();
     }
   );
+
+  it('polls the job row after send and updates the timeline from webhook-backed data', async () => {
+    vi.useFakeTimers();
+    const sentJob = {
+      ...jobWithEsign('sent'),
+      customer_email: 'customer@example.com',
+      esign_submitter_id: 'submitter-1',
+      esign_embed_src: 'https://example.com/sign',
+    };
+    const openedJob = {
+      ...jobWithEsign('opened'),
+      customer_email: 'customer@example.com',
+      esign_submitter_id: 'submitter-1',
+      esign_embed_src: 'https://example.com/sign',
+    };
+    mockFns.getJobById.mockResolvedValueOnce(sentJob).mockResolvedValueOnce(openedJob);
+
+    function Harness() {
+      const [job, setJob] = useState<Job>({ ...minimalJob(), customer_email: 'customer@example.com' });
+      return (
+        <WorkOrderDetailPage
+          userId="u1"
+          job={job}
+          profile={minimalProfile()}
+          onJobUpdated={setJob}
+          onBack={() => {}}
+          onStartChangeOrder={() => {}}
+          onStartChangeOrderInvoice={() => {}}
+          onOpenCODetail={() => {}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    await flushAsync();
+
+    await act(async () => {
+      screen.getByRole('button', { name: /send for signature/i }).click();
+    });
+    await flushAsync();
+
+    expect(screen.getByLabelText('Customer signature status: Sent')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS);
+    });
+    await flushAsync();
+
+    expect(screen.getByLabelText('Customer signature status: Opened')).toBeInTheDocument();
+  });
+
+  it('renders filled active bubbles and timestamp rows without seconds', async () => {
+    render(
+      <WorkOrderDetailPage
+        userId="u1"
+        job={jobWithEsign('sent')}
+        profile={minimalProfile()}
+        onBack={() => {}}
+        onStartChangeOrder={() => {}}
+        onStartChangeOrderInvoice={() => {}}
+        onOpenCODetail={() => {}}
+      />
+    );
+
+    const timeline = screen.getByRole('group', { name: /customer signature status: sent/i });
+    const sentStep = within(timeline).getByText('Sent').closest('.wo-esign-step');
+    expect(sentStep).toBeTruthy();
+    expect(sentStep?.querySelector('.wo-esign-step-dot-filled')).toBeTruthy();
+
+    const sentMeta = screen.getByTestId('wo-esign-meta-sent');
+    expect(sentMeta.textContent).toContain('Sent');
+    expect(sentMeta.textContent).not.toMatch(/:\d{2}:\d{2}/);
+  });
 
   it('disables Create Change Order when a downloaded job-level invoice blocks', async () => {
     mockFns.setCoBlockResult({ blocks: true, error: null });

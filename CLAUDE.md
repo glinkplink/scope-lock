@@ -118,6 +118,7 @@ src/
     esign-api.ts               # send/resend work order for signature (app server API)
     esign-labels.ts            # E-sign status strings for UI
     esign-progress.ts          # Shared e-sign step/tone model for detail timeline + list strip
+    esign-live.ts              # Shared e-sign polling cadence + in-flight status helpers + timestamp formatting
     html-escape.ts           # esc() for generated HTML (WO / CO / invoice strings)
     owner-name.ts            # normalize owner full name for profile + preview stubs
     guest-agreement-profile.ts # `BusinessProfile`-shaped stub from guest form fields for agreement preview when no DB profile
@@ -178,7 +179,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
 - If invoice-status rows are partially malformed, the page shows a warning banner but keeps valid invoice actions enabled.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.
-- **`jobs.esign_*`:** list shows a compact e-sign progress strip when `esign_status !== 'not_sent'`; detail has a centered 3-step signature timeline plus **Send / Resend**, signing link, and signed PDF when available.
+- **`jobs.esign_*`:** list shows a compact e-sign progress strip when `esign_status !== 'not_sent'`; detail has a centered 3-step signature timeline plus **Send / Resend**, signing link, and signed PDF when available. Both surfaces poll existing DB reads while e-sign is in-flight so DocuSeal webhook updates show up without a manual reload.
 
 **`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'co-detail' | 'change-order-wizard' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
 

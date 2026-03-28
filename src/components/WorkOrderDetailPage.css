@@ -116,6 +116,10 @@
   background: var(--surface-white);
 }
 
+.wo-esign-step-dot-filled {
+  background: currentColor;
+}
+
 .wo-esign-step-line {
   position: absolute;
   top: 0.375rem;
@@ -158,12 +162,14 @@
   margin: 0 auto var(--space-md);
   font-size: 0.875rem;
   width: min(100%, 24rem);
-  text-align: left;
+  text-align: center;
 }
 
 .wo-esign-meta-row {
-  display: grid;
-  grid-template-columns: minmax(7rem, auto) 1fr;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   margin-bottom: 0.35rem;
 }
@@ -177,6 +183,12 @@
 .wo-esign-meta-row dd {
   margin: 0;
   color: var(--text-primary);
+}
+
+.wo-esign-meta-row-reason {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.15rem;
 }
 
 .wo-esign-actions {
