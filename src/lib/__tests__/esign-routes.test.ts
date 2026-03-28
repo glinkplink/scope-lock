@@ -145,6 +145,7 @@ function baseCORow(overrides: Record<string, unknown> = {}) {
     user_id: USER_UUID,
     job_id: JOB_UUID,
     co_number: 3,
+    status: 'draft',
     esign_submission_id: null,
     esign_submitter_id: null,
     esign_embed_src: null,
@@ -1278,6 +1279,249 @@ describe('tryHandleEsignRoute', () => {
 
     expect(res.status).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(updateEqMock).toHaveBeenCalledWith('id', CO_UUID);
+  });
+
+  it('change-order send stores pending approval status and submitter external_id = co id', async () => {
+    const res = captureRes();
+    const updatedRow = {
+      ...baseCORow({
+        status: 'pending_approval',
+        esign_submission_id: '900',
+        esign_submitter_id: '77',
+        esign_status: 'sent',
+      }),
+    };
+    const updateMock = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({ data: updatedRow, error: null })),
+          })),
+        })),
+      })),
+    }));
+
+    createClientMock.mockReturnValue({
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'change_orders') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(async () => ({
+                    data: baseCORow({ status: 'draft' }),
+                    error: null,
+                  })),
+                })),
+              })),
+            })),
+            update: updateMock,
+          };
+        }
+        if (table === 'jobs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({
+                  data: { customer_email: 'client@example.com' },
+                  error: null,
+                })),
+              })),
+            })),
+          };
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
+        };
+      }),
+    });
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const u = requestUrl(input);
+      if (u.includes('/submissions/html') && init?.method === 'POST') {
+        return new Response(JSON.stringify(docusealSubmissionResponse(900)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('fail', { status: 500 });
+    });
+
+    const req = {
+      method: 'POST',
+      url: `/api/esign/change-orders/${CO_UUID}/send`,
+      headers: { authorization: 'Bearer good-token' },
+    };
+    await tryHandleEsignRoute(
+      req as never,
+      res as never,
+      defaultHelpers(async () => ({
+        documents: [{ html: '<p>x</p>' }],
+        message: { subject: 'Please sign', body: 'Message' },
+      }))
+    );
+
+    expect(res.status).toBe(200);
+    expect(firstMockCallArg(updateMock)).toMatchObject({
+      status: 'pending_approval',
+      esign_status: 'sent',
+    });
+    const submissionCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/submissions/html'));
+    expect(submissionCall).toBeTruthy();
+    const submissionBody = JSON.parse(String(submissionCall?.[1]?.body)) as {
+      submitters: Array<{ external_id: string }>;
+    };
+    expect(submissionBody.submitters[0].external_id).toBe(CO_UUID);
+  });
+
+  it('change-order resend reconciles approved state when DocuSeal PUT returns 404 but submission still exists', async () => {
+    const res = captureRes();
+    const coWithSubmitter = baseCORow({
+      status: 'pending_approval',
+      esign_submitter_id: '77',
+      esign_submission_id: '900',
+      esign_status: 'sent',
+    });
+    const refreshed = {
+      ...coWithSubmitter,
+      status: 'approved',
+      esign_status: 'completed',
+      esign_completed_at: '2026-03-28T05:05:00Z',
+      esign_signed_document_url: 'https://docuseal.example/signed.pdf',
+    };
+    const updateMock = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({ data: refreshed, error: null })),
+          })),
+        })),
+      })),
+    }));
+
+    createClientMock.mockReturnValue({
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'change_orders') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  maybeSingle: vi.fn(async () => ({ data: coWithSubmitter, error: null })),
+                })),
+              })),
+            })),
+            update: updateMock,
+          };
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
+        };
+      }),
+    });
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const u = requestUrl(input);
+      if (u.endsWith('/submitters/77') && init?.method === 'PUT') {
+        return new Response(JSON.stringify({ error: 'Not Found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (u.includes('/submissions/900') && init?.method === 'GET') {
+        const submission = docusealSubmissionResponse(900);
+        submission.status = 'completed';
+        submission.completed_at = '2026-03-28T05:05:00Z';
+        submission.submitters[0].status = 'completed';
+        submission.submitters[0].completed_at = '2026-03-28T05:05:00Z';
+        submission.submitters[0].documents = [{ url: 'https://docuseal.example/signed.pdf' }];
+        return new Response(JSON.stringify(submission), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('fail', { status: 500 });
+    });
+
+    const req = {
+      method: 'POST',
+      url: `/api/esign/change-orders/${CO_UUID}/resend`,
+      headers: { authorization: 'Bearer good-token' },
+    };
+    await tryHandleEsignRoute(req as never, res as never, defaultHelpers());
+
+    expect(res.status).toBe(200);
+    expect(firstMockCallArg(updateMock)).toMatchObject({
+      status: 'approved',
+      esign_status: 'completed',
+    });
+  });
+
+  it('webhook updates declined change-order submissions to rejected business status', async () => {
+    const res = captureRes();
+    const { updateEqMock, updateMock } = mockWebhookSupabaseChangeOrderOnly((column, value) => {
+      if (column === 'id' && value === CO_UUID) {
+        return baseCORow({
+          status: 'pending_approval',
+          esign_submission_id: '900',
+          esign_submitter_id: '77',
+          esign_status: 'sent',
+        });
+      }
+      return null;
+    });
+
+    const submission = docusealSubmissionResponse(900);
+    submission.status = 'declined';
+    submission.submitters[0].status = 'declined';
+    (submission.submitters[0] as { declined_at?: string; decline_reason?: string }).declined_at =
+      '2026-03-28T12:00:00Z';
+    (submission.submitters[0] as { declined_at?: string; decline_reason?: string }).decline_reason =
+      'Need changes';
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify(submission), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const req = {
+      method: 'POST',
+      url: '/api/webhooks/docuseal',
+      headers: { 'x-docuseal-webhook-secret': 'correct-secret' },
+    };
+    await tryHandleEsignRoute(
+      req as never,
+      res as never,
+      defaultHelpers(async () => ({
+        event_type: 'form.viewed',
+        data: { id: 77, external_id: CO_UUID },
+      }))
+    );
+
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true });
+    expect(firstMockCallArg(updateMock)).toMatchObject({
+      status: 'rejected',
+      esign_status: 'declined',
+      esign_decline_reason: 'Need changes',
+    });
     expect(updateEqMock).toHaveBeenCalledWith('id', CO_UUID);
   });
 });

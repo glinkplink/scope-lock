@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { Job, BusinessProfile, ChangeOrder, ChangeOrderLineItem } from '../types/db';
 import { createChangeOrder, updateChangeOrder, computeCOTotal } from '../lib/db/change-orders';
+import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
+import { mergeEsignResponseIntoChangeOrder, sendChangeOrderForSignature } from '../lib/esign-api';
 import './ChangeOrderWizard.css';
 
 const REASON_PRESETS = [
@@ -33,6 +35,7 @@ export interface ChangeOrderWizardProps {
 export function ChangeOrderWizard({
   userId,
   job,
+  profile,
   existingCO,
   onComplete,
   onCancel,
@@ -135,7 +138,7 @@ export function ChangeOrderWizard({
           Number.isFinite(q) &&
           q > 0 &&
           Number.isFinite(ur) &&
-          ur >= 0
+          ur > 0
         );
       }),
       time_amount: Math.max(0, timeAmount),
@@ -145,24 +148,39 @@ export function ChangeOrderWizard({
 
     setSubmitting(true);
     try {
+      let savedCo: ChangeOrder | null = null;
       if (existingCO) {
         const { data, error: upErr } = await updateChangeOrder(userId, existingCO.id, {
           ...fields,
-          status: 'approved',
+          status: fields.requires_approval ? 'pending_approval' : 'approved',
         });
         if (upErr || !data) {
           setError(upErr?.message || 'Could not save change order.');
           return;
         }
-        onComplete(data);
+        savedCo = data;
       } else {
         const { data, error: cErr } = await createChangeOrder(userId, job.id, fields);
         if (cErr || !data) {
           setError(cErr?.message || 'Could not save change order.');
           return;
         }
-        onComplete(data);
+        savedCo = data;
       }
+
+      if (!savedCo) {
+        setError('Could not save change order.');
+        return;
+      }
+
+      if (!(job.customer_email || '').trim()) {
+        setError('Customer email is missing on this work order. Edit the job to add it.');
+        return;
+      }
+
+      const payload = buildChangeOrderEsignSendPayload(savedCo, job, profile);
+      const response = await sendChangeOrderForSignature(savedCo.id, payload);
+      onComplete(mergeEsignResponseIntoChangeOrder(savedCo, response));
     } finally {
       setSubmitting(false);
     }
@@ -448,7 +466,7 @@ export function ChangeOrderWizard({
               disabled={submitting}
               onClick={() => void handleSave()}
             >
-              {submitting ? 'Saving…' : 'Save Change Order'}
+              {submitting ? 'Saving and sending…' : 'Save and Send Change Order'}
             </button>
           </div>
         </section>

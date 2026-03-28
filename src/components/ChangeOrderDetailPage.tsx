@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Job, BusinessProfile, ChangeOrder } from '../types/db';
 import {
   fetchHtmlPdfBlob,
@@ -8,7 +8,7 @@ import {
   downloadPdfBlobToFile,
 } from '../lib/agreement-pdf';
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
-import { buildDocusealChangeOrderEsignParts } from '../lib/docuseal-change-order-html';
+import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
 import '../lib/change-order-document.css';
 import { deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
@@ -18,6 +18,7 @@ import { useEsignPoller } from '../hooks/useEsignPoller';
 import {
   sendChangeOrderForSignature,
   resendChangeOrderSignature,
+  mergeEsignResponseIntoChangeOrder,
 } from '../lib/esign-api';
 import './ChangeOrderDetailPage.css';
 
@@ -119,26 +120,9 @@ export function ChangeOrderDetailPage({
     }
   }, [co.id, co.esign_embed_src]);
 
-  const buildCoEsignPayload = async () => {
-    const coLabelNum = String(co.co_number).padStart(4, '0');
-    const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile);
-    return {
-      name: `Change Order #${coLabelNum}`,
-      send_email: true,
-      documents: [
-        {
-          name: `Change Order #${coLabelNum}`,
-          html,
-          html_header,
-          html_footer,
-        },
-      ],
-      message: {
-        subject: `Please sign: Change Order #${coLabelNum}`,
-        body: `Please review and sign the change order.\n\n{{submitter.link}}`,
-      },
-    };
-  };
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [co.id]);
 
   const handleSendForSignature = async () => {
     setPdfError('');
@@ -148,8 +132,9 @@ export function ChangeOrderDetailPage({
     }
     setCoEsignBusy(true);
     try {
-      const r = await sendChangeOrderForSignature(co.id, await buildCoEsignPayload());
-      onCoUpdated?.({ ...co, ...r });
+      const payload = buildChangeOrderEsignSendPayload(co, job, profile);
+      const r = await sendChangeOrderForSignature(co.id, payload);
+      onCoUpdated?.(mergeEsignResponseIntoChangeOrder(co, r));
       await refreshCoRow();
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : 'Failed to send for signature');
@@ -162,8 +147,9 @@ export function ChangeOrderDetailPage({
     setPdfError('');
     setCoEsignBusy(true);
     try {
-      const r = await resendChangeOrderSignature(co.id);
-      onCoUpdated?.({ ...co, ...r });
+      const message = buildChangeOrderEsignSendPayload(co, job, profile).message;
+      const r = await resendChangeOrderSignature(co.id, message);
+      onCoUpdated?.(mergeEsignResponseIntoChangeOrder(co, r));
       await refreshCoRow();
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : 'Failed to resend signature request');
@@ -292,7 +278,7 @@ export function ChangeOrderDetailPage({
               disabled={coEsignBusy}
               onClick={() => void handleResendSignature()}
             >
-              {coEsignBusy ? 'Sending…' : 'Resend change order'}
+              {coEsignBusy ? 'Sending…' : 'Resend Change Order'}
             </button>
           ) : null}
           {co.esign_embed_src ? (

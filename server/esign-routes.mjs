@@ -735,6 +735,29 @@ function publicCoEsignPayload(row) {
   };
 }
 
+function deriveChangeOrderStatusFromEsignStatus(currentStatus, esignStatus) {
+  switch (esignStatus) {
+    case 'sent':
+    case 'opened':
+      return 'pending_approval';
+    case 'completed':
+      return 'approved';
+    case 'declined':
+      return 'rejected';
+    default:
+      return currentStatus;
+  }
+}
+
+function buildChangeOrderPatchFromSubmission(submission, currentStatus) {
+  const patch = buildEsignRowFromSubmission(submission);
+  if (!patch) return null;
+  return {
+    ...patch,
+    status: deriveChangeOrderStatusFromEsignStatus(currentStatus, patch.esign_status),
+  };
+}
+
 async function handleCoSend(req, res, readJsonBody, sendJson, sendText, coId) {
   const token = getBearerToken(req);
   if (!token) {
@@ -832,7 +855,7 @@ async function handleCoSend(req, res, readJsonBody, sendJson, sendText, coId) {
     return;
   }
 
-  const patch = buildEsignRowFromSubmission(submission);
+  const patch = buildChangeOrderPatchFromSubmission(submission, co.status);
   if (!patch) {
     sendJson(res, 502, { error: 'DocuSeal response missing submitters.' });
     return;
@@ -911,7 +934,7 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
       body: JSON.stringify(putBody),
     });
   } catch (e) {
-    if (e?.status === 422 && co.esign_submission_id) {
+    if ((e?.status === 404 || e?.status === 422) && co.esign_submission_id) {
       reconcileFromSubmission = true;
     } else {
       const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
@@ -923,6 +946,7 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
   const resendFallbackPatch = reconcileFromSubmission
     ? null
     : {
+        status: deriveChangeOrderStatusFromEsignStatus(co.status, 'sent'),
         esign_status: 'sent',
         esign_sent_at: new Date().toISOString(),
         esign_submission_state: 'sent',
@@ -961,7 +985,7 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
   const coJobId = co.job_id;
 
   if (submission) {
-    const patch = buildEsignRowFromSubmission(submission);
+    const patch = buildChangeOrderPatchFromSubmission(submission, co.status);
     if (patch) {
       const { data: updated, error: upErr } = await supabase
         .from('change_orders')
@@ -1273,7 +1297,7 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, sendJs
   }
 
   const verified = verifiedInfo.verified;
-  const patch = buildEsignRowFromSubmission(verified);
+  const patch = buildChangeOrderPatchFromSubmission(verified, co.status);
   if (!patch) {
     console.log('[webhook] CO ignored: no patch from submission');
     sendJson(res, 200, { ok: true, ignored: true });

@@ -1,4 +1,4 @@
-import type { EsignJobStatus, Job } from '../types/db';
+import type { ChangeOrder, EsignJobStatus, Job } from '../types/db';
 import { fetchWithSupabaseAuth } from './fetch-with-supabase-auth';
 
 export interface EsignSendDocumentsPayload {
@@ -62,6 +62,42 @@ export async function sendWorkOrderForSignature(
 export function mergeEsignResponseIntoJob(job: Job, r: EsignApiResponse): Job {
   return {
     ...job,
+    esign_submission_id: r.esign_submission_id,
+    esign_submitter_id: r.esign_submitter_id,
+    esign_embed_src: r.esign_embed_src,
+    esign_status: r.esign_status,
+    esign_submission_state: r.esign_submission_state,
+    esign_submitter_state: r.esign_submitter_state,
+    esign_sent_at: r.esign_sent_at,
+    esign_opened_at: r.esign_opened_at,
+    esign_completed_at: r.esign_completed_at,
+    esign_declined_at: r.esign_declined_at,
+    esign_decline_reason: r.esign_decline_reason,
+    esign_signed_document_url: r.esign_signed_document_url,
+  };
+}
+
+function mergeChangeOrderStatusFromEsign(
+  currentStatus: ChangeOrder['status'],
+  esignStatus: EsignApiResponse['esign_status']
+): ChangeOrder['status'] {
+  switch (esignStatus) {
+    case 'sent':
+    case 'opened':
+      return 'pending_approval';
+    case 'completed':
+      return 'approved';
+    case 'declined':
+      return 'rejected';
+    default:
+      return currentStatus;
+  }
+}
+
+export function mergeEsignResponseIntoChangeOrder(co: ChangeOrder, r: EsignApiResponse): ChangeOrder {
+  return {
+    ...co,
+    status: mergeChangeOrderStatusFromEsign(co.status, r.esign_status),
     esign_submission_id: r.esign_submission_id,
     esign_submitter_id: r.esign_submitter_id,
     esign_embed_src: r.esign_embed_src,

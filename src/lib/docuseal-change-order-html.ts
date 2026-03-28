@@ -1,5 +1,6 @@
 import type { Job, BusinessProfile, ChangeOrder, ChangeOrderLineItem } from '../types/db';
 import type { WelderJob } from '../types';
+import type { EsignSendDocumentsPayload } from './esign-api';
 import { esc } from './html-escape';
 import { jobLocationSingleLine } from './job-site-address';
 import { buildDocusealHtmlHeader, buildDocusealHtmlFooter, buildDocusealEsignFooterLine } from './docuseal-header-footer';
@@ -222,4 +223,29 @@ ${bodyContent}
 </html>`;
 
   return { html, html_header, html_footer };
+}
+
+export function buildChangeOrderEsignSendPayload(
+  co: ChangeOrder,
+  job: Job,
+  profile: BusinessProfile | null
+): EsignSendDocumentsPayload {
+  const coLabelNum = String(co.co_number).padStart(4, '0');
+  const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile);
+  return {
+    name: `Change Order #${coLabelNum}`,
+    send_email: true,
+    documents: [
+      {
+        name: `Change Order #${coLabelNum}`,
+        html,
+        html_header,
+        html_footer,
+      },
+    ],
+    message: {
+      subject: `Please sign: Change Order #${coLabelNum}`,
+      body: 'Please review and sign the change order.\n\n{{submitter.link}}',
+    },
+  };
 }
