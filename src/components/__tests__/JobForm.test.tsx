@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+const searchClients = vi.fn();
+vi.mock('../../lib/db/clients', () => ({
+  searchClients: (...args: unknown[]) => searchClients(...args),
+}));
 import { JobForm } from '../JobForm';
 import type { WelderJob } from '../../types';
+import type { Client } from '../../types/db';
 import sampleJob from '../../data/sample-job.json';
 
 const baseJob: WelderJob = {
@@ -27,7 +33,23 @@ const baseJob: WelderJob = {
 
 afterEach(() => {
   cleanup();
+  searchClients.mockReset();
 });
+
+function buildClient(overrides: Partial<Client> & Pick<Client, 'id' | 'name'>): Client {
+  return {
+    id: overrides.id,
+    user_id: 'u1',
+    name: overrides.name,
+    name_normalized: overrides.name.trim().toLowerCase(),
+    phone: overrides.phone ?? null,
+    email: overrides.email ?? null,
+    address: overrides.address ?? null,
+    notes: overrides.notes ?? null,
+    created_at: overrides.created_at ?? '2026-03-28T00:00:00Z',
+    updated_at: overrides.updated_at ?? '2026-03-28T00:00:00Z',
+  };
+}
 
 async function clickAgreementPreview(
   user: ReturnType<typeof userEvent.setup>,
@@ -149,5 +171,46 @@ describe('JobForm Your Information (no profile)', () => {
 
     await clickAgreementPreview(user, container);
     expect(onGoToPreview).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('JobForm client autosuggest', () => {
+  it('prioritizes first-name prefix matches ahead of substring-only matches', async () => {
+    searchClients.mockResolvedValue([
+      buildClient({ id: 'client-a', name: 'Jonny Apples', phone: '4845153545' }),
+      buildClient({
+        id: 'client-b',
+        name: 'Lenny Hammers',
+        phone: '8172819201',
+        email: 'escrowloopy@pattycakes.gov',
+      }),
+    ]);
+
+    const user = userEvent.setup();
+    function StatefulJobForm() {
+      const [job, setJob] = useState<WelderJob>({
+        ...baseJob,
+        customer_first_name: '',
+        customer_last_name: '',
+        customer_name: '',
+      });
+      return <JobForm job={job} onChange={setJob} userId="u1" />;
+    }
+
+    render(<StatefulJobForm />);
+
+    await user.type(screen.getByLabelText(/Customer First Name/i), 'Le');
+
+    await waitFor(() => {
+      expect(searchClients).toHaveBeenCalledWith('u1', { firstName: 'Le', lastName: '' });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(options[0]).toHaveTextContent('Lenny Hammers');
+    expect(options[1]).toHaveTextContent('Jonny Apples');
   });
 });

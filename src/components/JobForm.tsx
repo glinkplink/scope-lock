@@ -50,6 +50,69 @@ function withCustomerNameParts(job: WelderJob, first: string, last: string): Wel
   };
 }
 
+function normalizeClientSearchToken(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function scoreClientMatch(client: Client, firstNameQuery: string, lastNameQuery: string): number {
+  const fullName = normalizeClientSearchToken(client.name ?? '');
+  const { first, last } = splitFullNameForForm(client.name ?? '');
+  const clientFirst = normalizeClientSearchToken(first);
+  const clientLast = normalizeClientSearchToken(last);
+  const tokens = fullName ? fullName.split(' ') : [];
+  const fullQuery = normalizeClientSearchToken(
+    [firstNameQuery, lastNameQuery].filter(Boolean).join(' ')
+  );
+
+  const firstPrefix = firstNameQuery ? clientFirst.startsWith(firstNameQuery) : false;
+  const lastPrefix = lastNameQuery ? clientLast.startsWith(lastNameQuery) : false;
+  const anyPrefix = [firstNameQuery, lastNameQuery]
+    .filter(Boolean)
+    .some((query) => tokens.some((token) => token.startsWith(query)));
+  const fullPrefix = fullQuery ? fullName.startsWith(fullQuery) : false;
+  const includesFirst = firstNameQuery ? fullName.includes(firstNameQuery) : false;
+  const includesLast = lastNameQuery ? fullName.includes(lastNameQuery) : false;
+
+  if (firstNameQuery && lastNameQuery) {
+    if (firstPrefix && lastPrefix) return 0;
+    if (fullPrefix) return 1;
+    if (firstPrefix) return 2;
+    if (lastPrefix) return 3;
+    if (includesFirst && includesLast) return 4;
+    if (anyPrefix) return 5;
+    return 6;
+  }
+
+  if (firstNameQuery) {
+    if (firstPrefix) return 0;
+    if (anyPrefix) return 1;
+    if (includesFirst) return 2;
+    return 3;
+  }
+
+  if (lastNameQuery) {
+    if (lastPrefix) return 0;
+    if (anyPrefix) return 1;
+    if (includesLast) return 2;
+    return 3;
+  }
+
+  return 0;
+}
+
+function rankClientMatches(clients: Client[], firstNameQuery: string, lastNameQuery: string): Client[] {
+  const firstQuery = normalizeClientSearchToken(firstNameQuery);
+  const lastQuery = normalizeClientSearchToken(lastNameQuery);
+  return [...clients]
+    .sort((a, b) => {
+      const scoreDiff =
+        scoreClientMatch(a, firstQuery, lastQuery) - scoreClientMatch(b, firstQuery, lastQuery);
+      if (scoreDiff !== 0) return scoreDiff;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    })
+    .slice(0, 15);
+}
+
 interface JobFormProps {
   userId?: string;
   job: WelderJob;
@@ -189,6 +252,8 @@ export function JobForm({
 
     const id = window.setTimeout(() => {
       const q = customerNameRef.current.trim();
+      const firstNameQuery = job.customer_first_name;
+      const lastNameQuery = job.customer_last_name;
       if (!q) {
         setClientMatches([]);
         setClientListOpen(false);
@@ -206,15 +271,19 @@ export function JobForm({
       }
 
       setClientSearchLoading(true);
-      void searchClients(userId, q).then((rows) => {
+      void searchClients(userId, {
+        firstName: firstNameQuery,
+        lastName: lastNameQuery,
+      }).then((rows) => {
         if (customerNameRef.current.trim() !== q) {
           setClientSearchLoading(false);
           return;
         }
+        const rankedRows = rankClientMatches(rows, firstNameQuery, lastNameQuery);
         setClientSearchLoading(false);
-        setClientMatches(rows);
-        setClientListOpen(rows.length > 0);
-        setClientHighlightIndex(rows.length > 0 ? 0 : -1);
+        setClientMatches(rankedRows);
+        setClientListOpen(rankedRows.length > 0);
+        setClientHighlightIndex(rankedRows.length > 0 ? 0 : -1);
       });
     }, 300);
 
