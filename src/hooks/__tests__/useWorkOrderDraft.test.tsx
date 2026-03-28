@@ -161,6 +161,21 @@ describe('useWorkOrderDraft', () => {
     expect(navigateTo).toHaveBeenCalledWith('form');
   });
 
+  it('calls onNewDraft when doCreateNewAgreement creates a new draft', () => {
+    const onNewDraft = vi.fn();
+    const navigateTo = vi.fn();
+    const { result } = renderHook(() =>
+      useWorkOrderDraft(null, null, navigateTo, vi.fn(), onNewDraft)
+    );
+
+    act(() => {
+      result.current.actions.doCreateNewAgreement(null);
+    });
+
+    expect(onNewDraft).toHaveBeenCalledTimes(1);
+    expect(navigateTo).toHaveBeenCalledWith('form');
+  });
+
   it('does not reset draft when userId goes from null to signed-in', () => {
     const navigateTo = vi.fn();
     const loadProfile = vi.fn();

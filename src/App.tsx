@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { JobForm } from './components/JobForm';
 import { AgreementPreview } from './components/AgreementPreview';
 import { AuthPage } from './components/AuthPage';
@@ -22,6 +22,7 @@ import { ChangeOrderWizard } from './components/ChangeOrderWizard';
 import { useInvoiceFlow } from './hooks/useInvoiceFlow';
 import { useChangeOrderFlow } from './hooks/useChangeOrderFlow';
 import { useWorkOrderDraft } from './hooks/useWorkOrderDraft';
+import { normalizeOwnerFullName } from './lib/owner-name';
 import './App.css';
 
 function App() {
@@ -43,6 +44,13 @@ function App() {
   const [workOrderDetailJob, setWorkOrderDetailJob] = useState<import('./types/db').Job | null>(null);
   const [changeOrderListVersion, setChangeOrderListVersion] = useState(0);
   const [profileEntrySource, setProfileEntrySource] = useState<'work-orders' | null>(null);
+  const [ownerFirstName, setOwnerFirstName] = useState('');
+  const [ownerLastName, setOwnerLastName] = useState('');
+
+  const clearOwnerNameFields = useCallback(() => {
+    setOwnerFirstName('');
+    setOwnerLastName('');
+  }, []);
 
   const { state: invoice, actions: invoiceFlow } = useInvoiceFlow(
     navigateTo,
@@ -60,7 +68,8 @@ function App() {
     profile,
     user?.id ?? null,
     navigateTo,
-    loadProfile
+    loadProfile,
+    clearOwnerNameFields
   );
 
   const handleCaptureAndSave = async (capture: {
@@ -68,6 +77,7 @@ function App() {
     email: string;
     password: string;
   }) => {
+    const ownerName = normalizeOwnerFullName(ownerFirstName, ownerLastName);
     const { data: authData, error: authError } = await signUp(capture.email, capture.password);
     if (authError || !authData.user) {
       throw new Error(authError?.message || 'Failed to create account');
@@ -77,6 +87,7 @@ function App() {
       user_id: authData.user.id,
       business_name: capture.businessName,
       email: capture.email,
+      owner_name: ownerName || null,
       default_exclusions: getDefaultExclusions(),
       default_assumptions: getDefaultCustomerObligations(),
     });
@@ -87,7 +98,12 @@ function App() {
 
     setProfile(createdProfile);
 
-    return { userId: authData.user.id, businessName: capture.businessName, email: capture.email };
+    return {
+      userId: authData.user.id,
+      businessName: capture.businessName,
+      email: capture.email,
+      ownerName,
+    };
   };
 
   const handleEditProfileSaved = (savedProfile: BusinessProfile | null) => {
@@ -291,6 +307,11 @@ function App() {
           job={draft.job}
           onChange={draftFlow.setJob}
           businessName={profile?.business_name}
+          ownerFirstName={ownerFirstName}
+          ownerLastName={ownerLastName}
+          onOwnerFirstNameChange={setOwnerFirstName}
+          onOwnerLastNameChange={setOwnerLastName}
+          showOwnerNameFields={!profile}
           onGoToPreview={() => navigateTo('preview')}
         />
       );
@@ -301,6 +322,8 @@ function App() {
         profile={profile}
         existingJobId={draft.currentJobId ?? undefined}
         hasSession={Boolean(user)}
+        ownerFirstName={ownerFirstName}
+        ownerLastName={ownerLastName}
         onSaveSuccess={draftFlow.handleSaveSuccess}
         onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
         onCaptureFlowFinished={handleCaptureFlowFinished}
@@ -412,6 +435,7 @@ function App() {
                 className="btn-danger"
                 onClick={() => {
                   draftFlow.closeUnsavedModal();
+                  clearOwnerNameFields();
                   draftFlow.doCreateNewAgreement(profile);
                 }}
               >

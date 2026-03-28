@@ -68,7 +68,9 @@ export function useWorkOrderDraft(
   profile: BusinessProfile | null,
   userId: string | null,
   navigateTo: (view: AppView) => void,
-  loadProfile: LoadProfileFn
+  loadProfile: LoadProfileFn,
+  /** Called when a fresh work order draft is created (new agreement or after discard). */
+  onNewDraft?: () => void
 ) {
   const [draft, setDraft] = useState<WorkOrderDraftState>(() => ({
     ...draftInitialState,
@@ -111,6 +113,7 @@ export function useWorkOrderDraft(
 
   const doCreateNewAgreement = useCallback(
     (currentProfile: BusinessProfile | null) => {
+      onNewDraft?.();
       const nextDraft = buildNewAgreementDraft(currentProfile);
       setDraft((d) => ({
         ...d,
@@ -121,7 +124,7 @@ export function useWorkOrderDraft(
       }));
       navigateTo('form');
     },
-    [navigateTo]
+    [navigateTo, onNewDraft]
   );
 
   const createNewAgreement = useCallback(() => {

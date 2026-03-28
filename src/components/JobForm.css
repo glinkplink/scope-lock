@@ -140,3 +140,8 @@
   font-size: 0.9375rem;
   color: var(--text-primary);
 }
+
+/* Your Name section (no profile yet) */
+.job-form-owner-name .form-row {
+  margin-top: var(--space-sm);
+}

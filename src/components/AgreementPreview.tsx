@@ -17,6 +17,7 @@ import {
   buildDocusealHtmlHeader,
 } from '../lib/docuseal-header-footer';
 import { sendWorkOrderForSignature } from '../lib/esign-api';
+import { getOwnerNameCaptureBlockReason } from '../lib/owner-name';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { CaptureModal } from './CaptureModal';
 import { useScaledPreview } from '../hooks/useScaledPreview';
@@ -46,14 +47,17 @@ function getRequiredFieldIssues(job: WelderJob): string[] {
   return issues;
 }
 
-function buildCapturedProfileStub(
-  result: { userId: string; businessName: string; email: string }
-): BusinessProfile {
+function buildCapturedProfileStub(result: {
+  userId: string;
+  businessName: string;
+  email: string;
+  ownerName: string;
+}): BusinessProfile {
   return {
     id: '',
     user_id: result.userId,
     business_name: result.businessName,
-    owner_name: null,
+    owner_name: result.ownerName.trim() || null,
     phone: null,
     email: result.email,
     address: null,
@@ -81,12 +85,15 @@ interface AgreementPreviewProps {
   existingJobId?: string;
   /** True when a Supabase session exists (required before calling e-sign API). */
   hasSession?: boolean;
+  /** First/last from App when no profile (must be complete before anonymous capture). */
+  ownerFirstName?: string;
+  ownerLastName?: string;
   onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
   onCaptureAndSave?: (capture: {
     businessName: string;
     email: string;
     password: string;
-  }) => Promise<{ userId: string; businessName: string; email: string }>;
+  }) => Promise<{ userId: string; businessName: string; email: string; ownerName: string }>;
   /** Called after PDF or e-sign attempt (account + save already done). Parent may redirect. */
   onCaptureFlowFinished?: (opts: CaptureFlowFinishedPayload) => void;
 }
@@ -96,6 +103,8 @@ export function AgreementPreview({
   profile,
   existingJobId,
   hasSession = false,
+  ownerFirstName = '',
+  ownerLastName = '',
   onSaveSuccess,
   onCaptureAndSave,
   onCaptureFlowFinished,
@@ -266,6 +275,12 @@ export function AgreementPreview({
     }
 
     if (!profile && onCaptureAndSave) {
+      const ownerMsg = getOwnerNameCaptureBlockReason(ownerFirstName, ownerLastName);
+      if (ownerMsg) {
+        setSaving(false);
+        setSaveError(ownerMsg);
+        return;
+      }
       setSaving(false);
       openCaptureModal('pdf');
       return;
@@ -344,6 +359,11 @@ export function AgreementPreview({
     }
 
     if (!profile && onCaptureAndSave) {
+      const ownerMsg = getOwnerNameCaptureBlockReason(ownerFirstName, ownerLastName);
+      if (ownerMsg) {
+        setEsignError(ownerMsg);
+        return;
+      }
       openCaptureModal('esign');
       return;
     }

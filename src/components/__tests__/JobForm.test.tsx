@@ -104,3 +104,61 @@ describe('JobForm payment terms', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/payment terms|days/i);
   });
 });
+
+describe('JobForm owner name (no profile)', () => {
+  it('shows Your Name section when showOwnerNameFields', () => {
+    render(
+      <JobForm
+        job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
+        onChange={vi.fn()}
+        showOwnerNameFields
+        ownerFirstName=""
+        ownerLastName=""
+        onOwnerFirstNameChange={vi.fn()}
+        onOwnerLastNameChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('heading', { name: /your name/i })).toBeInTheDocument();
+  });
+
+  it('blocks Preview when owner names are empty and showOwnerNameFields', async () => {
+    const user = userEvent.setup();
+    const onGoToPreview = vi.fn();
+    const { container } = render(
+      <JobForm
+        job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
+        onChange={vi.fn()}
+        onGoToPreview={onGoToPreview}
+        showOwnerNameFields
+        ownerFirstName=""
+        ownerLastName=""
+        onOwnerFirstNameChange={vi.fn()}
+        onOwnerLastNameChange={vi.fn()}
+      />
+    );
+
+    await clickAgreementPreview(user, container);
+    expect(onGoToPreview).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/first and last name/i);
+  });
+
+  it('calls onGoToPreview when owner names are filled', async () => {
+    const user = userEvent.setup();
+    const onGoToPreview = vi.fn();
+    const { container } = render(
+      <JobForm
+        job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
+        onChange={vi.fn()}
+        onGoToPreview={onGoToPreview}
+        showOwnerNameFields
+        ownerFirstName="Pat"
+        ownerLastName="Smith"
+        onOwnerFirstNameChange={vi.fn()}
+        onOwnerLastNameChange={vi.fn()}
+      />
+    );
+
+    await clickAgreementPreview(user, container);
+    expect(onGoToPreview).toHaveBeenCalledTimes(1);
+  });
+});
