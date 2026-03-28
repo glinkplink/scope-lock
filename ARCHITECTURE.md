@@ -48,6 +48,14 @@ A contractor can **start a work order without signing in**. They fill the job fo
   The frontend sends the rendered agreement HTML to the app's `/api/pdf` route so Chrome can
   render the file with much closer parity to the on-screen preview.
 
+### Work order e-sign (DocuSeal)
+
+- **Routes (same app server as PDFs):** `POST /api/esign/work-orders/:jobId/send`, `POST /api/esign/work-orders/:jobId/resend`, `POST /api/webhooks/docuseal`, and `GET /api/webhooks/docuseal` (connectivity probe → `{ ok: true }`). DocuSeal must call the **public** webhook URL on the same host as the app.
+- **Auth:** Send/resend require `Authorization: Bearer <Supabase access_token>`; the server verifies the JWT and ensures the job row belongs to that user before calling DocuSeal or writing with the **service role**. The webhook uses **`DOCUSEAL_WEBHOOK_HEADER_NAME`** + **`DOCUSEAL_WEBHOOK_HEADER_VALUE`** only (no Supabase session). After header checks, the handler **verify-on-receive**s via DocuSeal `GET /submissions/:id`, ignores stale submissions when `jobs.esign_submission_id` does not match, then updates **`jobs.esign_*`**.
+- **Resend:** V1 uses **`PUT /submitters/{esign_submitter_id}`** on the submitter id returned from the first send — not a second HTML submission for the same job.
+- **HTML:** The client builds DocuSeal-specific HTML in **`src/lib/docuseal-agreement-html.ts`** (embedded styles + `esc()`; customer fields use DocuSeal HTML field tags). The server forwards that payload to DocuSeal; it does not re-derive sections from raw rows.
+- **DB:** Migration **`0010_jobs_esign.sql`** adds **`jobs.esign_*`** columns. **`WorkOrderListJob.esign_status`** powers the list badge; detail shows a signature status card.
+
 ### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
 - **Web fonts**: PDF HTML includes the same Google Fonts `<link>`s as `index.html` (Barlow + **Dancing
   Script** for the Service Provider signature). The server waits for `document.fonts.ready`, loads
@@ -156,7 +164,9 @@ scope-lock/
 │   ├── App.tsx                       # Root component - view state machine
 │   └── main.tsx                      # Entry point
 ├── server/
-│   └── app-server.mjs               # App server + /api/pdf Puppeteer route
+│   ├── app-server.mjs               # App server + /api/pdf + e-sign + DocuSeal webhook
+│   ├── esign-routes.mjs             # JWT send/resend; webhook + service-role job updates
+│   └── docuseal-esign-state.mjs     # DocuSeal submission → jobs.esign_* patch fields
 ├── supabase/
 │   ├── config.toml                   # Supabase CLI config
 │   └── migrations/
@@ -168,7 +178,8 @@ scope-lock/
 │       ├── 0006_change_order_creation_lock.sql # atomic create_change_order RPC with advisory lock
 │       ├── 0007_structured_payment_terms.sql  # payment_terms_days + late_fee_rate on profiles & jobs
 │       ├── 0008_block_co_after_job_invoice.sql # RPC guard: no new COs after finalized WO invoice
-│       └── 0009_jobs_other_classification.sql  # persist "Specify" text when job type is Other
+│       ├── 0009_jobs_other_classification.sql  # persist "Specify" text when job type is Other
+│       └── 0010_jobs_esign.sql                 # DocuSeal columns on jobs (esign_*)
 ├── public/
 ├── index.html
 ├── package.json

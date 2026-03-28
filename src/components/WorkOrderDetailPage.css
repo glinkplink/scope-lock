@@ -70,3 +70,61 @@
 .work-orders-empty.wo-co-finalized-block {
   text-align: center;
 }
+
+.wo-esign-card {
+  margin: 0 var(--space-md) var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-white);
+}
+
+.wo-esign-heading {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.wo-esign-status {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.wo-esign-meta {
+  margin: 0 0 var(--space-md);
+  font-size: 0.875rem;
+}
+
+.wo-esign-meta-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: var(--space-sm);
+  margin-bottom: 0.35rem;
+}
+
+.wo-esign-meta-row dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wo-esign-meta-row dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.wo-esign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.wo-esign-actions .btn-action {
+  font-size: 0.8125rem;
+}

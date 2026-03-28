@@ -83,7 +83,29 @@ export interface Job {
   customer_obligations: string[] | null;
   created_at: string;
   updated_at: string;
+  /** DocuSeal e-sign (nullable until first send). */
+  esign_submission_id: string | null;
+  esign_submitter_id: string | null;
+  esign_embed_src: string | null;
+  esign_status: EsignJobStatus;
+  esign_submission_state: string | null;
+  esign_submitter_state: string | null;
+  esign_sent_at: string | null;
+  esign_opened_at: string | null;
+  esign_completed_at: string | null;
+  esign_declined_at: string | null;
+  esign_decline_reason: string | null;
+  esign_signed_document_url: string | null;
 }
+
+/** Normalized e-sign lifecycle for UI (stored on `jobs.esign_status`). */
+export type EsignJobStatus =
+  | 'not_sent'
+  | 'sent'
+  | 'opened'
+  | 'completed'
+  | 'declined'
+  | 'expired';
 
 /** Narrow row for Work Orders list screen only (not full Job). */
 export interface WorkOrderListJob {
@@ -95,6 +117,7 @@ export interface WorkOrderListJob {
   agreement_date: string | null;
   created_at: string;
   price: number;
+  esign_status: EsignJobStatus;
 }
 
 /** Invoice fields needed for Work Orders list actions / summary (no line_items). */

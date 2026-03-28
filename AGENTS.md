@@ -45,3 +45,5 @@ The following are **living documents**, not one-time setup notes:
 - **Domain vs UI, minimal diffs, no mystery dependencies:** See **ScopeLock-Project-Rules.mdc** and **high-priority.mdc**.
 
 When in doubt, read **CLAUDE.md** for product/context detail and **ARCHITECTURE.md** for system/deployment detail, then apply the rules above.
+
+**DocuSeal API / webhooks / HTML field syntax:** Prefer the **DocuSeal MCP** (`ask_docuseal`) when you need documentation-backed answers during implementation; it does not replace env secrets or live account verification.

@@ -213,6 +213,7 @@ function App() {
           job={workOrderDetailJob}
           profile={profile}
           changeOrderListVersion={changeOrderListVersion}
+          onJobUpdated={setWorkOrderDetailJob}
           onBack={handleBackFromWorkOrderDetail}
           onStartChangeOrder={changeOrderFlow.handleStartChangeOrderFromDetail}
           onStartChangeOrderInvoice={(co, invoiceId) => {
@@ -299,6 +300,7 @@ function App() {
         job={draft.job}
         profile={profile}
         existingJobId={draft.currentJobId ?? undefined}
+        hasSession={Boolean(user)}
         onSaveSuccess={draftFlow.handleSaveSuccess}
         onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
         onCaptureFlowFinished={handleCaptureFlowFinished}

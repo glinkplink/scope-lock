@@ -26,8 +26,9 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 |---|---|
 | Framework | React 19 + TypeScript + Vite |
 | Auth + DB | Supabase (email/password auth, Postgres, RLS) |
-| App Server | Node **`server/app-server.mjs`**: Vite **middleware** (dev) or static **`dist/`** when `NODE_ENV=production` |
+| App Server | Node **`server/app-server.mjs`**: Vite **middleware** (dev) or static **`dist/`** when `NODE_ENV=production`; loads **`.env`** then **`.env.local`** (`dotenv`) for server-only secrets |
 | PDF | Puppeteer Core + **system Chrome**; all document PDFs via **same-origin** `POST /api/pdf` |
+| E-sign | DocuSeal **HTML submissions** from the client; **`POST /api/esign/work-orders/:jobId/send`**, **`POST …/resend`**, **`POST /api/webhooks/docuseal`** (see **ARCHITECTURE.md**) |
 | Styling | Plain CSS (`index.css`, global `App.css`, and co-located component/page CSS files) — no Tailwind |
 | Font | Barlow (+ Dancing Script for agreement signature) — field notebook aesthetic |
 
@@ -36,9 +37,9 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 ## Running the app
 
 ```bash
-npm run dev       # one process: Vite (HMR) + SPA + POST /api/pdf  (default http://127.0.0.1:3000)
+npm run dev       # one process: Vite (HMR) + SPA + POST /api/pdf + e-sign routes + DocuSeal webhook  (default http://127.0.0.1:3000)
 npm run build     # tsc + vite bundle → dist/  (set VITE_* first for production builds)
-npm run preview   # NODE_ENV=production: serve dist/ + /api/pdf  — run build first
+npm run preview   # NODE_ENV=production: serve dist/ + /api/pdf + same API routes  — run build first
 npm run lint      # eslint
 ```
 
@@ -50,13 +51,13 @@ VITE_SUPABASE_ANON_KEY=...
 VITE_GEOAPIFY_API_KEY=...   # optional — job site street autocomplete
 ```
 
-**Server env** (read by `app-server.mjs` at runtime, not `VITE_`): `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` if default Chrome path is wrong; `PORT`, `HOST`; `NODE_ENV=production` for static `dist/` mode. Quick check: `GET /api/pdf/health` → `{ "ok": true }`.
+**Server env** (read by `app-server.mjs` at runtime from `.env` / `.env.local`, not `VITE_`): `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` if default Chrome path is wrong; `PORT`, `HOST`; `NODE_ENV=production` for static `dist/` mode. For **DocuSeal** e-sign: `DOCUSEAL_API_KEY`, optional `DOCUSEAL_BASE_URL`, **`DOCUSEAL_WEBHOOK_HEADER_NAME`** + **`DOCUSEAL_WEBHOOK_HEADER_VALUE`**, **`SUPABASE_URL`** + **`SUPABASE_SERVICE_ROLE_KEY`**. Quick checks: `GET /api/pdf/health` → `{ "ok": true }`; `GET /api/webhooks/docuseal` → `{ "ok": true }`.
 
 ---
 
 ## Server, PDFs, deployment (reality check)
 
-- **Not static-only hosting:** Work order, invoice, and change-order PDFs all need the **Node server** and a **local Chrome/Chromium** binary. The browser posts HTML to **`/api/pdf`** on the **same origin** as the UI.
+- **Not static-only hosting:** Work order, invoice, and change-order PDFs all need the **Node server** and a **local Chrome/Chromium** binary. The browser posts HTML to **`/api/pdf`** on the **same origin** as the UI. **DocuSeal** send/resend and inbound **webhooks** use the same app server (`/api/esign/...`, `/api/webhooks/docuseal`).
 - **Single entrypoint:** Use `npm run dev` or `npm run preview` / `NODE_ENV=production node server/app-server.mjs` — there is no supported “Vite-only” production path if you want working downloads.
 - **Operator detail:** Env tables, reverse-proxy notes, and common deployment mistakes → **[README.md](./README.md)** and **[ARCHITECTURE.md](./ARCHITECTURE.md)** (Deployment + Portability).
 
@@ -80,7 +81,8 @@ src/
     HomePage.css             # HomePage-only styles
     JobForm.tsx              # Work agreement form (structured job site + Geoapify autocomplete)
     JobForm.css              # JobForm-only styles
-    AgreementPreview.tsx     # Preview + Download & Save / PDF; hosts CaptureModal when anonymous
+    AgreementPreview.tsx     # Preview + Download & Save / Save & Send / PDF; hosts CaptureModal when anonymous
+    AgreementPreview.css     # Preview-only chrome (e-sign row, hints)
     AgreementDocumentSections.tsx  # Renders agreement sections (preview, detail, PDF body)
     EditProfilePage.tsx      # Edit business profile + agreement defaults
     EditProfilePage.css      # EditProfilePage-only styles
@@ -109,6 +111,12 @@ src/
     job-to-welder-job.ts     # Job row + profile → WelderJob
     invoice-generator.ts     # Invoice HTML string
     agreement-sections-html.ts # Agreement sections → HTML string (combined PDFs)
+    docuseal-agreement-html.ts # DocuSeal HTML document (embedded CSS + field tags; uses esc())
+    docuseal-header-footer.ts  # html_header / html_footer strings for DocuSeal submissions
+    docuseal-constants.ts      # Shared DocuSeal role name(s)
+    fetch-with-supabase-auth.ts # Same-origin fetch with Bearer from Supabase session
+    esign-api.ts               # send/resend work order for signature (app server API)
+    esign-labels.ts            # E-sign status strings for UI
     html-escape.ts           # esc() for generated HTML (WO / CO / invoice strings)
     change-order-generator.ts # Change order HTML + combined WO + listed COs
     invoice-line-items.ts    # Invoice line item parsing, validation, source types
@@ -136,14 +144,16 @@ src/
   data/
     sample-job.json          # Default/placeholder values for new agreements
 server/
-  app-server.mjs             # App server + /api/pdf Puppeteer route
+  app-server.mjs             # App server + /api/pdf + e-sign + DocuSeal webhook routes
+  esign-routes.mjs           # JWT send/resend; webhook verify + service-role job updates
+  docuseal-esign-state.mjs   # Map DocuSeal submission/submitter → jobs.esign_* patch (shared w/ tests via @scope-server alias)
 ```
 
 ---
 
 ## Generated HTML strings (security)
 
-All user- or client-supplied text interpolated into HTML string generators (`invoice-generator.ts`, `change-order-generator.ts`, `agreement-sections-html.ts`, and any combined PDF HTML builders) must go through `esc()` from `src/lib/html-escape.ts`. React text in components (e.g. `AgreementDocumentSections`) is escaped by default; do not add new `dangerouslySetInnerHTML` pipelines built from raw user input without `esc()`.
+All user- or client-supplied text interpolated into HTML string generators (`invoice-generator.ts`, `change-order-generator.ts`, `agreement-sections-html.ts`, `docuseal-agreement-html.ts`, and any combined PDF HTML builders) must go through `esc()` from `src/lib/html-escape.ts`. React text in components (e.g. `AgreementDocumentSections`) is escaped by default; do not add new `dangerouslySetInnerHTML` pipelines built from raw user input without `esc()`.
 
 ---
 
@@ -152,7 +162,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 **Anonymous (no session):**
 - Full app shell: **Home → Create Work Order → JobForm → Preview**.
 - Header shows **Sign In** only (no Work Orders / gear until logged in).
-- **Primary signup path:** first **Download & Save** → **CaptureModal** (business name, email, password) → `signUp` + minimal `upsertProfile` → `saveWorkOrder` → PDF. No separate “register” flow in the header for visitors.
+- **Primary signup path:** first **Download & Save** (or **Save & Send for Signature**) → **CaptureModal** (business name, email, password) → `signUp` + minimal `upsertProfile` → `saveWorkOrder` → PDF or e-sign send. No separate “register” flow in the header for visitors.
 
 **Returning user:**
 - **Sign In** → `AuthPage` (email + password only; new accounts still come from capture on first save, not from AuthPage).
@@ -165,6 +175,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
 - If invoice-status rows are partially malformed, the page shows a warning banner but keeps valid invoice actions enabled.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.
+- **`jobs.esign_*`:** list shows an e-sign badge when `esign_status !== 'not_sent'`; detail has **Send / Resend**, signing link, and signed PDF when available.
 
 **`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'co-detail' | 'change-order-wizard' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
 

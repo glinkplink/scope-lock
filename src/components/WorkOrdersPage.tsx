@@ -9,6 +9,7 @@ import type {
 import { listJobsForWorkOrders, getJobById } from '../lib/db/jobs';
 import { listInvoiceStatusByJob, getInvoice, invoiceStatusMapFromRows } from '../lib/db/invoices';
 import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
+import { formatEsignListBadge } from '../lib/esign-labels';
 import { formatWorkOrderListJobType } from '../lib/work-order-list-label';
 import './WorkOrdersPage.css';
 
@@ -284,6 +285,11 @@ export function WorkOrdersPage({
                         <span className="work-orders-meta-type">
                           {formatWorkOrderListJobType(job)}
                         </span>
+                        {job.esign_status !== 'not_sent' ? (
+                          <span className="work-orders-esign-badge" title="E-signature">
+                            {formatEsignListBadge(job.esign_status)}
+                          </span>
+                        ) : null}
                       </span>
                     </div>
                     <div className="work-orders-row-actions">

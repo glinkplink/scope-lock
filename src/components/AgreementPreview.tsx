@@ -7,12 +7,23 @@ import { saveWorkOrder } from '../lib/db/jobs';
 import {
   downloadAgreementPdfBlob,
   fetchAgreementPdfBlob,
+  getWorkOrderHeaderLabel,
 } from '../lib/agreement-pdf';
+import { buildDocusealWorkOrderHtmlDocument } from '../lib/docuseal-agreement-html';
+import {
+  buildDocusealEsignFooterLine,
+  buildDocusealHtmlFooter,
+  buildDocusealHtmlHeader,
+} from '../lib/docuseal-header-footer';
+import { sendWorkOrderForSignature } from '../lib/esign-api';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { CaptureModal } from './CaptureModal';
 import { useScaledPreview } from '../hooks/useScaledPreview';
+import './AgreementPreview.css';
 
 const VALID_PRICE_TYPES: readonly PriceType[] = ['fixed', 'estimate', 'time_and_materials'];
+
+type CaptureAfterIntent = 'pdf' | 'esign';
 
 /** Labels for missing/invalid fields — used only in Download & Save gate. */
 function getRequiredFieldIssues(job: WelderJob): string[] {
@@ -67,6 +78,8 @@ interface AgreementPreviewProps {
   job: WelderJob;
   profile: BusinessProfile | null;
   existingJobId?: string;
+  /** True when a Supabase session exists (required before calling e-sign API). */
+  hasSession?: boolean;
   onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
   onCaptureAndSave?: (capture: {
     businessName: string;
@@ -81,6 +94,7 @@ export function AgreementPreview({
   job,
   profile,
   existingJobId,
+  hasSession = false,
   onSaveSuccess,
   onCaptureAndSave,
   onCaptureFlowFinished,
@@ -88,9 +102,12 @@ export function AgreementPreview({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [esignBusy, setEsignBusy] = useState(false);
+  const [esignError, setEsignError] = useState('');
   /** True after the user has completed one successful Download & Save (or Download PDF) this mount — further clicks skip DB. */
   const [hasPersistedViaDownloadOnce, setHasPersistedViaDownloadOnce] = useState(false);
   const documentRef = useRef<HTMLDivElement | null>(null);
+  const captureAfterIntentRef = useRef<CaptureAfterIntent>('pdf');
 
   const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [captureError, setCaptureError] = useState('');
@@ -118,6 +135,30 @@ export function AgreementPreview({
     window.scrollTo(0, 0);
   }, []);
 
+  const performEsignSend = async (jobId: string, welderJob: WelderJob, prof: BusinessProfile | null) => {
+    const agreementSections = generateAgreement(welderJob, prof);
+    const html = buildDocusealWorkOrderHtmlDocument(agreementSections);
+    const header = buildDocusealHtmlHeader(getWorkOrderHeaderLabel(welderJob));
+    const footer = buildDocusealHtmlFooter(buildDocusealEsignFooterLine(prof, welderJob));
+    const wo = String(welderJob.wo_number).padStart(4, '0');
+    await sendWorkOrderForSignature(jobId, {
+      name: `Work Order #${wo}`,
+      send_email: true,
+      documents: [
+        {
+          name: `Work Order #${wo}`,
+          html,
+          html_header: header,
+          html_footer: footer,
+        },
+      ],
+      message: {
+        subject: `Please sign: Work Order #${wo}`,
+        body: `Please review and sign the work order.\n\n{{submitter.link}}`,
+      },
+    });
+  };
+
   const handleCaptureSubmit = async (businessName: string, email: string, password: string) => {
     if (!onCaptureAndSave) return;
     setCaptureSubmitting(true);
@@ -138,6 +179,30 @@ export function AgreementPreview({
 
       setHasPersistedViaDownloadOnce(true);
       await Promise.resolve(onSaveSuccess(data.id, true));
+
+      const intent = captureAfterIntentRef.current;
+
+      if (intent === 'esign') {
+        setEsignError('');
+        try {
+          await performEsignSend(data.id, job, capturedProfile);
+          setConfirmationMessage(
+            `Account created! WO #${String(job.wo_number).padStart(4, '0')} saved. Signature request emailed to the customer.`
+          );
+          onCaptureFlowFinished?.({ pdfOk: true });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Send for signature failed.';
+          setSaveError(`Work order saved, but ${msg}`);
+          setConfirmationMessage(
+            `Account created! WO #${String(job.wo_number).padStart(4, '0')} saved.`
+          );
+          onCaptureFlowFinished?.({ pdfOk: false });
+        }
+        setShowCaptureModal(false);
+        setCaptureSubmitting(false);
+        captureAfterIntentRef.current = 'pdf';
+        return;
+      }
 
       let pdfOk = false;
       if (documentRef.current) {
@@ -169,10 +234,16 @@ export function AgreementPreview({
     }
   };
 
+  const openCaptureModal = (intent: CaptureAfterIntent) => {
+    captureAfterIntentRef.current = intent;
+    setShowCaptureModal(true);
+  };
+
   const handleDownloadAndSave = async () => {
     setSaving(true);
     setSaveError('');
     setConfirmationMessage('');
+    setEsignError('');
 
     if (!documentRef.current) {
       setSaving(false);
@@ -195,7 +266,7 @@ export function AgreementPreview({
 
     if (!profile && onCaptureAndSave) {
       setSaving(false);
-      setShowCaptureModal(true);
+      openCaptureModal('pdf');
       return;
     }
 
@@ -250,12 +321,77 @@ export function AgreementPreview({
     }
   };
 
+  const handleSaveAndSend = async () => {
+    setEsignError('');
+    setSaveError('');
+    setConfirmationMessage('');
+
+    if (!job.customer_email?.trim()) {
+      setEsignError('Add a customer email on the work order form — it is required to email the signature request.');
+      return;
+    }
+
+    if (!profile && !onCaptureAndSave) {
+      setEsignError('Sign in or use Download & Save to create an account first.');
+      return;
+    }
+
+    const fieldIssues = getRequiredFieldIssues(job);
+    if (fieldIssues.length > 0) {
+      setEsignError(`Complete the following first: ${fieldIssues.join('; ')}.`);
+      return;
+    }
+
+    if (!profile && onCaptureAndSave) {
+      openCaptureModal('esign');
+      return;
+    }
+
+    if (!profile) {
+      setEsignError('No profile found — cannot send for signature.');
+      return;
+    }
+
+    if (!hasSession) {
+      setEsignError('You must be signed in to send for signature.');
+      return;
+    }
+
+    setEsignBusy(true);
+
+    try {
+      let jobId = existingJobId;
+      if (!hasPersistedViaDownloadOnce) {
+        const { data, error } = await saveWorkOrder(profile.user_id, job, existingJobId);
+        if (error || !data) {
+          setEsignError(error?.message || 'Failed to save work order.');
+          return;
+        }
+        jobId = data.id;
+        setHasPersistedViaDownloadOnce(true);
+        await Promise.resolve(onSaveSuccess(data.id, !existingJobId));
+      } else if (!jobId) {
+        setEsignError('Save the work order once before sending for signature.');
+        return;
+      }
+
+      await performEsignSend(jobId, job, profile);
+      setConfirmationMessage(
+        `Signature request sent. WO #${String(job.wo_number).padStart(4, '0')} — customer will receive an email.`
+      );
+    } catch (e) {
+      setEsignError(e instanceof Error ? e.message : 'Send for signature failed.');
+    } finally {
+      setEsignBusy(false);
+    }
+  };
+
   const renderDownloadButton = () => (
     <button
       type="button"
       onClick={() => void handleDownloadAndSave()}
       className="btn-action btn-primary"
-      disabled={saving}
+      disabled={saving || esignBusy}
     >
       {saving
         ? hasPersistedViaDownloadOnce
@@ -267,6 +403,13 @@ export function AgreementPreview({
     </button>
   );
 
+  const canOfferEsign = Boolean(profile || onCaptureAndSave);
+  const esignDisabled =
+    esignBusy ||
+    saving ||
+    !canOfferEsign ||
+    !job.customer_email?.trim();
+
   return (
     <div className="agreement-preview">
       <div className="preview-actions">
@@ -274,7 +417,28 @@ export function AgreementPreview({
           <div className="success-banner">{confirmationMessage}</div>
         )}
         {saveError && <div className="error-banner">{saveError}</div>}
-        {renderDownloadButton()}
+        {esignError && <div className="error-banner">{esignError}</div>}
+        <div className="preview-actions-row">
+          {renderDownloadButton()}
+          <button
+            type="button"
+            onClick={() => void handleSaveAndSend()}
+            className="btn-action btn-secondary"
+            disabled={esignDisabled}
+            title={
+              !job.customer_email?.trim()
+                ? 'Customer email is required to send the signature request'
+                : undefined
+            }
+          >
+            {esignBusy ? 'Sending…' : 'Save & Send for Signature'}
+          </button>
+        </div>
+        {!job.customer_email?.trim() && (
+          <p className="preview-esign-hint">
+            Customer email is required on the form to send for signature (download is still available).
+          </p>
+        )}
       </div>
 
       <div ref={previewViewportRef} className="agreement-preview-scale-viewport">
@@ -303,7 +467,22 @@ export function AgreementPreview({
       </div>
 
       <div className="preview-actions preview-actions-bottom">
-        {renderDownloadButton()}
+        <div className="preview-actions-row">
+          {renderDownloadButton()}
+          <button
+            type="button"
+            onClick={() => void handleSaveAndSend()}
+            className="btn-action btn-secondary"
+            disabled={esignDisabled}
+            title={
+              !job.customer_email?.trim()
+                ? 'Customer email is required to send the signature request'
+                : undefined
+            }
+          >
+            {esignBusy ? 'Sending…' : 'Save & Send for Signature'}
+          </button>
+        </div>
       </div>
 
       {showCaptureModal && (
@@ -312,6 +491,7 @@ export function AgreementPreview({
           onClose={() => {
             setShowCaptureModal(false);
             setCaptureError('');
+            captureAfterIntentRef.current = 'pdf';
           }}
           error={captureError}
           submitting={captureSubmitting}

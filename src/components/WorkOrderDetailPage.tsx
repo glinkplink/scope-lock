@@ -17,6 +17,19 @@ import {
   getWorkOrderHeaderLabel,
   downloadPdfBlobToFile,
 } from '../lib/agreement-pdf';
+import { buildDocusealWorkOrderHtmlDocument } from '../lib/docuseal-agreement-html';
+import {
+  buildDocusealEsignFooterLine,
+  buildDocusealHtmlFooter,
+  buildDocusealHtmlHeader,
+} from '../lib/docuseal-header-footer';
+import {
+  mergeEsignResponseIntoJob,
+  resendWorkOrderSignature,
+  sendWorkOrderForSignature,
+} from '../lib/esign-api';
+import { formatEsignStatusLabel } from '../lib/esign-labels';
+import { getJobById } from '../lib/db/jobs';
 import { agreementSectionsToHtml } from '../lib/agreement-sections-html';
 import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-generator';
 import '../lib/change-order-document.css';
@@ -34,6 +47,7 @@ interface WorkOrderDetailPageProps {
   job: Job;
   profile: BusinessProfile | null;
   changeOrderListVersion?: number;
+  onJobUpdated?: (job: Job) => void;
   onBack: () => void;
   onStartChangeOrder: () => void;
   onStartChangeOrderInvoice: (co: ChangeOrder, invoiceId: string | null) => void;
@@ -45,6 +59,7 @@ export function WorkOrderDetailPage({
   job,
   profile,
   changeOrderListVersion = 0,
+  onJobUpdated,
   onBack,
   onStartChangeOrder,
   onStartChangeOrderInvoice,
@@ -53,6 +68,8 @@ export function WorkOrderDetailPage({
   const documentRef = useRef<HTMLDivElement | null>(null);
 
   const [pdfError, setPdfError] = useState('');
+  const [esignError, setEsignError] = useState('');
+  const [esignBusy, setEsignBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [coLoading, setCoLoading] = useState(true);
@@ -175,6 +192,69 @@ export function WorkOrderDetailPage({
     return changeOrderInvoiceStatusMapFromRows(coInvoiceStatusRows);
   }, [coInvoiceStatusRows]);
 
+  const refreshJobRow = async () => {
+    const row = await getJobById(job.id);
+    if (row && onJobUpdated) {
+      onJobUpdated(row);
+    }
+  };
+
+  const buildEsignPayload = () => {
+    const wo = String(welderJob.wo_number).padStart(4, '0');
+    const agreementSections = generateAgreement(welderJob, profile);
+    const html = buildDocusealWorkOrderHtmlDocument(agreementSections);
+    const header = buildDocusealHtmlHeader(getWorkOrderHeaderLabel(welderJob));
+    const footer = buildDocusealHtmlFooter(buildDocusealEsignFooterLine(profile, welderJob));
+    return {
+      name: `Work Order #${wo}`,
+      send_email: true,
+      documents: [
+        {
+          name: `Work Order #${wo}`,
+          html,
+          html_header: header,
+          html_footer: footer,
+        },
+      ],
+      message: {
+        subject: `Please sign: Work Order #${wo}`,
+        body: `Please review and sign the work order.\n\n{{submitter.link}}`,
+      },
+    };
+  };
+
+  const handleEsignSend = async () => {
+    setEsignError('');
+    if (!(job.customer_email || '').trim()) {
+      setEsignError('Customer email is missing on this work order. Edit the job or agreement to add it.');
+      return;
+    }
+    setEsignBusy(true);
+    try {
+      const r = await sendWorkOrderForSignature(job.id, buildEsignPayload());
+      onJobUpdated?.(mergeEsignResponseIntoJob(job, r));
+      await refreshJobRow();
+    } catch (e) {
+      setEsignError(e instanceof Error ? e.message : 'Send for signature failed.');
+    } finally {
+      setEsignBusy(false);
+    }
+  };
+
+  const handleEsignResend = async () => {
+    setEsignError('');
+    setEsignBusy(true);
+    try {
+      const r = await resendWorkOrderSignature(job.id);
+      onJobUpdated?.(mergeEsignResponseIntoJob(job, r));
+      await refreshJobRow();
+    } catch (e) {
+      setEsignError(e instanceof Error ? e.message : 'Resend failed.');
+    } finally {
+      setEsignBusy(false);
+    }
+  };
+
   const downloadCombinedPdf = async () => {
     setPdfError('');
     setDownloading(true);
@@ -213,6 +293,93 @@ export function WorkOrderDetailPage({
           {pdfError}
         </div>
       ) : null}
+      {esignError ? (
+        <div className="error-banner" role="alert">
+          {esignError}
+        </div>
+      ) : null}
+
+      <section className="wo-esign-card" aria-labelledby="wo-esign-heading">
+        <h2 id="wo-esign-heading" className="wo-esign-heading">
+          Customer signature <span className="wo-esign-status">({formatEsignStatusLabel(job.esign_status)})</span>
+        </h2>
+        <dl className="wo-esign-meta">
+          {job.esign_sent_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Sent</dt>
+              <dd>{new Date(job.esign_sent_at).toLocaleString()}</dd>
+            </div>
+          ) : null}
+          {job.esign_opened_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Opened</dt>
+              <dd>{new Date(job.esign_opened_at).toLocaleString()}</dd>
+            </div>
+          ) : null}
+          {job.esign_completed_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Signed</dt>
+              <dd>{new Date(job.esign_completed_at).toLocaleString()}</dd>
+            </div>
+          ) : null}
+          {job.esign_declined_at ? (
+            <div className="wo-esign-meta-row">
+              <dt>Declined</dt>
+              <dd>{new Date(job.esign_declined_at).toLocaleString()}</dd>
+            </div>
+          ) : null}
+          {job.esign_decline_reason ? (
+            <div className="wo-esign-meta-row">
+              <dt>Decline reason</dt>
+              <dd>{job.esign_decline_reason}</dd>
+            </div>
+          ) : null}
+        </dl>
+        <div className="wo-esign-actions">
+          {!job.esign_submitter_id ? (
+            <button
+              type="button"
+              className="btn-primary btn-action"
+              disabled={esignBusy || !job.customer_email?.trim()}
+              title={
+                !job.customer_email?.trim() ? 'Customer email is required to send for signature' : undefined
+              }
+              onClick={() => void handleEsignSend()}
+            >
+              {esignBusy ? 'Sending…' : 'Send for signature'}
+            </button>
+          ) : job.esign_status !== 'completed' ? (
+            <button
+              type="button"
+              className="btn-primary btn-action"
+              disabled={esignBusy}
+              onClick={() => void handleEsignResend()}
+            >
+              {esignBusy ? 'Sending…' : 'Resend signature email'}
+            </button>
+          ) : null}
+          {job.esign_embed_src ? (
+            <a
+              className="btn-secondary btn-action"
+              href={job.esign_embed_src}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open signing link
+            </a>
+          ) : null}
+          {job.esign_signed_document_url ? (
+            <a
+              className="btn-secondary btn-action"
+              href={job.esign_signed_document_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View signed PDF
+            </a>
+          ) : null}
+        </div>
+      </section>
 
       <div className="work-order-detail-scroll">
         <div ref={documentRef} className="agreement-document work-order-detail-document">

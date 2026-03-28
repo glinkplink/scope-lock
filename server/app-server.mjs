@@ -4,11 +4,15 @@ import { createReadStream, existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import puppeteer from 'puppeteer-core';
+import { tryHandleEsignRoute } from './esign-routes.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
+dotenv.config({ path: path.join(rootDir, '.env') });
+dotenv.config({ path: path.join(rootDir, '.env.local'), override: true });
 const distDir = path.join(rootDir, 'dist');
 const isDev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3000);
@@ -220,6 +224,15 @@ async function createAppServer() {
 
     if (req.method === 'GET' && req.url === '/api/pdf/health') {
       sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    const handledEsign = await tryHandleEsignRoute(req, res, {
+      readJsonBody,
+      sendJson,
+      sendText,
+    });
+    if (handledEsign) {
       return;
     }
 

@@ -22,7 +22,7 @@ npm install
 # Copy env vars and fill in from Supabase (Project Settings → API)
 cp .env.example .env.local
 
-# Dev: one process serves Vite (HMR) + static API routes + POST /api/pdf
+# Dev: one process serves Vite (HMR) + POST /api/pdf + e-sign + DocuSeal webhook routes
 npm run dev
 ```
 
@@ -41,9 +41,9 @@ curl -s http://127.0.0.1:3000/api/pdf/health
 
 | Command | What runs |
 |--------|-----------|
-| `npm run dev` | **`node server/app-server.mjs`** with `NODE_ENV` ≠ `production`: Vite in **middleware mode** (hot reload) + **`POST /api/pdf`** |
+| `npm run dev` | **`node server/app-server.mjs`** with `NODE_ENV` ≠ `production`: Vite in **middleware mode** (hot reload) + **`POST /api/pdf`** + **`POST /api/esign/work-orders/:jobId/send|resend`** + **`POST /api/webhooks/docuseal`** |
 | `npm run build` | TypeScript project references + Vite production bundle → `dist/` |
-| `npm run preview` | **`NODE_ENV=production node server/app-server.mjs`**: serves **`dist/`** as static files + **`POST /api/pdf`**. **Run `npm run build` first** or the app shell will be missing/outdated. |
+| `npm run preview` | **`NODE_ENV=production node server/app-server.mjs`**: serves **`dist/`** as static files + **`POST /api/pdf`** and the same e-sign/webhook routes. **Run `npm run build` first** or the app shell will be missing/outdated. |
 | `npm run lint` | ESLint |
 
 There is **no** `vite preview` workflow as the primary way to run the product: the supported path is **always** the custom app server so PDFs work.
@@ -64,12 +64,20 @@ Put these in **`.env.local`** (see `.env.example`).
 
 **Server (read at runtime by `server/app-server.mjs` — not `VITE_`):**
 
+The server loads **`.env`** then **`.env.local`** (override) via `dotenv` so DocuSeal and Supabase service keys match local and hosted setups without manual `export`.
+
 | Variable | Purpose |
 |----------|---------|
 | `PUPPETEER_EXECUTABLE_PATH` or `CHROME_PATH` | Absolute path to Chrome/Chromium. If unset, defaults to **`/usr/bin/google-chrome-stable`** (typical on Debian/Ubuntu; adjust on macOS/Windows or in Docker). |
 | `PORT` | HTTP port (default **3000**) |
 | `HOST` | Bind address (default **127.0.0.1** — set to `0.0.0.0` in containers/cloud if you need external access) |
 | `NODE_ENV` | When set to **`production`**, the server serves **`dist/`** instead of Vite dev middleware. `npm run preview` sets this for you. |
+| `DOCUSEAL_API_KEY` | Server → DocuSeal REST API (`POST /submissions/html`, `PUT /submitters/{id}`, `GET /submissions/{id}`). |
+| `DOCUSEAL_BASE_URL` | DocuSeal API origin (default **`https://api.docuseal.com`**). |
+| `DOCUSEAL_WEBHOOK_HEADER_NAME` | **Exact** header name configured in DocuSeal for inbound webhooks (copy from their UI). |
+| `DOCUSEAL_WEBHOOK_HEADER_VALUE` | Secret value paired with that header. |
+| `SUPABASE_URL` | Same project URL as `VITE_SUPABASE_URL`; used by the server with the service role. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only.** Used to update `jobs.esign_*` after send/resend and on webhooks. Send/resend still require a valid user **JWT**; each update checks `jobs.user_id` matches the caller (webhooks use submission correlation, not Supabase JWT). |
 
 ---
 
@@ -87,6 +95,7 @@ Put these in **`.env.local`** (see `.env.example`).
 
 - **Home → Create Work Order → JobForm → Preview.** Header shows **Sign In** only (no Work Orders, no profile gear).
 - **Download & Save** opens **CaptureModal**: business name, email, password → **`signUp`**, minimal **`upsertProfile`**, **`saveWorkOrder`**, then PDF download. That is the primary **account creation** path for new contractors.
+- **Save & Send for Signature** (preview, when DocuSeal is configured) uses the same capture/save path when anonymous, then **`POST /api/esign/work-orders/:jobId/send`** with a Bearer token. Work order detail has **Send / Resend**, signing link, and signed PDF when DocuSeal reports completion.
 
 **Returning user**
 

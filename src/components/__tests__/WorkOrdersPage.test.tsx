@@ -34,6 +34,7 @@ const listJobA: WorkOrderListJob = {
   agreement_date: '2025-01-01',
   created_at: '2025-01-01T12:00:00Z',
   price: 100,
+  esign_status: 'not_sent',
 };
 
 const listJobB: WorkOrderListJob = {
@@ -45,6 +46,7 @@ const listJobB: WorkOrderListJob = {
   agreement_date: '2025-01-02',
   created_at: '2025-01-02T12:00:00Z',
   price: 200,
+  esign_status: 'sent',
 };
 
 function minimalFullJob(id: string, customer: string): Job {
@@ -90,6 +92,18 @@ function minimalFullJob(id: string, customer: string): Job {
     customer_obligations: null,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
+    esign_submission_id: null,
+    esign_submitter_id: null,
+    esign_embed_src: null,
+    esign_status: 'not_sent',
+    esign_submission_state: null,
+    esign_submitter_state: null,
+    esign_sent_at: null,
+    esign_opened_at: null,
+    esign_completed_at: null,
+    esign_declined_at: null,
+    esign_decline_reason: null,
+    esign_signed_document_url: null,
   };
 }
 
@@ -137,6 +151,14 @@ describe('WorkOrdersPage', () => {
       warning: null,
     } satisfies ListInvoiceStatusByJobResult);
     getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
+  });
+
+  it('shows e-sign badge when esign_status is not not_sent', async () => {
+    listJobsForWorkOrders.mockResolvedValue([listJobA, listJobB]);
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Sign sent')).toBeInTheDocument();
+    });
   });
 
   it('shows date on first meta line and capitalized job type on second', async () => {
