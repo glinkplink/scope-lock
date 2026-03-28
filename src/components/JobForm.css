@@ -141,7 +141,7 @@
   color: var(--text-primary);
 }
 
-/* Your Name section (no profile yet) */
-.job-form-owner-name .form-row {
+/* Your Information section (no profile yet) */
+.job-form-your-information .form-row {
   margin-top: var(--space-sm);
 }

@@ -105,8 +105,8 @@ describe('JobForm payment terms', () => {
   });
 });
 
-describe('JobForm owner name (no profile)', () => {
-  it('shows Your Name section when showOwnerNameFields', () => {
+describe('JobForm Your Information (no profile)', () => {
+  it('shows Your Information with Business Email and Business Phone when showOwnerNameFields', () => {
     render(
       <JobForm
         job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
@@ -114,14 +114,20 @@ describe('JobForm owner name (no profile)', () => {
         showOwnerNameFields
         ownerFirstName=""
         ownerLastName=""
+        ownerBusinessEmail=""
+        ownerBusinessPhone=""
         onOwnerFirstNameChange={vi.fn()}
         onOwnerLastNameChange={vi.fn()}
+        onOwnerBusinessEmailChange={vi.fn()}
+        onOwnerBusinessPhoneChange={vi.fn()}
       />
     );
-    expect(screen.getByRole('heading', { name: /your name/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /your information/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Business Email$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Business Phone$/i)).toBeInTheDocument();
   });
 
-  it('blocks Preview when owner names are empty and showOwnerNameFields', async () => {
+  it('calls onGoToPreview when payment and late fee are valid even if owner names empty', async () => {
     const user = userEvent.setup();
     const onGoToPreview = vi.fn();
     const { container } = render(
@@ -132,29 +138,12 @@ describe('JobForm owner name (no profile)', () => {
         showOwnerNameFields
         ownerFirstName=""
         ownerLastName=""
+        ownerBusinessEmail=""
+        ownerBusinessPhone=""
         onOwnerFirstNameChange={vi.fn()}
         onOwnerLastNameChange={vi.fn()}
-      />
-    );
-
-    await clickAgreementPreview(user, container);
-    expect(onGoToPreview).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/first and last name/i);
-  });
-
-  it('calls onGoToPreview when owner names are filled', async () => {
-    const user = userEvent.setup();
-    const onGoToPreview = vi.fn();
-    const { container } = render(
-      <JobForm
-        job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
-        onChange={vi.fn()}
-        onGoToPreview={onGoToPreview}
-        showOwnerNameFields
-        ownerFirstName="Pat"
-        ownerLastName="Smith"
-        onOwnerFirstNameChange={vi.fn()}
-        onOwnerLastNameChange={vi.fn()}
+        onOwnerBusinessEmailChange={vi.fn()}
+        onOwnerBusinessPhoneChange={vi.fn()}
       />
     );
 

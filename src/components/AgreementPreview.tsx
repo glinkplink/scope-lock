@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { PriceType, WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
@@ -17,7 +17,7 @@ import {
   buildDocusealHtmlHeader,
 } from '../lib/docuseal-header-footer';
 import { sendWorkOrderForSignature } from '../lib/esign-api';
-import { getOwnerNameCaptureBlockReason } from '../lib/owner-name';
+import { buildGuestPreviewProfile } from '../lib/guest-agreement-profile';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { CaptureModal } from './CaptureModal';
 import { useScaledPreview } from '../hooks/useScaledPreview';
@@ -51,6 +51,7 @@ function buildCapturedProfileStub(result: {
   userId: string;
   businessName: string;
   email: string;
+  phone: string | null;
   ownerName: string;
 }): BusinessProfile {
   return {
@@ -58,7 +59,7 @@ function buildCapturedProfileStub(result: {
     user_id: result.userId,
     business_name: result.businessName,
     owner_name: result.ownerName.trim() || null,
-    phone: null,
+    phone: result.phone,
     email: result.email,
     address: null,
     google_business_profile_url: null,
@@ -85,15 +86,23 @@ interface AgreementPreviewProps {
   existingJobId?: string;
   /** True when a Supabase session exists (required before calling e-sign API). */
   hasSession?: boolean;
-  /** First/last from App when no profile (must be complete before anonymous capture). */
+  /** Guest contractor fields from App when no profile (preview + anonymous capture). */
   ownerFirstName?: string;
   ownerLastName?: string;
+  ownerBusinessEmail?: string;
+  ownerBusinessPhone?: string;
   onSaveSuccess: (savedJobId: string, isNewSave: boolean) => void | Promise<void>;
   onCaptureAndSave?: (capture: {
     businessName: string;
     email: string;
     password: string;
-  }) => Promise<{ userId: string; businessName: string; email: string; ownerName: string }>;
+  }) => Promise<{
+    userId: string;
+    businessName: string;
+    email: string;
+    phone: string | null;
+    ownerName: string;
+  }>;
   /** Called after PDF or e-sign attempt (account + save already done). Parent may redirect. */
   onCaptureFlowFinished?: (opts: CaptureFlowFinishedPayload) => void;
 }
@@ -105,6 +114,8 @@ export function AgreementPreview({
   hasSession = false,
   ownerFirstName = '',
   ownerLastName = '',
+  ownerBusinessEmail = '',
+  ownerBusinessPhone = '',
   onSaveSuccess,
   onCaptureAndSave,
   onCaptureFlowFinished,
@@ -125,7 +136,18 @@ export function AgreementPreview({
   /** After capture, re-render agreement with contractor profile before PDF snapshot. */
   const [postCaptureProfile, setPostCaptureProfile] = useState<BusinessProfile | null>(null);
 
-  const displayProfile = postCaptureProfile ?? profile;
+  const guestPreviewProfile = useMemo(
+    () =>
+      buildGuestPreviewProfile({
+        ownerFirstName,
+        ownerLastName,
+        ownerBusinessEmail,
+        ownerBusinessPhone,
+      }),
+    [ownerFirstName, ownerLastName, ownerBusinessEmail, ownerBusinessPhone]
+  );
+
+  const displayProfile = postCaptureProfile ?? profile ?? guestPreviewProfile;
   const sections = generateAgreement(job, displayProfile);
 
   const {
@@ -275,12 +297,6 @@ export function AgreementPreview({
     }
 
     if (!profile && onCaptureAndSave) {
-      const ownerMsg = getOwnerNameCaptureBlockReason(ownerFirstName, ownerLastName);
-      if (ownerMsg) {
-        setSaving(false);
-        setSaveError(ownerMsg);
-        return;
-      }
       setSaving(false);
       openCaptureModal('pdf');
       return;
@@ -359,11 +375,6 @@ export function AgreementPreview({
     }
 
     if (!profile && onCaptureAndSave) {
-      const ownerMsg = getOwnerNameCaptureBlockReason(ownerFirstName, ownerLastName);
-      if (ownerMsg) {
-        setEsignError(ownerMsg);
-        return;
-      }
       openCaptureModal('esign');
       return;
     }

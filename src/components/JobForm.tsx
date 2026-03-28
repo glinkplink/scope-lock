@@ -20,7 +20,6 @@ import {
   validateLateFeeRate,
   validatePaymentTermsDays,
 } from '../lib/payment-terms';
-import { getOwnerNameCaptureBlockReason } from '../lib/owner-name';
 import './JobForm.css';
 
 function patchJobSite(
@@ -47,12 +46,16 @@ interface JobFormProps {
   onChange: (job: WelderJob) => void;
   /** Shown for the "materials provided by welder" option (profile business name). */
   businessName?: string | null;
-  /** When true (no profile yet), first/last name are required before Preview. */
+  /** When true (no profile yet), show optional Your Information block for preview + capture. */
   showOwnerNameFields?: boolean;
   ownerFirstName?: string;
   ownerLastName?: string;
+  ownerBusinessEmail?: string;
+  ownerBusinessPhone?: string;
   onOwnerFirstNameChange?: (value: string) => void;
   onOwnerLastNameChange?: (value: string) => void;
+  onOwnerBusinessEmailChange?: (value: string) => void;
+  onOwnerBusinessPhoneChange?: (value: string) => void;
   /** Opens agreement preview (e.g. switches to Preview tab and scrolls to top). */
   onGoToPreview?: () => void;
 }
@@ -65,8 +68,12 @@ export function JobForm({
   showOwnerNameFields = false,
   ownerFirstName = '',
   ownerLastName = '',
+  ownerBusinessEmail = '',
+  ownerBusinessPhone = '',
   onOwnerFirstNameChange,
   onOwnerLastNameChange,
+  onOwnerBusinessEmailChange,
+  onOwnerBusinessPhoneChange,
   onGoToPreview,
 }: JobFormProps) {
   const materialsWelderLabel = businessName?.trim() || 'Service Provider';
@@ -89,7 +96,6 @@ export function JobForm({
   );
   const [paymentTermsDaysError, setPaymentTermsDaysError] = useState<string | null>(null);
   const [lateFeeRateError, setLateFeeRateError] = useState<string | null>(null);
-  const [ownerNameError, setOwnerNameError] = useState<string | null>(null);
   /** Only re-copy job → raw strings when job payment fields actually change (avoids StrictMode / effect wiping user edits). */
   const lastSyncedPaymentFromJob = useRef({
     days: job.payment_terms_days,
@@ -654,61 +660,69 @@ export function JobForm({
 
     if (blocked) return;
 
-    if (showOwnerNameFields) {
-      const ownerMsg = getOwnerNameCaptureBlockReason(ownerFirstName, ownerLastName);
-      if (ownerMsg) {
-        setOwnerNameError(ownerMsg);
-        return;
-      }
-    }
-
     onGoToPreview();
   };
 
   const ownerFirstId = `${ownerNameFieldsId}-owner-first`;
   const ownerLastId = `${ownerNameFieldsId}-owner-last`;
+  const ownerBizEmailId = `${ownerNameFieldsId}-owner-biz-email`;
+  const ownerBizPhoneId = `${ownerNameFieldsId}-owner-biz-phone`;
 
   return (
     <form className="job-form" onSubmit={(e) => e.preventDefault()}>
       {showOwnerNameFields && (
-        <section className="form-section job-form-owner-name">
-          <h2>Your Name</h2>
+        <section className="form-section job-form-your-information">
+          <h2>Your Information</h2>
           <p className="help-text help-text-below-label">
-            Used on your agreement signature. Required before preview.
+            Shown on your agreement preview (signature and Service Provider contact). All optional — you can
+            fill them before or after preview. Your business name is set when you create your account.
           </p>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor={ownerFirstId}>First Name *</label>
+              <label htmlFor={ownerFirstId}>First Name</label>
               <input
                 id={ownerFirstId}
                 type="text"
                 autoComplete="given-name"
                 value={ownerFirstName}
-                onChange={(e) => {
-                  setOwnerNameError(null);
-                  onOwnerFirstNameChange?.(e.target.value);
-                }}
+                onChange={(e) => onOwnerFirstNameChange?.(e.target.value)}
               />
             </div>
             <div className="form-group">
-              <label htmlFor={ownerLastId}>Last Name *</label>
+              <label htmlFor={ownerLastId}>Last Name</label>
               <input
                 id={ownerLastId}
                 type="text"
                 autoComplete="family-name"
                 value={ownerLastName}
-                onChange={(e) => {
-                  setOwnerNameError(null);
-                  onOwnerLastNameChange?.(e.target.value);
-                }}
+                onChange={(e) => onOwnerLastNameChange?.(e.target.value)}
               />
             </div>
           </div>
-          {ownerNameError && (
-            <p className="job-form-field-error" role="alert">
-              {ownerNameError}
-            </p>
-          )}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor={ownerBizEmailId}>Business Email</label>
+              <input
+                id={ownerBizEmailId}
+                type="email"
+                autoComplete="email"
+                value={ownerBusinessEmail}
+                onChange={(e) => onOwnerBusinessEmailChange?.(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor={ownerBizPhoneId}>Business Phone</label>
+              <input
+                id={ownerBizPhoneId}
+                type="tel"
+                autoComplete="tel"
+                value={formatUsPhoneInput(ownerBusinessPhone)}
+                onChange={(e) =>
+                  onOwnerBusinessPhoneChange?.(formatUsPhoneInput(e.target.value))
+                }
+              />
+            </div>
+          </div>
         </section>
       )}
 

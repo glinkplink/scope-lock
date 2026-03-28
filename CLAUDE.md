@@ -79,7 +79,7 @@ src/
     CaptureModal.css         # CaptureModal-only styles
     HomePage.tsx             # Home after login; “Create Work Order”
     HomePage.css             # HomePage-only styles
-    JobForm.tsx              # Work agreement form (structured job site + Geoapify autocomplete); “Your Name” first/last when no profile
+    JobForm.tsx              # Work agreement form (structured job site + Geoapify autocomplete); optional “Your Information” when no profile
     JobForm.css              # JobForm-only styles
     AgreementPreview.tsx     # Preview + Download & Save / Save & Send / PDF; hosts CaptureModal when anonymous
     AgreementPreview.css     # Preview-only chrome (e-sign row, hints)
@@ -118,7 +118,8 @@ src/
     esign-api.ts               # send/resend work order for signature (app server API)
     esign-labels.ts            # E-sign status strings for UI
     html-escape.ts           # esc() for generated HTML (WO / CO / invoice strings)
-    owner-name.ts            # normalize owner full name; shared validation/message for no-profile name capture
+    owner-name.ts            # normalize owner full name for profile + preview stubs
+    guest-agreement-profile.ts # `BusinessProfile`-shaped stub from guest form fields for agreement preview when no DB profile
     change-order-generator.ts # Change order HTML + combined WO + listed COs
     invoice-line-items.ts    # Invoice line item parsing, validation, source types
     payment-terms.ts         # Payment terms presets + validators
@@ -137,7 +138,7 @@ src/
     useChangeOrderFlow.ts    # Detail/wizard/detail navigation for change orders
     useInvoiceFlow.ts        # Invoice wizard/final page flow state
     useScaledPreview.ts      # 816px preview scaling helpers
-    useWorkOrderDraft.ts     # Draft state + next_wo_number refresh after first save; optional onNewDraft (e.g. clear App owner-name fields)
+    useWorkOrderDraft.ts     # Draft state + next_wo_number refresh after first save; optional onNewDraft (e.g. clear App guest information fields)
     useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
   types/
     db.ts                    # BusinessProfile, Client, Job, Invoice, …
@@ -163,7 +164,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 **Anonymous (no session):**
 - Full app shell: **Home → Create Work Order → JobForm → Preview**.
 - Header shows **Sign In** only (no Work Orders / gear until logged in).
-- **Primary signup path:** on **JobForm**, when there is no profile yet, enter **Your Name** (first + last) — required before **Preview** and before anonymous capture. Then **Download & Save** (or **Save & Send for Signature**) → **CaptureModal** (business name, email, password) → `signUp` + `upsertProfile` (including `owner_name`) → `saveWorkOrder` → PDF or e-sign send. No separate “register” flow in the header for visitors.
+- **Primary signup path:** when there is no profile yet, **JobForm** shows optional **Your Information** (first/last, Business Email, Business Phone). Values feed a guest preview stub so the agreement preview can show signature and Service Provider contact before capture; all fields are optional for Preview / save / send. **Download & Save** (or **Save & Send for Signature**) → **CaptureModal** (business name, account email, password) → `signUp` + `upsertProfile` (`business_name`, `owner_name`, `email` = Business Email if set else modal email, `phone`) → `saveWorkOrder` → PDF or e-sign send. No separate “register” flow in the header for visitors.
 
 **Returning user:**
 - **Sign In** → `AuthPage` (email + password only; new accounts still come from capture on first save, not from AuthPage).

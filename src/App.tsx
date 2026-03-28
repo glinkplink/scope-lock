@@ -46,10 +46,14 @@ function App() {
   const [profileEntrySource, setProfileEntrySource] = useState<'work-orders' | null>(null);
   const [ownerFirstName, setOwnerFirstName] = useState('');
   const [ownerLastName, setOwnerLastName] = useState('');
+  const [ownerBusinessEmail, setOwnerBusinessEmail] = useState('');
+  const [ownerBusinessPhone, setOwnerBusinessPhone] = useState('');
 
-  const clearOwnerNameFields = useCallback(() => {
+  const clearGuestInformationFields = useCallback(() => {
     setOwnerFirstName('');
     setOwnerLastName('');
+    setOwnerBusinessEmail('');
+    setOwnerBusinessPhone('');
   }, []);
 
   const { state: invoice, actions: invoiceFlow } = useInvoiceFlow(
@@ -69,7 +73,7 @@ function App() {
     user?.id ?? null,
     navigateTo,
     loadProfile,
-    clearOwnerNameFields
+    clearGuestInformationFields
   );
 
   const handleCaptureAndSave = async (capture: {
@@ -78,6 +82,8 @@ function App() {
     password: string;
   }) => {
     const ownerName = normalizeOwnerFullName(ownerFirstName, ownerLastName);
+    const profileEmail = ownerBusinessEmail.trim() || capture.email;
+    const profilePhone = ownerBusinessPhone.trim() || null;
     const { data: authData, error: authError } = await signUp(capture.email, capture.password);
     if (authError || !authData.user) {
       throw new Error(authError?.message || 'Failed to create account');
@@ -86,7 +92,8 @@ function App() {
     const { data: createdProfile, error: profileError } = await upsertProfile({
       user_id: authData.user.id,
       business_name: capture.businessName,
-      email: capture.email,
+      email: profileEmail,
+      phone: profilePhone,
       owner_name: ownerName || null,
       default_exclusions: getDefaultExclusions(),
       default_assumptions: getDefaultCustomerObligations(),
@@ -101,7 +108,8 @@ function App() {
     return {
       userId: authData.user.id,
       businessName: capture.businessName,
-      email: capture.email,
+      email: profileEmail,
+      phone: profilePhone,
       ownerName,
     };
   };
@@ -309,8 +317,12 @@ function App() {
           businessName={profile?.business_name}
           ownerFirstName={ownerFirstName}
           ownerLastName={ownerLastName}
+          ownerBusinessEmail={ownerBusinessEmail}
+          ownerBusinessPhone={ownerBusinessPhone}
           onOwnerFirstNameChange={setOwnerFirstName}
           onOwnerLastNameChange={setOwnerLastName}
+          onOwnerBusinessEmailChange={setOwnerBusinessEmail}
+          onOwnerBusinessPhoneChange={setOwnerBusinessPhone}
           showOwnerNameFields={!profile}
           onGoToPreview={() => navigateTo('preview')}
         />
@@ -324,6 +336,8 @@ function App() {
         hasSession={Boolean(user)}
         ownerFirstName={ownerFirstName}
         ownerLastName={ownerLastName}
+        ownerBusinessEmail={ownerBusinessEmail}
+        ownerBusinessPhone={ownerBusinessPhone}
         onSaveSuccess={draftFlow.handleSaveSuccess}
         onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
         onCaptureFlowFinished={handleCaptureFlowFinished}
@@ -435,7 +449,7 @@ function App() {
                 className="btn-danger"
                 onClick={() => {
                   draftFlow.closeUnsavedModal();
-                  clearOwnerNameFields();
+                  clearGuestInformationFields();
                   draftFlow.doCreateNewAgreement(profile);
                 }}
               >
