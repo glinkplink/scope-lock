@@ -170,7 +170,7 @@ export function WorkOrdersPage({
 
   useEffect(() => {
     if (!successBanner) return;
-    const t = setTimeout(() => onClearSuccessBanner(), 5000);
+    const t = setTimeout(() => onClearSuccessBanner(), 10000);
     return () => clearTimeout(t);
   }, [successBanner, onClearSuccessBanner]);
 
@@ -251,7 +251,7 @@ export function WorkOrdersPage({
 
       {successBanner ? (
         <div className="success-banner work-orders-success-banner" role="status">
-          {successBanner}
+          <span className="work-orders-success-banner-text">{successBanner}</span>
           <button
             type="button"
             className="btn-dismiss-banner"

@@ -125,19 +125,20 @@ function renderPage() {
   const onStartInvoice = vi.fn();
   const onOpenPendingInvoice = vi.fn();
   const onOpenWorkOrderDetail = vi.fn();
+  const onClearSuccessBanner = vi.fn();
   render(
     <WorkOrdersPage
       userId="u1"
       profile={null}
       successBanner={null}
-      onClearSuccessBanner={() => {}}
+      onClearSuccessBanner={onClearSuccessBanner}
       onCompleteProfileClick={() => {}}
       onStartInvoice={onStartInvoice}
       onOpenPendingInvoice={onOpenPendingInvoice}
       onOpenWorkOrderDetail={onOpenWorkOrderDetail}
     />
   );
-  return { onStartInvoice, onOpenPendingInvoice, onOpenWorkOrderDetail };
+  return { onStartInvoice, onOpenPendingInvoice, onOpenWorkOrderDetail, onClearSuccessBanner };
 }
 
 async function flushAsync() {
@@ -253,6 +254,57 @@ describe('WorkOrdersPage', () => {
     });
     expect(screen.getByText('Jan 1, 2025')).toBeInTheDocument();
     expect(screen.getByText('Repair')).toBeInTheDocument();
+  });
+
+  it('clears the success banner after 10 seconds and not before', async () => {
+    vi.useFakeTimers();
+    const onClearSuccessBanner = vi.fn();
+
+    render(
+      <WorkOrdersPage
+        userId="u1"
+        profile={null}
+        successBanner="Work order saved. PDF downloaded."
+        onClearSuccessBanner={onClearSuccessBanner}
+        onCompleteProfileClick={() => {}}
+        onStartInvoice={() => {}}
+        onOpenPendingInvoice={() => {}}
+        onOpenWorkOrderDetail={() => {}}
+      />
+    );
+
+    await flushAsync();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9999);
+    });
+    expect(onClearSuccessBanner).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(onClearSuccessBanner).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses the success banner when the dismiss button is clicked', async () => {
+    const onClearSuccessBanner = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <WorkOrdersPage
+        userId="u1"
+        profile={null}
+        successBanner="Work order saved. PDF downloaded."
+        onClearSuccessBanner={onClearSuccessBanner}
+        onCompleteProfileClick={() => {}}
+        onStartInvoice={() => {}}
+        onOpenPendingInvoice={() => {}}
+        onOpenWorkOrderDetail={() => {}}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(onClearSuccessBanner).toHaveBeenCalledTimes(1);
   });
 
   it('shows Specify text for Other job type with first letter capitalized', async () => {
