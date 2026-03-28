@@ -435,7 +435,7 @@ export async function tryHandleEsignRoute(req, res, helpers) {
       return true;
     }
     if (route.kind === 'esign' && route.action === 'resend') {
-      await handleResend(req, res, readJsonBody, sendJson, sendText, route.jobId);
+      await handleResend(req, res, readJsonBody, sendJson, route.jobId);
       return true;
     }
   } catch (e) {
