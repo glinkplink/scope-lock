@@ -64,7 +64,9 @@ export function mergeEsignResponseIntoJob(job: Job, r: EsignApiResponse): Job {
     ...job,
     esign_submission_id: r.esign_submission_id,
     esign_submitter_id: r.esign_submitter_id,
-    esign_embed_src: r.esign_embed_src,
+    // Only overwrite embed_src when the response carries one; GET /submissions
+    // omits it and we must not clobber a stored signing link with null.
+    esign_embed_src: r.esign_embed_src ?? job.esign_embed_src,
     esign_status: r.esign_status,
     esign_submission_state: r.esign_submission_state,
     esign_submitter_state: r.esign_submitter_state,
@@ -100,7 +102,9 @@ export function mergeEsignResponseIntoChangeOrder(co: ChangeOrder, r: EsignApiRe
     status: mergeChangeOrderStatusFromEsign(co.status, r.esign_status),
     esign_submission_id: r.esign_submission_id,
     esign_submitter_id: r.esign_submitter_id,
-    esign_embed_src: r.esign_embed_src,
+    // Only overwrite embed_src when the response carries one; GET /submissions
+    // omits it and we must not clobber a stored signing link with null.
+    esign_embed_src: r.esign_embed_src ?? co.esign_embed_src,
     esign_status: r.esign_status,
     esign_submission_state: r.esign_submission_state,
     esign_submitter_state: r.esign_submitter_state,

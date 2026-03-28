@@ -31,10 +31,16 @@ export function buildEsignRowFromSubmission(submission) {
     return null;
   }
   const status = deriveEsignStatus(submission, submitter);
+  // embed_src is only present in the POST /submissions/html response; GET
+  // /submissions/:id omits it.  Only write it when DocuSeal provides a value
+  // so polling/resend calls don't clobber a stored signing link with null.
+  const embedSrcEntry = submitter.embed_src
+    ? { esign_embed_src: submitter.embed_src }
+    : {};
   return {
     esign_submission_id: String(submission.id),
     esign_submitter_id: String(submitter.id),
-    esign_embed_src: submitter.embed_src ?? null,
+    ...embedSrcEntry,
     esign_status: status,
     esign_submission_state: submission.status ?? null,
     esign_submitter_state: submitter.status ?? null,
