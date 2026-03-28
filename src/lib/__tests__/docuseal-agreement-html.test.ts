@@ -71,6 +71,8 @@ describe('docuseal-agreement-html', () => {
     const html = buildDocusealWorkOrderHtmlDocument(sections);
     expect(html).toContain('<style>');
     expect(html).toContain('agreement-document');
+    expect(html).toContain('box-decoration-break');
+    expect(html).toContain('.agreement-section:not(:first-child)');
     expect(html).toContain('<signature-field');
     expect(html).toContain('role="Customer"');
   });

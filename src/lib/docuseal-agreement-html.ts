@@ -8,9 +8,21 @@ import { DOCUSEAL_CUSTOMER_ROLE } from './docuseal-constants';
  */
 export function docusealAgreementEmbeddedStyles(): string {
   return `<style>
-    .agreement-document { position: relative; border: 1px solid #C8C4BC; border-radius: 4px; padding: 24px; background: #fff; font-family: Barlow, system-ui, sans-serif; }
-    .agreement-section { margin-bottom: 1rem; padding-bottom: 1rem; break-inside: avoid; page-break-inside: avoid; }
-    .agreement-section:last-child { margin-bottom: 0; padding-bottom: 0; }
+    /* DocuSeal (and similar paginated viewers) repeat the WO header on each page but do not repeat
+       padding on a fragmenting root box — so only page 1 gets air below the chrome. Per-section top
+       padding on sections 2+ restores ~the same gap when a section starts mid-document (incl. new pages).
+       Tighter padding-bottom + no margin-bottom keeps same-page section spacing in line with PDF. */
+    .agreement-document {
+      position: relative; border: 1px solid #C8C4BC; border-radius: 4px; padding: 24px;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+      background: #fff; font-family: Barlow, system-ui, sans-serif;
+    }
+    .agreement-section {
+      margin-bottom: 0; padding-bottom: 0.5rem; break-inside: avoid; page-break-inside: avoid;
+    }
+    .agreement-section:not(:first-child) { padding-top: 24px; }
+    .agreement-section:last-child { padding-bottom: 0; }
     .section-title { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.04em; color: #1C3A5E; margin: 0 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #1C3A5E; }
     .section-content { color: #1A1917; }
     .content-paragraph { margin: 0 0 1rem; font-size: 0.9375rem; line-height: 1.45; text-align: left; color: #1A1917; }
