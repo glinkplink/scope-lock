@@ -18,6 +18,7 @@ import {
 } from '../lib/docuseal-header-footer';
 import { sendWorkOrderForSignature } from '../lib/esign-api';
 import { buildGuestPreviewProfile } from '../lib/guest-agreement-profile';
+import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { CaptureModal } from './CaptureModal';
 import { useScaledPreview } from '../hooks/useScaledPreview';
@@ -168,7 +169,12 @@ export function AgreementPreview({
 
   const performEsignSend = async (jobId: string, welderJob: WelderJob, prof: BusinessProfile | null) => {
     const agreementSections = generateAgreement(welderJob, prof);
-    const html = buildDocusealWorkOrderHtmlDocument(agreementSections);
+    const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
+      prof?.owner_name?.trim() || ''
+    );
+    const html = buildDocusealWorkOrderHtmlDocument(agreementSections, {
+      providerSignatureDataUrl,
+    });
     const header = buildDocusealHtmlHeader(getWorkOrderHeaderLabel(welderJob));
     const footer = buildDocusealHtmlFooter(buildDocusealEsignFooterLine(prof, welderJob));
     const wo = String(welderJob.wo_number).padStart(4, '0');

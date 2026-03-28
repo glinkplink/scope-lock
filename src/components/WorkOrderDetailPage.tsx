@@ -34,6 +34,7 @@ import { useEsignPoller } from '../hooks/useEsignPoller';
 import { getEsignProgressModel } from '../lib/esign-progress';
 import { agreementSectionsToHtml } from '../lib/agreement-sections-html';
 import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-generator';
+import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import '../lib/change-order-document.css';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
 import { computeCOTotal, listChangeOrders } from '../lib/db/change-orders';
@@ -229,10 +230,15 @@ export function WorkOrderDetailPage({
     }
   }, [job.id, job.esign_embed_src]);
 
-  const buildEsignPayload = () => {
+  const buildEsignPayload = async () => {
     const wo = String(welderJob.wo_number).padStart(4, '0');
     const agreementSections = generateAgreement(welderJob, profile);
-    const html = buildDocusealWorkOrderHtmlDocument(agreementSections);
+    const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
+      profile?.owner_name?.trim() || ''
+    );
+    const html = buildDocusealWorkOrderHtmlDocument(agreementSections, {
+      providerSignatureDataUrl,
+    });
     const header = buildDocusealHtmlHeader(getWorkOrderHeaderLabel(welderJob));
     const footer = buildDocusealHtmlFooter(buildDocusealEsignFooterLine(profile, welderJob));
     return {
@@ -261,7 +267,7 @@ export function WorkOrderDetailPage({
     }
     setEsignBusy(true);
     try {
-      const r = await sendWorkOrderForSignature(job.id, buildEsignPayload());
+      const r = await sendWorkOrderForSignature(job.id, await buildEsignPayload());
       onJobUpdated?.(mergeEsignResponseIntoJob(job, r));
       await refreshJobRow();
     } catch (e) {

@@ -2,6 +2,10 @@ import type { AgreementSection, SectionContentBlock, SignatureBlockData } from '
 import { esc } from './html-escape';
 import { DOCUSEAL_CUSTOMER_ROLE } from './docuseal-constants';
 
+interface DocusealWorkOrderHtmlOptions {
+  providerSignatureDataUrl?: string | null;
+}
+
 /**
  * Embedded print-oriented CSS for DocuSeal HTML submissions (no App.css in their renderer).
  * Mirrors agreement-document rules from App.css with literal colors.
@@ -59,6 +63,7 @@ export function docusealAgreementEmbeddedStyles(): string {
     .signature-field-label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #8A8680; margin-bottom: 2px; }
     .signature-field-value { min-height: 1.5em; border-bottom: 1px solid #1A1917; padding-bottom: 2px; font-size: 0.9375rem; color: #1A1917; }
     .signature-autofill-name { font-family: 'Dancing Script', cursive; font-size: 20pt; line-height: 1.15; font-weight: 400; color: #1A1917; margin-bottom: -4px; }
+    .signature-autofill-image { display: block; height: 44px; max-width: 100%; object-fit: contain; object-position: left bottom; }
   </style>`;
 }
 
@@ -69,7 +74,11 @@ const FIELD_STYLE_SIG =
 const FIELD_STYLE_DATE =
   'width: 140px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
 
-function docusealBlockHtml(block: SectionContentBlock, signatureData: SignatureBlockData | undefined): string {
+function docusealBlockHtml(
+  block: SectionContentBlock,
+  signatureData: SignatureBlockData | undefined,
+  providerSignatureDataUrl: string | null | undefined
+): string {
   if (block.type === 'paragraph') {
     return `<p class="content-paragraph">${esc(block.text)}</p>`;
   }
@@ -135,6 +144,9 @@ function docusealBlockHtml(block: SectionContentBlock, signatureData: SignatureB
     const sig = signatureData;
     if (!sig) return '';
     const role = DOCUSEAL_CUSTOMER_ROLE;
+    const providerSignatureMarkup = providerSignatureDataUrl
+      ? `<img class="signature-autofill-image" src="${esc(providerSignatureDataUrl)}" alt="Service provider signature" />`
+      : `<div class="signature-autofill-name">${esc(sig.ownerName)}</div>`;
     return `
 <div class="signature-blocks">
   <div class="signature-block">
@@ -163,7 +175,7 @@ function docusealBlockHtml(block: SectionContentBlock, signatureData: SignatureB
     <div class="signature-field">
       <span class="signature-field-label">Signature</span>
       <div class="signature-field-value">
-        <div class="signature-autofill-name">${esc(sig.ownerName)}</div>
+        ${providerSignatureMarkup}
       </div>
     </div>
     <div class="signature-field">
@@ -177,14 +189,17 @@ function docusealBlockHtml(block: SectionContentBlock, signatureData: SignatureB
 }
 
 /** Inner HTML for agreement sections (DocuSeal field tags + shared styles via wrapper). */
-export function agreementSectionsToDocusealSectionsInnerHtml(sections: AgreementSection[]): string {
+export function agreementSectionsToDocusealSectionsInnerHtml(
+  sections: AgreementSection[],
+  options: DocusealWorkOrderHtmlOptions = {}
+): string {
   return sections
     .map((section) => {
       const sigClass = section.signatureData ? ' signature-section' : '';
       const num =
         section.number > 0 ? `${section.number}. ${esc(section.title)}` : esc(section.title);
       const inner = section.blocks
-        .map((b) => docusealBlockHtml(b, section.signatureData))
+        .map((b) => docusealBlockHtml(b, section.signatureData, options.providerSignatureDataUrl))
         .join('\n');
       return `<div class="agreement-section${sigClass}">
   <h3 class="section-title">${num}</h3>
@@ -197,8 +212,11 @@ export function agreementSectionsToDocusealSectionsInnerHtml(sections: Agreement
 /**
  * Full HTML document for `documents[].html` — includes embedded styles and `.agreement-document` root.
  */
-export function buildDocusealWorkOrderHtmlDocument(sections: AgreementSection[]): string {
-  const inner = agreementSectionsToDocusealSectionsInnerHtml(sections);
+export function buildDocusealWorkOrderHtmlDocument(
+  sections: AgreementSection[],
+  options: DocusealWorkOrderHtmlOptions = {}
+): string {
+  const inner = agreementSectionsToDocusealSectionsInnerHtml(sections, options);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

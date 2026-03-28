@@ -81,6 +81,26 @@ describe('docuseal-agreement-html', () => {
     expect(html).toContain('role="Customer"');
   });
 
+  it('embeds the provider signature image when provided', () => {
+    const sections = generateAgreement(welderJob, profile);
+    const html = buildDocusealWorkOrderHtmlDocument(sections, {
+      providerSignatureDataUrl: 'data:image/png;base64,provider-signature',
+    });
+
+    expect(html).toContain('class="signature-autofill-image"');
+    expect(html).toContain('data:image/png;base64,provider-signature');
+    expect(html).not.toContain('<div class="signature-autofill-name">Pat Welder</div>');
+  });
+
+  it('keeps the text fallback when no provider signature image is available', () => {
+    const sections = generateAgreement(welderJob, profile);
+    const html = buildDocusealWorkOrderHtmlDocument(sections, {
+      providerSignatureDataUrl: null,
+    });
+
+    expect(html).toContain('<div class="signature-autofill-name">Pat Welder</div>');
+  });
+
   it('escapes XSS in user-controlled agreement text', () => {
     const evil: WelderJob = {
       ...welderJob,
