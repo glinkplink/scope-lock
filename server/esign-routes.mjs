@@ -395,9 +395,9 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
     }
   }
 
-  sendJson(res, 200, {
+  sendJson(res, 500, {
+    error: 'Resend succeeded, but local state could not be refreshed. Reload to see current status.',
     jobId,
-    ...publicEsignPayload(job),
   });
 }
 

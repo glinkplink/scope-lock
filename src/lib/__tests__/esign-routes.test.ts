@@ -526,6 +526,69 @@ describe('tryHandleEsignRoute', () => {
     expect(body.esign_signed_document_url).toBeNull();
   });
 
+  it('resend returns 500 when both submission refresh and fallback DB patch fail', async () => {
+    const res = captureRes();
+    const jobWithSubmitter = baseJobRow({
+      esign_submitter_id: '77',
+      esign_submission_id: '900',
+      esign_status: 'opened',
+      esign_opened_at: '2026-03-27T10:00:00Z',
+    });
+
+    createClientMock.mockReturnValue({
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })),
+      },
+      from: vi
+        .fn()
+        .mockImplementationOnce(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn(async () => ({ data: jobWithSubmitter, error: null })),
+              })),
+            })),
+          })),
+        }))
+        .mockImplementationOnce(() => ({
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn(async () => ({
+                    data: null,
+                    error: { message: 'DB write failed' },
+                  })),
+                })),
+              })),
+            })),
+          })),
+        })),
+    });
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const u = requestUrl(input);
+      if (u.endsWith('/submitters/77') && init?.method === 'PUT') {
+        return new Response('{}', { status: 200 });
+      }
+      return new Response('Service unavailable', { status: 503 });
+    });
+
+    const req = {
+      method: 'POST',
+      url: `/api/esign/work-orders/${JOB_UUID}/resend`,
+      headers: { authorization: 'Bearer good-token' },
+    };
+    await tryHandleEsignRoute(req as never, res as never, defaultHelpers());
+    expect(res.status).toBe(500);
+    const body = JSON.parse(res.body);
+    expect(body.error).toMatch(/resend succeeded/i);
+    expect(body.jobId).toBe(JOB_UUID);
+    expect(body.esign_status).toBeUndefined();
+    expect(body.esign_opened_at).toBeUndefined();
+  });
+
   it('webhook returns 503 when header verification env is missing', async () => {
     delete nodeEnv().DOCUSEAL_WEBHOOK_HEADER_NAME;
     const res = captureRes();
