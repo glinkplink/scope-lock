@@ -27,7 +27,9 @@ function mapWorkOrderListRow(row: Record<string, unknown>): WorkOrderListJob {
 export const listJobsForWorkOrders = async (userId: string): Promise<WorkOrderListJob[]> => {
   const { data, error } = await supabase
     .from('jobs')
-    .select('id, wo_number, customer_name, job_type, agreement_date, created_at, price')
+    .select(
+      'id, wo_number, customer_name, job_type, other_classification, agreement_date, created_at, price'
+    )
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
