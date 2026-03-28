@@ -77,6 +77,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-white);
+  text-align: center;
 }
 
 .wo-esign-heading {
@@ -88,16 +89,76 @@
   color: var(--text-muted);
 }
 
-.wo-esign-status {
-  font-weight: 600;
+.wo-esign-timeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  margin: 0 auto var(--space-sm);
+  width: min(100%, 30rem);
+}
+
+.wo-esign-step {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.wo-esign-step-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: var(--surface-white);
+}
+
+.wo-esign-step-line {
+  position: absolute;
+  top: 0.375rem;
+  left: calc(50% + 0.7rem);
+  width: calc(100% - 1.4rem);
+  border-top: 2px solid currentColor;
+  opacity: 0.5;
+}
+
+.wo-esign-step-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.wo-esign-step-active {
+  color: var(--primary);
+}
+
+.wo-esign-step-success {
+  color: #2d6a2e;
+}
+
+.wo-esign-step-danger {
+  color: #9f2d20;
+}
+
+.wo-esign-step-warning {
+  color: #9a5b16;
+}
+
+.wo-esign-summary {
+  margin: 0 0 var(--space-md);
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .wo-esign-meta {
-  margin: 0 0 var(--space-md);
+  margin: 0 auto var(--space-md);
   font-size: 0.875rem;
+  width: min(100%, 24rem);
+  text-align: left;
 }
 
 .wo-esign-meta-row {
@@ -123,8 +184,25 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   align-items: center;
+  justify-content: center;
 }
 
 .wo-esign-actions .btn-action {
   font-size: 0.8125rem;
+}
+
+@media (max-width: 520px) {
+  .wo-esign-timeline {
+    width: 100%;
+  }
+
+  .wo-esign-step-label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+  }
+
+  .wo-esign-step-line {
+    left: calc(50% + 0.55rem);
+    width: calc(100% - 1.1rem);
+  }
 }

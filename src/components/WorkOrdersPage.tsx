@@ -3,13 +3,14 @@ import type {
   BusinessProfile,
   Job,
   Invoice,
+  EsignJobStatus,
   WorkOrderListJob,
   WorkOrderInvoiceStatus,
 } from '../types/db';
 import { listJobsForWorkOrders, getJobById } from '../lib/db/jobs';
 import { listInvoiceStatusByJob, getInvoice, invoiceStatusMapFromRows } from '../lib/db/invoices';
 import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
-import { formatEsignListBadge } from '../lib/esign-labels';
+import { getEsignProgressModel } from '../lib/esign-progress';
 import { formatWorkOrderListJobType } from '../lib/work-order-list-label';
 import './WorkOrdersPage.css';
 
@@ -39,6 +40,28 @@ function formatRowDate(job: WorkOrderListJob): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function renderEsignStrip(status: EsignJobStatus) {
+  const progress = getEsignProgressModel(status);
+  if (status === 'not_sent') return null;
+
+  return (
+    <span
+      className="work-orders-esign-strip"
+      title={`E-signature: ${progress.title}`}
+      aria-label={`E-signature status: ${progress.title}`}
+    >
+      {progress.steps.map((step) => (
+        <span
+          key={step.key}
+          className={`work-orders-esign-segment work-orders-esign-segment-${step.tone}`}
+          aria-hidden="true"
+        />
+      ))}
+      <span className="work-orders-esign-text">{progress.title}</span>
+    </span>
+  );
 }
 
 interface WorkOrdersPageProps {
@@ -285,11 +308,7 @@ export function WorkOrdersPage({
                         <span className="work-orders-meta-type">
                           {formatWorkOrderListJobType(job)}
                         </span>
-                        {job.esign_status !== 'not_sent' ? (
-                          <span className="work-orders-esign-badge" title="E-signature">
-                            {formatEsignListBadge(job.esign_status)}
-                          </span>
-                        ) : null}
+                        {renderEsignStrip(job.esign_status)}
                       </span>
                     </div>
                     <div className="work-orders-row-actions">

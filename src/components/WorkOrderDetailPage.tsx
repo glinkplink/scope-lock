@@ -28,8 +28,8 @@ import {
   resendWorkOrderSignature,
   sendWorkOrderForSignature,
 } from '../lib/esign-api';
-import { formatEsignStatusLabel } from '../lib/esign-labels';
 import { getJobById } from '../lib/db/jobs';
+import { getEsignProgressModel } from '../lib/esign-progress';
 import { agreementSectionsToHtml } from '../lib/agreement-sections-html';
 import { buildCombinedWorkOrderAndChangeOrdersHtml } from '../lib/change-order-generator';
 import '../lib/change-order-document.css';
@@ -89,6 +89,7 @@ export function WorkOrderDetailPage({
   const woLabel =
     job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const customerTitle = job.customer_name.trim() || 'Customer';
+  const esignProgress = useMemo(() => getEsignProgressModel(job.esign_status), [job.esign_status]);
 
   const loadCOs = useCallback(async () => {
     setCoLoading(true);
@@ -301,8 +302,28 @@ export function WorkOrderDetailPage({
 
       <section className="wo-esign-card" aria-labelledby="wo-esign-heading">
         <h2 id="wo-esign-heading" className="wo-esign-heading">
-          Customer signature <span className="wo-esign-status">({formatEsignStatusLabel(job.esign_status)})</span>
+          Customer signature
         </h2>
+        <div
+          className="wo-esign-timeline"
+          role="group"
+          aria-label={`Customer signature status: ${esignProgress.title}`}
+        >
+          {esignProgress.steps.map((step, index) => (
+            <div
+              key={step.key}
+              className={`wo-esign-step wo-esign-step-${step.tone}`}
+              aria-current={step.tone !== 'inactive' ? 'step' : undefined}
+            >
+              <span className="wo-esign-step-dot" aria-hidden="true" />
+              <span className="wo-esign-step-label">{step.label}</span>
+              {index < esignProgress.steps.length - 1 ? (
+                <span className="wo-esign-step-line" aria-hidden="true" />
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <p className="wo-esign-summary">{esignProgress.summary}</p>
         <dl className="wo-esign-meta">
           {job.esign_sent_at ? (
             <div className="wo-esign-meta-row">

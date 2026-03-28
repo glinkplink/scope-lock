@@ -145,6 +145,45 @@ function makeCO(n: number, description: string): ChangeOrder {
   };
 }
 
+function jobWithEsign(status: Job['esign_status']): Job {
+  const job = minimalJob();
+  if (status === 'sent') {
+    return { ...job, esign_status: status, esign_sent_at: '2025-01-01T08:00:00Z' };
+  }
+  if (status === 'opened') {
+    return {
+      ...job,
+      esign_status: status,
+      esign_sent_at: '2025-01-01T08:00:00Z',
+      esign_opened_at: '2025-01-01T09:00:00Z',
+    };
+  }
+  if (status === 'completed') {
+    return {
+      ...job,
+      esign_status: status,
+      esign_sent_at: '2025-01-01T08:00:00Z',
+      esign_opened_at: '2025-01-01T09:00:00Z',
+      esign_completed_at: '2025-01-01T10:00:00Z',
+      esign_signed_document_url: 'https://example.com/signed.pdf',
+    };
+  }
+  if (status === 'declined') {
+    return {
+      ...job,
+      esign_status: status,
+      esign_sent_at: '2025-01-01T08:00:00Z',
+      esign_opened_at: '2025-01-01T09:00:00Z',
+      esign_declined_at: '2025-01-01T10:00:00Z',
+      esign_decline_reason: 'Needs revisions',
+    };
+  }
+  if (status === 'expired') {
+    return { ...job, esign_status: status, esign_sent_at: '2025-01-01T08:00:00Z' };
+  }
+  return job;
+}
+
 describe('WorkOrderDetailPage', () => {
   afterEach(() => {
     cleanup();
@@ -185,6 +224,39 @@ describe('WorkOrderDetailPage', () => {
     });
     expect(within(coList as HTMLElement).getAllByRole('button', { name: /^Invoice$/i })).toHaveLength(2);
   });
+
+  it.each([
+    ['not_sent', ['Sent', 'Opened', 'Signed'], 'Ready to send for signature.'],
+    ['sent', ['Sent', 'Opened', 'Signed'], 'Signature request sent to customer.'],
+    ['opened', ['Sent', 'Opened', 'Signed'], 'Customer has opened the signing link.'],
+    ['completed', ['Sent', 'Opened', 'Signed'], 'Work order has been signed.'],
+    ['declined', ['Sent', 'Opened', 'Declined'], 'Customer declined the work order.'],
+    ['expired', ['Sent', 'Opened', 'Expired'], 'Signature request expired before completion.'],
+  ] as const)(
+    'renders e-sign timeline for %s status',
+    async (status, labels, summary) => {
+      render(
+        <WorkOrderDetailPage
+          userId="u1"
+          job={jobWithEsign(status)}
+          profile={minimalProfile()}
+          onBack={() => {}}
+          onStartChangeOrder={() => {}}
+          onStartChangeOrderInvoice={() => {}}
+          onOpenCODetail={() => {}}
+        />
+      );
+
+      const timeline = screen.getByRole('group', {
+        name: new RegExp(`Customer signature status`, 'i'),
+      });
+
+      labels.forEach((label) => {
+        expect(within(timeline).getByText(label)).toBeInTheDocument();
+      });
+      expect(screen.getByText(summary)).toBeInTheDocument();
+    }
+  );
 
   it('disables Create Change Order when a downloaded job-level invoice blocks', async () => {
     mockFns.setCoBlockResult({ blocks: true, error: null });

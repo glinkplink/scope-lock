@@ -153,12 +153,22 @@ describe('WorkOrdersPage', () => {
     getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
   });
 
-  it('shows e-sign badge when esign_status is not not_sent', async () => {
-    listJobsForWorkOrders.mockResolvedValue([listJobA, listJobB]);
+  it('shows compact e-sign progress strip when esign_status is not not_sent', async () => {
+    listJobsForWorkOrders.mockResolvedValue([
+      listJobA,
+      listJobB,
+      { ...listJobA, id: 'job-c', customer_name: 'Customer C', esign_status: 'completed' },
+      { ...listJobA, id: 'job-d', customer_name: 'Customer D', esign_status: 'declined' },
+      { ...listJobA, id: 'job-e', customer_name: 'Customer E', esign_status: 'expired' },
+    ]);
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Sign sent')).toBeInTheDocument();
+      expect(screen.getByLabelText('E-signature status: Sent')).toBeInTheDocument();
+      expect(screen.getByLabelText('E-signature status: Signed')).toBeInTheDocument();
+      expect(screen.getByLabelText('E-signature status: Declined')).toBeInTheDocument();
+      expect(screen.getByLabelText('E-signature status: Expired')).toBeInTheDocument();
     });
+    expect(screen.queryByText('Sign sent')).not.toBeInTheDocument();
   });
 
   it('shows date on first meta line and capitalized job type on second', async () => {
