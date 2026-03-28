@@ -13,7 +13,9 @@ export interface WelderJob {
   contractor_phone?: string;
   contractor_email?: string;
 
-  // Customer
+  // Customer (customer_name is normalized first + last for DB / agreements)
+  customer_first_name: string;
+  customer_last_name: string;
   customer_name: string;
   customer_phone: string;
   customer_email: string;

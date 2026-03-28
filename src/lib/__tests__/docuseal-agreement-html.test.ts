@@ -33,6 +33,8 @@ const profile: BusinessProfile = {
 const welderJob: WelderJob = {
   wo_number: 3,
   agreement_date: '2024-06-01',
+  customer_first_name: 'Jane',
+  customer_last_name: '',
   customer_name: 'Jane',
   customer_phone: '',
   customer_email: 'jane@example.com',
@@ -82,6 +84,8 @@ describe('docuseal-agreement-html', () => {
   it('escapes XSS in user-controlled agreement text', () => {
     const evil: WelderJob = {
       ...welderJob,
+      customer_first_name: '',
+      customer_last_name: '',
       customer_name: '<script>alert(1)</script>',
       requested_work: 'Work & <img src=x onerror=alert(1)>',
     };

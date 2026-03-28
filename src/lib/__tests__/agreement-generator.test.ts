@@ -8,6 +8,8 @@ import type { BusinessProfile } from '../../types/db';
 const baseJob: WelderJob = {
   wo_number: 1,
   agreement_date: '2024-06-01',
+  customer_first_name: 'Jane',
+  customer_last_name: 'Smith',
   customer_name: 'Jane Smith',
   customer_phone: '555-111-2222',
   customer_email: 'jane@example.com',

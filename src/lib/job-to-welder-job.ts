@@ -2,6 +2,7 @@ import type { Job } from '../types/db';
 import type { BusinessProfile } from '../types/db';
 import type { JobType, MaterialsProvider, WelderJob } from '../types';
 import { DEFAULT_LATE_FEE_RATE, DEFAULT_PAYMENT_TERMS_DAYS } from './payment-terms';
+import { splitFullNameForForm } from './owner-name';
 
 const JOB_TYPES: readonly JobType[] = [
   'repair',
@@ -20,6 +21,9 @@ function materialsProviderFromRow(value: Job['materials_provided_by']): Material
 export function jobRowToWelderJob(job: Job, profile: BusinessProfile | null): WelderJob {
   const rawType = job.job_type as JobType;
   const jobType = JOB_TYPES.includes(rawType) ? rawType : 'other';
+  const { first: customer_first_name, last: customer_last_name } = splitFullNameForForm(
+    job.customer_name
+  );
 
   return {
     wo_number: job.wo_number ?? 0,
@@ -27,6 +31,8 @@ export function jobRowToWelderJob(job: Job, profile: BusinessProfile | null): We
     contractor_name: profile?.business_name ?? '',
     contractor_phone: job.contractor_phone ?? profile?.phone ?? '',
     contractor_email: job.contractor_email ?? profile?.email ?? '',
+    customer_first_name,
+    customer_last_name,
     customer_name: job.customer_name,
     customer_phone: job.customer_phone ?? '',
     customer_email: job.customer_email ?? '',

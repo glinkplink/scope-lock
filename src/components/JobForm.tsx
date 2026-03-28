@@ -20,6 +20,7 @@ import {
   validateLateFeeRate,
   validatePaymentTermsDays,
 } from '../lib/payment-terms';
+import { normalizeOwnerFullName, splitFullNameForForm } from '../lib/owner-name';
 import './JobForm.css';
 
 function patchJobSite(
@@ -40,6 +41,15 @@ function patchJobSite(
   };
 }
 
+function withCustomerNameParts(job: WelderJob, first: string, last: string): WelderJob {
+  return {
+    ...job,
+    customer_first_name: first,
+    customer_last_name: last,
+    customer_name: normalizeOwnerFullName(first, last),
+  };
+}
+
 interface JobFormProps {
   userId?: string;
   job: WelderJob;
@@ -50,11 +60,9 @@ interface JobFormProps {
   showOwnerNameFields?: boolean;
   ownerFirstName?: string;
   ownerLastName?: string;
-  ownerBusinessEmail?: string;
   ownerBusinessPhone?: string;
   onOwnerFirstNameChange?: (value: string) => void;
   onOwnerLastNameChange?: (value: string) => void;
-  onOwnerBusinessEmailChange?: (value: string) => void;
   onOwnerBusinessPhoneChange?: (value: string) => void;
   /** Opens agreement preview (e.g. switches to Preview tab and scrolls to top). */
   onGoToPreview?: () => void;
@@ -68,11 +76,9 @@ export function JobForm({
   showOwnerNameFields = false,
   ownerFirstName = '',
   ownerLastName = '',
-  ownerBusinessEmail = '',
   ownerBusinessPhone = '',
   onOwnerFirstNameChange,
   onOwnerLastNameChange,
-  onOwnerBusinessEmailChange,
   onOwnerBusinessPhoneChange,
   onGoToPreview,
 }: JobFormProps) {
@@ -108,9 +114,14 @@ export function JobForm({
     onChange({ ...job, [field]: value });
   };
 
-  const customerNameRef = useRef(job.customer_name);
+  const customerNameRef = useRef(
+    normalizeOwnerFullName(job.customer_first_name, job.customer_last_name)
+  );
   useLayoutEffect(() => {
-    customerNameRef.current = job.customer_name;
+    customerNameRef.current = normalizeOwnerFullName(
+      job.customer_first_name,
+      job.customer_last_name
+    );
   });
 
   const comboboxId = useId();
@@ -165,7 +176,7 @@ export function JobForm({
       return () => window.clearTimeout(id);
     }
 
-    const trimmed = job.customer_name.trim();
+    const trimmed = normalizeOwnerFullName(job.customer_first_name, job.customer_last_name).trim();
     if (!trimmed) {
       const id = window.setTimeout(() => {
         setClientMatches([]);
@@ -208,7 +219,7 @@ export function JobForm({
     }, 300);
 
     return () => window.clearTimeout(id);
-  }, [job.customer_name, userId, dropdownSuppressed]);
+  }, [job.customer_first_name, job.customer_last_name, userId, dropdownSuppressed]);
 
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {
@@ -385,7 +396,12 @@ export function JobForm({
   const applyClient = (client: Client) => {
     const patches: Partial<WelderJob> = {};
     const name = client.name?.trim();
-    if (name) patches.customer_name = name;
+    if (name) {
+      const { first, last } = splitFullNameForForm(name);
+      patches.customer_first_name = first;
+      patches.customer_last_name = last;
+      patches.customer_name = normalizeOwnerFullName(first, last);
+    }
     const phone = client.phone?.trim();
     if (phone) patches.customer_phone = formatUsPhoneInput(phone);
     const email = client.email?.trim();
@@ -412,9 +428,14 @@ export function JobForm({
     }
   };
 
-  const handleCustomerNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomerFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDropdownSuppressed(false);
-    updateField('customer_name', e.target.value);
+    onChange(withCustomerNameParts(job, e.target.value, job.customer_last_name));
+  };
+
+  const handleCustomerLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDropdownSuppressed(false);
+    onChange(withCustomerNameParts(job, job.customer_first_name, e.target.value));
   };
 
   const handleCustomerNameBlur = () => {
@@ -665,7 +686,6 @@ export function JobForm({
 
   const ownerFirstId = `${ownerNameFieldsId}-owner-first`;
   const ownerLastId = `${ownerNameFieldsId}-owner-last`;
-  const ownerBizEmailId = `${ownerNameFieldsId}-owner-biz-email`;
   const ownerBizPhoneId = `${ownerNameFieldsId}-owner-biz-phone`;
 
   return (
@@ -673,9 +693,9 @@ export function JobForm({
       {showOwnerNameFields && (
         <section className="form-section job-form-your-information">
           <h2>Your Information</h2>
-          <p className="help-text help-text-below-label">
-            Shown on your agreement preview (signature and Service Provider contact). All optional — you can
-            fill them before or after preview. Your business name is set when you create your account.
+          <p className="help-text help-text-below-label job-form-your-information-autosign-note">
+            Add your name to pre-fill the Service Provider printed name and signature on the agreement
+            preview and PDF. Optional.
           </p>
           <div className="form-row">
             <div className="form-group">
@@ -700,16 +720,6 @@ export function JobForm({
             </div>
           </div>
           <div className="form-row">
-            <div className="form-group">
-              <label htmlFor={ownerBizEmailId}>Business Email</label>
-              <input
-                id={ownerBizEmailId}
-                type="email"
-                autoComplete="email"
-                value={ownerBusinessEmail}
-                onChange={(e) => onOwnerBusinessEmailChange?.(e.target.value)}
-              />
-            </div>
             <div className="form-group">
               <label htmlFor={ownerBizPhoneId}>Business Phone</label>
               <input
@@ -739,28 +749,44 @@ export function JobForm({
           />
         </div>
         <div className="form-group form-group-combobox" ref={customerNameComboboxRef}>
-          <label htmlFor="customer_name">Customer Name *</label>
           <div className="customer-name-combobox">
-            <input
-              id="customer_name"
-              type="text"
-              role="combobox"
-              aria-expanded={clientListOpen}
-              aria-controls={listboxId}
-              aria-autocomplete="list"
-              aria-activedescendant={
-                clientListOpen && clientHighlightIndex >= 0 && clientMatches[clientHighlightIndex]
-                  ? `${listboxId}-option-${clientMatches[clientHighlightIndex].id}`
-                  : undefined
-              }
-              value={job.customer_name}
-              onChange={handleCustomerNameChange}
-              onBlur={handleCustomerNameBlur}
-              onKeyDown={handleCustomerNameKeyDown}
-              autoComplete="off"
-              required
-              placeholder="John Smith"
-            />
+            <div className="form-row job-form-customer-name-row">
+              <div className="form-group">
+                <label htmlFor={`${comboboxId}-customer-first`}>Customer First Name *</label>
+                <input
+                  id={`${comboboxId}-customer-first`}
+                  type="text"
+                  role="combobox"
+                  aria-expanded={clientListOpen}
+                  aria-controls={listboxId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    clientListOpen && clientHighlightIndex >= 0 && clientMatches[clientHighlightIndex]
+                      ? `${listboxId}-option-${clientMatches[clientHighlightIndex].id}`
+                      : undefined
+                  }
+                  value={job.customer_first_name}
+                  onChange={handleCustomerFirstNameChange}
+                  onBlur={handleCustomerNameBlur}
+                  onKeyDown={handleCustomerNameKeyDown}
+                  autoComplete="given-name"
+                  placeholder="John"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor={`${comboboxId}-customer-last`}>Customer Last Name *</label>
+                <input
+                  id={`${comboboxId}-customer-last`}
+                  type="text"
+                  value={job.customer_last_name}
+                  onChange={handleCustomerLastNameChange}
+                  onBlur={handleCustomerNameBlur}
+                  onKeyDown={handleCustomerNameKeyDown}
+                  autoComplete="family-name"
+                  placeholder="Smith"
+                />
+              </div>
+            </div>
             {clientSearchLoading && (
               <span className="customer-name-combobox-status" aria-live="polite">
                 Searching…

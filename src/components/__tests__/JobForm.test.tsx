@@ -9,6 +9,8 @@ import sampleJob from '../../data/sample-job.json';
 
 const baseJob: WelderJob = {
   ...(sampleJob as WelderJob),
+  customer_first_name: 'Acme',
+  customer_last_name: '',
   customer_name: 'Acme',
   customer_phone: '',
   customer_email: '',
@@ -106,7 +108,7 @@ describe('JobForm payment terms', () => {
 });
 
 describe('JobForm Your Information (no profile)', () => {
-  it('shows Your Information with Business Email and Business Phone when showOwnerNameFields', () => {
+  it('shows Your Information, autosign note, name fields, and Business Phone when showOwnerNameFields', () => {
     render(
       <JobForm
         job={{ ...baseJob, payment_terms_days: 14, late_fee_rate: 1.5 }}
@@ -114,16 +116,16 @@ describe('JobForm Your Information (no profile)', () => {
         showOwnerNameFields
         ownerFirstName=""
         ownerLastName=""
-        ownerBusinessEmail=""
         ownerBusinessPhone=""
         onOwnerFirstNameChange={vi.fn()}
         onOwnerLastNameChange={vi.fn()}
-        onOwnerBusinessEmailChange={vi.fn()}
         onOwnerBusinessPhoneChange={vi.fn()}
       />
     );
     expect(screen.getByRole('heading', { name: /your information/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Business Email$/i)).toBeInTheDocument();
+    expect(screen.getByText(/pre-fill the Service Provider printed name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^First Name$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Last Name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Business Phone$/i)).toBeInTheDocument();
   });
 
@@ -138,11 +140,9 @@ describe('JobForm Your Information (no profile)', () => {
         showOwnerNameFields
         ownerFirstName=""
         ownerLastName=""
-        ownerBusinessEmail=""
         ownerBusinessPhone=""
         onOwnerFirstNameChange={vi.fn()}
         onOwnerLastNameChange={vi.fn()}
-        onOwnerBusinessEmailChange={vi.fn()}
         onOwnerBusinessPhoneChange={vi.fn()}
       />
     );
