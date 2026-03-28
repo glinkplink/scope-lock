@@ -116,7 +116,7 @@ scope-lock/
 │   ├── components/
 │   │   ├── AuthPage.tsx              # Sign-in only (email + password)
 │   │   ├── BusinessProfileForm.tsx   # Signed-in user with no profile row (edge case)
-│   │   ├── CaptureModal.tsx          # Anonymous first Download & Save: account + profile stub
+│   │   ├── CaptureModal.tsx          # Anonymous first Download & Save / Send: account + optional defaults opt-in
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
 │   │   ├── HomePage.tsx              # Landing; Create Work Order
 │   │   ├── WorkOrdersPage.tsx        # List jobs + invoice actions; row opens detail
@@ -197,7 +197,7 @@ User visits app
 [Anonymous] → HomePage → JobForm → AgreementPreview
       (Header: Sign In only; no Work Orders / gear)
       ↓
-First Download & Save → CaptureModal → signUp + upsertProfile + saveWorkOrder + PDF
+First Download & Save → CaptureModal → signUp + upsertProfile (+ optional WO-derived defaults) + saveWorkOrder + PDF
       ↓
 [Signed in, no profile row] → BusinessProfileForm (rare edge case)
       ↓
@@ -217,7 +217,7 @@ Edit profile (gear) → EditProfilePage
 ### Auth and profile (behavior summary)
 
 - **Session:** Supabase email/password; session stored by the Supabase client (survives refresh).
-- **New contractors:** Primary signup path is **CaptureModal** on first **Download & Save** (`signUp` + minimal `upsertProfile` + `saveWorkOrder` + PDF). There is no separate self-serve “register” page in the header for anonymous visitors.
+- **New contractors:** Primary signup path is **CaptureModal** on first **Download & Save** or anonymous **Save & Send for Signature** (`signUp` + initial `upsertProfile` + `saveWorkOrder`, then PDF or e-sign send). Capture includes an optional **Save defaults?** checkbox that, when left on, seeds profile exclusions, customer obligations, warranty, negotiation, and payment defaults from the current work order. Stored empty default arrays are now treated as intentionally empty rather than falling back to the system bullet lists.
 - **Returning users:** **AuthPage** is sign-in only (email + password).
 - **Missing profile row** while signed in: **BusinessProfileForm** blocks the rest of the app until `business_profiles` exists.
 - **Profile data** (defaults, counters, payment methods, tax, etc.) lives in **`business_profiles`**; jobs, clients, invoices, and change orders are separate tables with RLS. See **What Is and Isn't Persisted** below.

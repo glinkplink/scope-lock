@@ -1,3 +1,5 @@
+import type { WelderJob } from '../types';
+
 export const DEFAULT_EXCLUSIONS = [
   'Painting, powder coating, or any surface finishing',
   'Replacement of rusted sections beyond the defined repair area',
@@ -14,11 +16,29 @@ export const DEFAULT_CUSTOMER_OBLIGATIONS = [
 ];
 
 export function getDefaultExclusions(overrides?: string[] | null) {
-  return overrides && overrides.length > 0 ? [...overrides] : [...DEFAULT_EXCLUSIONS];
+  if (overrides == null) return [...DEFAULT_EXCLUSIONS];
+  return [...overrides];
 }
 
 export function getDefaultCustomerObligations(overrides?: string[] | null) {
-  return overrides && overrides.length > 0
-    ? [...overrides]
-    : [...DEFAULT_CUSTOMER_OBLIGATIONS];
+  if (overrides == null) return [...DEFAULT_CUSTOMER_OBLIGATIONS];
+  return [...overrides];
+}
+
+export function buildInitialProfileDefaults(job: WelderJob, saveAsDefaults: boolean) {
+  if (!saveAsDefaults) {
+    return {
+      default_exclusions: getDefaultExclusions(),
+      default_assumptions: getDefaultCustomerObligations(),
+    };
+  }
+
+  return {
+    default_exclusions: [...job.exclusions],
+    default_assumptions: [...job.customer_obligations],
+    default_warranty_period: job.workmanship_warranty_days,
+    default_negotiation_period: job.negotiation_period,
+    default_payment_terms_days: job.payment_terms_days,
+    default_late_fee_rate: job.late_fee_rate,
+  };
 }

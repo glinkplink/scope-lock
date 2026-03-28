@@ -95,6 +95,7 @@ interface AgreementPreviewProps {
     businessName: string;
     email: string;
     password: string;
+    saveAsDefaults: boolean;
   }) => Promise<{
     userId: string;
     businessName: string;
@@ -188,13 +189,18 @@ export function AgreementPreview({
     });
   };
 
-  const handleCaptureSubmit = async (businessName: string, email: string, password: string) => {
+  const handleCaptureSubmit = async (
+    businessName: string,
+    email: string,
+    password: string,
+    saveAsDefaults: boolean
+  ) => {
     if (!onCaptureAndSave) return;
     setCaptureSubmitting(true);
     setCaptureError('');
 
     try {
-      const result = await onCaptureAndSave({ businessName, email, password });
+      const result = await onCaptureAndSave({ businessName, email, password, saveAsDefaults });
       const capturedProfile = buildCapturedProfileStub(result);
 
       flushSync(() => setPostCaptureProfile(capturedProfile));

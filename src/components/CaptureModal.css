@@ -21,16 +21,48 @@
   margin: 0 0 var(--space-sm);
   padding-bottom: var(--space-sm);
   border-bottom: 2px solid var(--border);
+  text-align: center;
 }
 
 .capture-modal .capture-modal-subtitle {
   font-size: 0.875rem;
   line-height: 1.45;
   margin: 0 0 var(--space-lg);
+  text-align: center;
 }
 
 .capture-modal .form-group:last-of-type {
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.capture-modal .capture-modal-defaults-blurb {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 var(--space-sm);
+  text-align: center;
+}
+
+.capture-modal .capture-modal-defaults-blurb span {
+  display: block;
+}
+
+.capture-modal .capture-modal-defaults-blurb-followup {
+  margin-top: var(--space-xs);
+}
+
+.capture-modal .capture-modal-defaults-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+}
+
+.capture-modal .capture-modal-defaults-row label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .capture-modal .form-error {

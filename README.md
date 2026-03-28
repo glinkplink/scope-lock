@@ -94,7 +94,7 @@ The server loads **`.env`** then **`.env.local`** (override) via `dotenv` so Doc
 **Anonymous (no Supabase session)**
 
 - **Home → Create Work Order → JobForm → Preview.** Header shows **Sign In** only (no Work Orders, no profile gear).
-- **Download & Save** opens **CaptureModal**: business name, email, password → **`signUp`**, minimal **`upsertProfile`**, **`saveWorkOrder`**, then PDF download. That is the primary **account creation** path for new contractors.
+- **Download & Save** opens **CaptureModal**: business name, email, password, and an optional **Save defaults?** checkbox → **`signUp`**, initial **`upsertProfile`**, **`saveWorkOrder`**, then PDF download. Anonymous **Save & Send for Signature** uses the same capture path before the e-sign request. Unchecked means “do not seed my profile defaults from this work order”; stored empty defaults arrays are treated as intentionally empty on future drafts.
 - **Save & Send for Signature** (preview, when DocuSeal is configured) uses the same capture/save path when anonymous, then **`POST /api/esign/work-orders/:jobId/send`** with a Bearer token. Work order detail has a 3-step e-sign progress timeline, **Send / Resend**, signing link, and signed PDF when DocuSeal reports completion; detail and list auto-refresh while signature state is in flight so webhook updates appear without reloading. If a resend is attempted after the customer already signed, the server refreshes DocuSeal submission state and updates the work order instead of leaving the UI stale.
 
 **Returning user**

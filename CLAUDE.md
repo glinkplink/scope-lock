@@ -75,7 +75,7 @@ src/
     AuthPage.css             # AuthPage-only styles
     BusinessProfileForm.tsx  # Full-screen when signed in but no profile row (edge case)
     BusinessProfileForm.css  # BusinessProfileForm-only styles
-    CaptureModal.tsx         # Anonymous Download & Save: business name, email, password
+    CaptureModal.tsx         # Anonymous Download & Save / Send: account fields + optional “Save defaults?” onboarding opt-in
     CaptureModal.css         # CaptureModal-only styles
     HomePage.tsx             # Home after login; “Create Work Order”
     HomePage.css             # HomePage-only styles
@@ -167,7 +167,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 **Anonymous (no session):**
 - Full app shell: **Home → Create Work Order → JobForm → Preview**.
 - Header shows **Sign In** only (no Work Orders / gear until logged in).
-- **Primary signup path:** when there is no profile yet, **JobForm** shows optional **Your Information** (first/last for agreement autosign preview, optional Business Phone for preview). Guest preview stub has no email until capture. **Download & Save** (or **Save & Send for Signature**) → **CaptureModal** (business name, account email, password) → `signUp` + `upsertProfile` (`business_name`, `owner_name`, `email` from modal, `phone` from optional form field) → `saveWorkOrder` → PDF or e-sign send. No separate “register” flow in the header for visitors.
+- **Primary signup path:** when there is no profile yet, **JobForm** shows optional **Your Information** (first/last for agreement autosign preview, optional Business Phone for preview). Guest preview stub has no email until capture. **Download & Save** (or **Save & Send for Signature**) → **CaptureModal** (business name, account email, password, optional **Save defaults?** checkbox) → `signUp` + `upsertProfile` (`business_name`, `owner_name`, `email` from modal, `phone` from optional form field, and optionally work-order-derived defaults) → `saveWorkOrder` → PDF or e-sign send. No separate “register” flow in the header for visitors.
 
 **Returning user:**
 - **Sign In** → `AuthPage` (email + password only; new accounts still come from capture on first save, not from AuthPage).
@@ -193,8 +193,8 @@ Tables: `business_profiles`, `clients`, `jobs`, `change_orders`, `invoices`
 All tables have RLS — users can only read/write their own rows (`user_id = auth.uid()`).
 
 Key `business_profiles` columns:
-- `default_exclusions text[]` — pre-populated exclusions for new agreements
-- `default_assumptions text[]` — pre-populated assumptions for new agreements
+- `default_exclusions text[]` — pre-populated exclusions for new agreements; `null`/missing falls back to system defaults, stored `[]` is intentional empty
+- `default_assumptions text[]` — pre-populated assumptions for new agreements; `null`/missing falls back to system defaults, stored `[]` is intentional empty
 - `next_wo_number`, `next_invoice_number` — counters for new work orders / invoices
 
 Migrations are in `supabase/migrations/` — apply via Supabase CLI (`npx supabase db push`) or paste SQL into Supabase Dashboard → SQL Editor.

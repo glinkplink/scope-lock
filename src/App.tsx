@@ -9,7 +9,7 @@ import { useAppNavigation } from './hooks/useAppNavigation';
 import { useAuthProfile } from './hooks/useAuthProfile';
 import { upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
-import { getDefaultCustomerObligations, getDefaultExclusions } from './lib/defaults';
+import { buildInitialProfileDefaults } from './lib/defaults';
 import { getInvoice } from './lib/db/invoices';
 import type { BusinessProfile, Job } from './types/db';
 import { Settings } from 'lucide-react';
@@ -78,6 +78,7 @@ function App() {
     businessName: string;
     email: string;
     password: string;
+    saveAsDefaults: boolean;
   }) => {
     const ownerName = normalizeOwnerFullName(ownerFirstName, ownerLastName);
     const profilePhone = ownerBusinessPhone.trim() || null;
@@ -92,8 +93,7 @@ function App() {
       email: capture.email,
       phone: profilePhone,
       owner_name: ownerName || null,
-      default_exclusions: getDefaultExclusions(),
-      default_assumptions: getDefaultCustomerObligations(),
+      ...buildInitialProfileDefaults(draft.job, capture.saveAsDefaults),
     });
 
     if (profileError || !createdProfile) {

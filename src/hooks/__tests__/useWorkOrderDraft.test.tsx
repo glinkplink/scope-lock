@@ -200,4 +200,24 @@ describe('useWorkOrderDraft', () => {
     expect(result.current.state.job.requested_work).toBe('Guest work');
     expect(navigateTo).not.toHaveBeenCalledWith('home');
   });
+
+  it('preserves intentional empty exclusions and customer obligations from the profile', () => {
+    const navigateTo = vi.fn();
+    const loadProfile = vi.fn();
+    const profile = baseProfile({
+      default_exclusions: [],
+      default_assumptions: [],
+    });
+
+    const { result } = renderHook(() =>
+      useWorkOrderDraft(profile, 'u1', navigateTo, loadProfile)
+    );
+
+    act(() => {
+      result.current.actions.doCreateNewAgreement(profile);
+    });
+
+    expect(result.current.state.job.exclusions).toEqual([]);
+    expect(result.current.state.job.customer_obligations).toEqual([]);
+  });
 });

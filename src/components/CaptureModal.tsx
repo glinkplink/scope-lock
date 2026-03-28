@@ -2,7 +2,12 @@ import { useState, type FormEvent } from 'react';
 import './CaptureModal.css';
 
 interface CaptureModalProps {
-  onSubmit: (businessName: string, email: string, password: string) => void | Promise<void>;
+  onSubmit: (
+    businessName: string,
+    email: string,
+    password: string,
+    saveAsDefaults: boolean
+  ) => void | Promise<void>;
   onClose: () => void;
   error: string;
   submitting: boolean;
@@ -12,6 +17,7 @@ export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureMo
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [saveAsDefaults, setSaveAsDefaults] = useState(true);
   const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,7 +35,7 @@ export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureMo
       setLocalError('Password must be at least 6 characters.');
       return;
     }
-    await onSubmit(businessName.trim(), email.trim(), password);
+    await onSubmit(businessName.trim(), email.trim(), password, saveAsDefaults);
   };
 
   const displayError = error || localError;
@@ -39,7 +45,7 @@ export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureMo
       <div className="modal capture-modal" onClick={(e) => e.stopPropagation()}>
         <h3>Create your account to save & download</h3>
         <p className="capture-modal-subtitle">
-          Your work order is ready. Set up your account to save it and download the PDF.
+          Your work order is ready. Set up your account to download it or send it for signature.
         </p>
         <form onSubmit={(e) => void handleSubmit(e)}>
           <div className="form-group">
@@ -78,6 +84,26 @@ export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureMo
               required
               disabled={submitting}
             />
+          </div>
+          <p id="capture-save-defaults-help" className="capture-modal-defaults-blurb">
+            <span>
+              You can optionally save the scope and payment settings from this work order as your
+              defaults for new work orders.
+            </span>
+            <span className="capture-modal-defaults-blurb-followup">
+              These can be edited anytime in your profile page.
+            </span>
+          </p>
+          <div className="capture-modal-defaults-row">
+            <input
+              id="capture-save-defaults"
+              type="checkbox"
+              checked={saveAsDefaults}
+              onChange={(e) => setSaveAsDefaults(e.target.checked)}
+              aria-describedby="capture-save-defaults-help"
+              disabled={submitting}
+            />
+            <label htmlFor="capture-save-defaults">Save defaults?</label>
           </div>
           {displayError && <p className="form-error">{displayError}</p>}
           <div className="modal-actions">
