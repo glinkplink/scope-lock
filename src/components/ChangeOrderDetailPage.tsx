@@ -9,14 +9,9 @@ import {
 } from '../lib/agreement-pdf';
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
 import '../lib/change-order-document.css';
-import { computeCOTotal, deleteChangeOrder } from '../lib/db/change-orders';
+import { deleteChangeOrder } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
 import './ChangeOrderDetailPage.css';
-
-function statusBadgeClass(status: ChangeOrder['status']): string {
-  if (status === 'pending_approval') return 'pending';
-  return status;
-}
 
 interface ChangeOrderDetailPageProps {
   userId: string;
@@ -42,7 +37,6 @@ export function ChangeOrderDetailPage({
 
   const coLabel = `CO #${String(co.co_number).padStart(4, '0')}`;
   const customerTitle = job.customer_name.trim() || 'Customer';
-  const total = computeCOTotal(co.line_items);
 
   const welderJob = useMemo(() => jobRowToWelderJob(job, profile), [job, profile]);
   const footerMeta = useMemo(() => ({

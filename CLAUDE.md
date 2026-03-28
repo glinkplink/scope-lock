@@ -111,6 +111,9 @@ src/
     agreement-sections-html.ts # Agreement sections → HTML string (combined PDFs)
     html-escape.ts           # esc() for generated HTML (WO / CO / invoice strings)
     change-order-generator.ts # Change order HTML + combined WO + listed COs
+    invoice-line-items.ts    # Invoice line item parsing, validation, source types
+    payment-terms.ts         # Payment terms presets + validators
+    work-order-list-label.ts # Job type display formatting for Work Orders list
     payment-methods.ts, tax.ts, defaults.ts
     db/
       profile.ts             # getProfile, upsertProfile, updateNextWoNumber

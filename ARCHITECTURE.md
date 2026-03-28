@@ -165,7 +165,10 @@ scope-lock/
 │       ├── 0003_cash_app_normalization.sql
 │       ├── 0004_default_tax_rate.sql
 │       ├── 0005_change_orders.sql    # structured COs + backfill + legacy next_co_number helper
-│       └── 0006_change_order_creation_lock.sql # atomic create_change_order RPC with advisory lock
+│       ├── 0006_change_order_creation_lock.sql # atomic create_change_order RPC with advisory lock
+│       ├── 0007_structured_payment_terms.sql  # payment_terms_days + late_fee_rate on profiles & jobs
+│       ├── 0008_block_co_after_job_invoice.sql # RPC guard: no new COs after finalized WO invoice
+│       └── 0009_jobs_other_classification.sql  # persist "Specify" text when job type is Other
 ├── public/
 ├── index.html
 ├── package.json

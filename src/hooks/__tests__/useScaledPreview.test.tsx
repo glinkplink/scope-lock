@@ -90,6 +90,7 @@ function ScaledPreviewHarness({ refreshKey = 'a' }: HarnessProps) {
             return { width: viewportWidth.current } as DOMRect;
           });
         }
+        // eslint-disable-next-line react-hooks/immutability
         (viewportRef as React.RefObject<HTMLDivElement | null>).current = el;
       }}
     >
@@ -103,6 +104,7 @@ function ScaledPreviewHarness({ refreshKey = 'a' }: HarnessProps) {
               },
             });
           }
+          // eslint-disable-next-line react-hooks/immutability
           (sheetRef as React.RefObject<HTMLDivElement | null>).current = el;
         }}
       />

@@ -297,7 +297,7 @@ export async function getBlocksNewChangeOrdersForJob(
   }
 
   for (const row of data ?? []) {
-    if (isDownloadedJobLevelInvoiceRow(row as Record<string, unknown>)) {
+    if (isDownloadedJobLevelInvoiceRow(row as { status: unknown; line_items: unknown })) {
       return { blocks: true, error: null };
     }
   }

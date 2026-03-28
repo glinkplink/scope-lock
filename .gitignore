@@ -20,6 +20,8 @@ future/
 # Local agent / IDE state (do not commit)
 .sally/
 .claude/
+.cursor/plans/
+.cursor/sandbox.json
 
 # Editor directories and files
 .vscode/

@@ -9,7 +9,7 @@ const mockFns = vi.hoisted(() => {
   const listChangeOrders = vi.fn();
   const listInvoiceStatusByChangeOrder = vi.fn();
   const coBlockState = { blocks: false, error: null as Error | null };
-  const getBlocksNewChangeOrdersForJob = vi.fn(async () => ({
+  const getBlocksNewChangeOrdersForJob: ReturnType<typeof vi.fn<(userId: string, jobId: string) => Promise<{ blocks: boolean; error: Error | null }>>> = vi.fn(async () => ({
     blocks: coBlockState.blocks,
     error: coBlockState.error,
   }));
@@ -28,7 +28,7 @@ vi.mock('../../lib/db/change-orders', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/db/change-orders')>();
   return {
     ...actual,
-    listChangeOrders: (...args: unknown[]) => mockFns.listChangeOrders(...args),
+    listChangeOrders: (jobId: string) => mockFns.listChangeOrders(jobId),
   };
 });
 
@@ -36,8 +36,8 @@ vi.mock('../../lib/db/invoices', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/db/invoices')>();
   return {
     ...actual,
-    listInvoiceStatusByChangeOrder: (...args: unknown[]) => mockFns.listInvoiceStatusByChangeOrder(...args),
-    getBlocksNewChangeOrdersForJob: (...args: unknown[]) => mockFns.getBlocksNewChangeOrdersForJob(...args),
+    listInvoiceStatusByChangeOrder: (jobId: string) => mockFns.listInvoiceStatusByChangeOrder(jobId),
+    getBlocksNewChangeOrdersForJob: (userId: string, jobId: string) => mockFns.getBlocksNewChangeOrdersForJob(userId, jobId),
   };
 });
 
