@@ -51,6 +51,20 @@ function buildClient(overrides: Partial<Client> & Pick<Client, 'id' | 'name'>): 
   };
 }
 
+function renderStatefulJobForm() {
+  function StatefulJobForm() {
+    const [job, setJob] = useState<WelderJob>({
+      ...baseJob,
+      customer_first_name: '',
+      customer_last_name: '',
+      customer_name: '',
+    });
+    return <JobForm job={job} onChange={setJob} userId="u1" />;
+  }
+
+  return render(<StatefulJobForm />);
+}
+
 async function clickAgreementPreview(
   user: ReturnType<typeof userEvent.setup>,
   container: HTMLElement
@@ -187,17 +201,7 @@ describe('JobForm client autosuggest', () => {
     ]);
 
     const user = userEvent.setup();
-    function StatefulJobForm() {
-      const [job, setJob] = useState<WelderJob>({
-        ...baseJob,
-        customer_first_name: '',
-        customer_last_name: '',
-        customer_name: '',
-      });
-      return <JobForm job={job} onChange={setJob} userId="u1" />;
-    }
-
-    render(<StatefulJobForm />);
+    renderStatefulJobForm();
 
     await user.type(screen.getByLabelText(/Customer First Name/i), 'Le');
 
@@ -212,5 +216,33 @@ describe('JobForm client autosuggest', () => {
     const options = within(screen.getByRole('listbox')).getAllByRole('option');
     expect(options[0]).toHaveTextContent('Lenny Hammers');
     expect(options[1]).toHaveTextContent('Jonny Apples');
+  });
+
+  it('hides shared-last-name suggestions when the first name does not match the same client', async () => {
+    searchClients.mockResolvedValue([
+      buildClient({ id: 'client-a', name: 'John Smith', phone: '4845153545' }),
+      buildClient({ id: 'client-b', name: 'Jane Smith', phone: '8172819201' }),
+    ]);
+
+    const user = userEvent.setup();
+    renderStatefulJobForm();
+
+    await user.type(screen.getByLabelText(/Customer First Name/i), 'Lenny');
+    await waitFor(() => {
+      expect(searchClients).toHaveBeenLastCalledWith('u1', { firstName: 'Lenny', lastName: '' });
+    });
+
+    await user.type(screen.getByLabelText(/Customer Last Name/i), 'Smith');
+
+    await waitFor(() => {
+      expect(searchClients).toHaveBeenLastCalledWith('u1', {
+        firstName: 'Lenny',
+        lastName: 'Smith',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
   });
 });

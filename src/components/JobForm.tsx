@@ -54,11 +54,38 @@ function normalizeClientSearchToken(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function scoreClientMatch(client: Client, firstNameQuery: string, lastNameQuery: string): number {
+function getClientNameParts(client: Client): { first: string; last: string; fullName: string } {
   const fullName = normalizeClientSearchToken(client.name ?? '');
   const { first, last } = splitFullNameForForm(client.name ?? '');
-  const clientFirst = normalizeClientSearchToken(first);
-  const clientLast = normalizeClientSearchToken(last);
+  return {
+    first: normalizeClientSearchToken(first),
+    last: normalizeClientSearchToken(last),
+    fullName,
+  };
+}
+
+function isRelevantClientMatch(client: Client, firstNameQuery: string, lastNameQuery: string): boolean {
+  const firstQuery = normalizeClientSearchToken(firstNameQuery);
+  const lastQuery = normalizeClientSearchToken(lastNameQuery);
+  const { first, last, fullName } = getClientNameParts(client);
+
+  if (firstQuery && lastQuery) {
+    return first.startsWith(firstQuery) && last.startsWith(lastQuery);
+  }
+
+  if (firstQuery) {
+    return fullName.includes(firstQuery);
+  }
+
+  if (lastQuery) {
+    return fullName.includes(lastQuery);
+  }
+
+  return false;
+}
+
+function scoreClientMatch(client: Client, firstNameQuery: string, lastNameQuery: string): number {
+  const { first: clientFirst, last: clientLast, fullName } = getClientNameParts(client);
   const tokens = fullName ? fullName.split(' ') : [];
   const fullQuery = normalizeClientSearchToken(
     [firstNameQuery, lastNameQuery].filter(Boolean).join(' ')
@@ -104,6 +131,7 @@ function rankClientMatches(clients: Client[], firstNameQuery: string, lastNameQu
   const firstQuery = normalizeClientSearchToken(firstNameQuery);
   const lastQuery = normalizeClientSearchToken(lastNameQuery);
   return [...clients]
+    .filter((client) => isRelevantClientMatch(client, firstQuery, lastQuery))
     .sort((a, b) => {
       const scoreDiff =
         scoreClientMatch(a, firstQuery, lastQuery) - scoreClientMatch(b, firstQuery, lastQuery);
