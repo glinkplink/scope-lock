@@ -3,6 +3,18 @@
   margin: 0 auto;
 }
 
+.work-orders-page .work-orders-row-main {
+  gap: 8px;
+}
+
+.work-orders-page .work-orders-customer {
+  color: var(--primary);
+}
+
+.work-orders-page .work-orders-row-detail-hit:hover .work-orders-customer {
+  color: var(--primary-hover);
+}
+
 .work-orders-toolbar {
   display: flex;
   justify-content: center;
