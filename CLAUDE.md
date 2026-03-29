@@ -86,7 +86,7 @@ src/
     AgreementDocumentSections.tsx  # Renders agreement sections (preview, detail, PDF body)
     EditProfilePage.tsx      # Edit business profile + agreement defaults
     EditProfilePage.css      # EditProfilePage-only styles
-    WorkOrdersPage.tsx       # List jobs; “Create Work Order” (same as Home); invoice actions; opens detail
+    WorkOrdersPage.tsx       # List jobs; “Create Work Order” below invoiced/pending summary (same as Home); invoice actions; opens detail
     WorkOrdersPage.css       # WorkOrdersPage-only list/dashboard chrome + invoice warning banner
     WorkOrderDetailPage.tsx  # Saved job → agreement + job-level invoice strip + change orders + PDFs
     WorkOrderDetailPage.css  # WO detail invoice strip + CO sublist (e.g. `.co-list-*`)

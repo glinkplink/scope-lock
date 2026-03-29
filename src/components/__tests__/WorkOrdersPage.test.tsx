@@ -198,6 +198,7 @@ function renderPage() {
       profile={null}
       successBanner={null}
       onClearSuccessBanner={onClearSuccessBanner}
+      onCreateWorkOrder={() => {}}
       onCompleteProfileClick={() => {}}
       onStartInvoice={onStartInvoice}
       onOpenPendingInvoice={onOpenPendingInvoice}
@@ -415,6 +416,7 @@ describe('WorkOrdersPage', () => {
         profile={null}
         successBanner="Work order saved. PDF downloaded."
         onClearSuccessBanner={onClearSuccessBanner}
+        onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
         onStartInvoice={() => {}}
         onOpenPendingInvoice={() => {}}

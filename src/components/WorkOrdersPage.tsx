@@ -226,6 +226,7 @@ interface WorkOrdersPageProps {
   profile: BusinessProfile | null;
   successBanner: string | null;
   onClearSuccessBanner: () => void;
+  onCreateWorkOrder: () => void;
   onCompleteProfileClick: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
@@ -238,6 +239,7 @@ export function WorkOrdersPage({
   profile,
   successBanner,
   onClearSuccessBanner,
+  onCreateWorkOrder,
   onCompleteProfileClick,
   onStartInvoice,
   onOpenPendingInvoice,
@@ -438,6 +440,15 @@ export function WorkOrdersPage({
               <span className="work-orders-summary-label">Pending Invoice:</span>
               <span className="work-orders-summary-amount">{formatUsd(pendingContractTotal)}</span>
             </span>
+          </div>
+          <div className="work-orders-create-below-summary">
+            <button
+              type="button"
+              className="work-orders-create-btn"
+              onClick={onCreateWorkOrder}
+            >
+              Create Work Order
+            </button>
           </div>
           {jobs.length === 0 ? (
             <p className="work-orders-empty">No work orders yet.</p>

@@ -2,7 +2,7 @@
   max-width: none;
   margin: 0 auto;
   width: 100%;
-  /* Same gap: H1 → button and button → invoiced summary (when no nudge/banners between). */
+  /* Space below H1 and above the invoiced summary strip (when no nudge/banners between). */
   --wo-header-rhythm: var(--space-lg);
 }
 
@@ -66,6 +66,13 @@
 
 .work-orders-create-btn:hover {
   background: var(--primary-hover);
+}
+
+.work-orders-create-below-summary {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 .work-orders-profile-nudge {
@@ -168,26 +175,34 @@
 
 .work-orders-summary-strip {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-md);
-  margin-bottom: var(--space-md);
-  padding-top: var(--wo-header-rhythm);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border);
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--text-primary);
+  border-radius: var(--radius);
+  background: var(--primary-light);
   font-size: 0.9375rem;
 }
 
 .work-orders-summary-item {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+.work-orders-summary-pending {
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .work-orders-summary-label {
-  color: var(--text-muted);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
