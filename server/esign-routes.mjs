@@ -705,6 +705,8 @@ async function handlePollStatus(req, res, sendJson, jobId) {
     return;
   }
 
+  preserveDbEsignSentAtIfNewer(patch, job);
+
   // Update DB if state has changed
   const { data: updated, error: upErr } = await supabase
     .from('jobs')
@@ -780,6 +782,8 @@ async function handleCoStatus(req, res, sendJson, coId) {
     return;
   }
 
+  preserveDbEsignSentAtIfNewer(patch, co);
+
   // Update DB if state has changed
   const { data: updated, error: upErr } = await supabase
     .from('change_orders')
@@ -812,6 +816,17 @@ function publicCoEsignPayload(row) {
     esign_decline_reason: row.esign_decline_reason,
     esign_signed_document_url: row.esign_signed_document_url,
   };
+}
+
+/** DocuSeal GET /submissions can lag behind a resend; keep the newer local `esign_sent_at`. */
+function preserveDbEsignSentAtIfNewer(patch, row) {
+  if (!patch || !row?.esign_sent_at || !patch.esign_sent_at) return;
+  const dbT = Date.parse(row.esign_sent_at);
+  const apiT = Date.parse(patch.esign_sent_at);
+  if (Number.isNaN(dbT) || Number.isNaN(apiT)) return;
+  if (dbT > apiT) {
+    patch.esign_sent_at = row.esign_sent_at;
+  }
 }
 
 function deriveChangeOrderStatusFromEsignStatus(currentStatus, esignStatus) {
@@ -1007,11 +1022,13 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
   }
 
   let reconcileFromSubmission = false;
+  let coResendPutSucceeded = false;
   try {
     await docusealFetchJson(`/submitters/${submitterId}`, {
       method: 'PUT',
       body: JSON.stringify(putBody),
     });
+    coResendPutSucceeded = true;
   } catch (e) {
     if ((e?.status === 404 || e?.status === 422) && co.esign_submission_id) {
       reconcileFromSubmission = true;
@@ -1066,6 +1083,11 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
   if (submission) {
     const patch = buildChangeOrderPatchFromSubmission(submission, co.status);
     if (patch) {
+      // DocuSeal GET /submissions often keeps the same submitter.sent_at after a resend;
+      // bump locally so the UI and list reflect that a new email went out.
+      if (coResendPutSucceeded) {
+        patch.esign_sent_at = new Date().toISOString();
+      }
       const { data: updated, error: upErr } = await supabase
         .from('change_orders')
         .update(patch)

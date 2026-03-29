@@ -240,14 +240,13 @@ ${bodyContent}
   return { html, html_header, html_footer };
 }
 
-export function buildChangeOrderEsignSendPayload(
+/** DocuSeal `message` for change-order send/resend (no HTML document build). */
+export function buildChangeOrderEsignNotificationMessage(
   co: ChangeOrder,
   job: Job,
-  profile: BusinessProfile | null,
-  options: ChangeOrderDocusealEsignOptions = {}
-): EsignSendDocumentsPayload {
+  profile: BusinessProfile | null
+): { subject: string; body: string } {
   const coLabelNum = String(co.co_number).padStart(4, '0');
-  const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile, options);
   const contractorName = profile?.business_name ?? 'Your Contractor';
   const signerName = profile?.owner_name ?? contractorName;
   const customerFirst = job.customer_name.split(' ')[0] || job.customer_name;
@@ -262,6 +261,20 @@ export function buildChangeOrderEsignSendPayload(
     ? `\nChange: ${co.description.trim().split('\n')[0]}`
     : '';
   return {
+    subject: `${contractorName} sent you a Change Order to sign — CO #${coLabelNum}${woParenthetical}`,
+    body: `Hi ${customerFirst},\n\n${contractorName} has issued a Change Order against ${woRef}${location ? ` at ${location}` : ''} that requires your review and signature.\n\nReference: Change Order #${coLabelNum}${descriptionSnippet}\n\nPlease review and sign using the link below:\n\n{{submitter.link}}\n\nThank you,\n${signerName}\n${contractorName}`,
+  };
+}
+
+export function buildChangeOrderEsignSendPayload(
+  co: ChangeOrder,
+  job: Job,
+  profile: BusinessProfile | null,
+  options: ChangeOrderDocusealEsignOptions = {}
+): EsignSendDocumentsPayload {
+  const coLabelNum = String(co.co_number).padStart(4, '0');
+  const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile, options);
+  return {
     name: `Change Order #${coLabelNum}`,
     send_email: true,
     documents: [
@@ -272,9 +285,6 @@ export function buildChangeOrderEsignSendPayload(
         html_footer,
       },
     ],
-    message: {
-      subject: `${contractorName} sent you a Change Order to sign — CO #${coLabelNum}${woParenthetical}`,
-      body: `Hi ${customerFirst},\n\n${contractorName} has issued a Change Order against ${woRef}${location ? ` at ${location}` : ''} that requires your review and signature.\n\nReference: Change Order #${coLabelNum}${descriptionSnippet}\n\nPlease review and sign using the link below:\n\n{{submitter.link}}\n\nThank you,\n${signerName}\n${contractorName}`,
-    },
+    message: buildChangeOrderEsignNotificationMessage(co, job, profile),
   };
 }

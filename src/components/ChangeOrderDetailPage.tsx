@@ -8,7 +8,10 @@ import {
   downloadPdfBlobToFile,
 } from '../lib/agreement-pdf';
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
-import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
+import {
+  buildChangeOrderEsignSendPayload,
+  buildChangeOrderEsignNotificationMessage,
+} from '../lib/docuseal-change-order-html';
 import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import '../lib/change-order-document.css';
 import { deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
@@ -82,7 +85,9 @@ export function ChangeOrderDetailPage({
 
   const [coEsignBusy, setCoEsignBusy] = useState(false);
   const [coSigningLinkCopied, setCoSigningLinkCopied] = useState(false);
+  const [coEsignResendNotice, setCoEsignResendNotice] = useState(false);
   const copySigningLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resendNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const esignProgress = useMemo(
     () => getEsignProgressModel(co.esign_status, 'change_order'),
@@ -117,14 +122,22 @@ export function ChangeOrderDetailPage({
       if (copySigningLinkTimeoutRef.current !== null) {
         clearTimeout(copySigningLinkTimeoutRef.current);
       }
+      if (resendNoticeTimeoutRef.current !== null) {
+        clearTimeout(resendNoticeTimeoutRef.current);
+      }
     };
   }, []);
 
   useEffect(() => {
     setCoSigningLinkCopied(false);
+    setCoEsignResendNotice(false);
     if (copySigningLinkTimeoutRef.current !== null) {
       clearTimeout(copySigningLinkTimeoutRef.current);
       copySigningLinkTimeoutRef.current = null;
+    }
+    if (resendNoticeTimeoutRef.current !== null) {
+      clearTimeout(resendNoticeTimeoutRef.current);
+      resendNoticeTimeoutRef.current = null;
     }
   }, [co.id, co.esign_embed_src]);
 
@@ -158,17 +171,22 @@ export function ChangeOrderDetailPage({
 
   const handleResendSignature = async () => {
     setPdfError('');
+    setCoEsignResendNotice(false);
+    if (resendNoticeTimeoutRef.current !== null) {
+      clearTimeout(resendNoticeTimeoutRef.current);
+      resendNoticeTimeoutRef.current = null;
+    }
     setCoEsignBusy(true);
     try {
-      const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
-        profile?.owner_name?.trim() || ''
-      );
-      const message = buildChangeOrderEsignSendPayload(co, job, profile, {
-        providerSignatureDataUrl,
-      }).message;
+      const message = buildChangeOrderEsignNotificationMessage(co, job, profile);
       const r = await resendChangeOrderSignature(co.id, message);
       onCoUpdated?.(mergeEsignResponseIntoChangeOrder(co, r));
       await refreshCoRow();
+      setCoEsignResendNotice(true);
+      resendNoticeTimeoutRef.current = setTimeout(() => {
+        setCoEsignResendNotice(false);
+        resendNoticeTimeoutRef.current = null;
+      }, 5000);
     } catch (e) {
       setPdfError(e instanceof Error ? e.message : 'Failed to resend signature request');
     } finally {
@@ -214,6 +232,11 @@ export function ChangeOrderDetailPage({
       {pdfError ? (
         <div className="error-banner" role="alert">
           {pdfError}
+        </div>
+      ) : null}
+      {coEsignResendNotice ? (
+        <div className="success-banner" role="status">
+          Change order signature request was resent. The customer should receive a new email shortly.
         </div>
       ) : null}
 
