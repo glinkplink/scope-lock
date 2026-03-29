@@ -128,8 +128,31 @@ export interface WorkOrderListJob {
   changeOrders: WorkOrderListChangeOrderPreview[];
 }
 
-export interface WorkOrderDashboardJob extends WorkOrderListJob {
+export interface WorkOrderDashboardJob {
+  id: string;
+  wo_number: number | null;
+  customer_name: string;
+  job_type: string;
+  other_classification: string | null;
+  agreement_date: string | null;
+  created_at: string;
+  price: number;
+  esign_status: EsignJobStatus;
+  changeOrderCount: number;
+  changeOrderPreview: WorkOrderListChangeOrderPreview[];
+  hasInFlightChangeOrders: boolean;
   latestInvoice: WorkOrderInvoiceStatus | null;
+}
+
+export interface WorkOrdersDashboardCursor {
+  created_at: string;
+  id: string;
+}
+
+export interface WorkOrdersDashboardSummary {
+  jobCount: number;
+  invoicedContractTotal: number;
+  pendingContractTotal: number;
 }
 
 /** Invoice fields needed for Work Orders list actions / summary (no line_items). */

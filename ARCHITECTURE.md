@@ -143,7 +143,7 @@ scope-lock/
 │   │   ├── useInvoiceFlow.ts         # Invoice wizard/final page flow state
 │   │   ├── useScaledPreview.ts       # 816px preview scaling for WO/invoice mini previews
 │   │   ├── useWorkOrderDraft.ts      # New/edit draft state + next_wo_number refresh path
-│   │   └── useWorkOrderRowActions.ts # Work Orders row prefetch + CO/invoice hydration helpers
+│   │   └── useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
 │   ├── lib/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
@@ -178,7 +178,7 @@ scope-lock/
 │   │   └── db/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
 │   │       ├── clients.ts            # listClients / upsertClient / deleteClient (JobForm search when authed)
-│   │       ├── jobs.ts               # listJobs, saveWorkOrder, dashboard RPC mapping, create/update/delete
+│   │       ├── jobs.ts               # listJobs, saveWorkOrder, dashboard page/summary RPC mapping, create/update/delete
 │   │       ├── change-orders.ts      # list/create/update/delete change orders; computeCOTotal
 │   │       └── invoices.ts           # createInvoice (RPC counter), updateInvoice, list, get, mark downloaded
 │   ├── types/
@@ -312,9 +312,15 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ### Work Orders dashboard rollups (Option B)
 
 - **Invoiced** / **Pending Invoice** on **`WorkOrdersPage`** sum **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. The summary strip is labeled **Contract value** so this is explicit. Using invoice totals for rollups (**Option A**) is deferred.
-- **`WorkOrdersPage`** now reads from the SQL RPC **`list_work_orders_dashboard(p_user_id uuid, p_job_ids uuid[] default null)`**, which returns the job list, inline change-order previews, and the latest **job-level** invoice badge in one round-trip.
-- Job-level invoice classification in the RPC uses a JSONB scan over **`invoices.line_items`**: an invoice is job-level only when no line item has a non-empty `change_order_id`.
-- While e-sign is in flight, the page polls only the affected `job_id`s through the same RPC and merges those rows into existing state instead of refetching the full dashboard.
+- `0014_work_orders_dashboard.sql` remains applied and available for targeted row refresh by `job_id`; the main Work Orders list no longer relies on it for initial page load.
+- **`list_work_orders_dashboard_page`** pages jobs by `(created_at DESC, id DESC)`, aggregates only the current page’s change orders and invoices, uses `DISTINCT ON (job_id)` for latest job-level invoice lookup, and returns:
+  - `change_order_count`
+  - `change_orders_preview` (first two shortcuts)
+  - `has_in_flight_change_orders`
+  - `latest_invoice`
+- **`get_work_orders_dashboard_summary`** runs separately from the page RPC so whole-dataset totals do not depend on the currently loaded page.
+- Job-level invoice classification still uses a guarded JSONB scan over **`invoices.line_items`**: an invoice is job-level only when no line item has a non-empty `change_order_id`.
+- While e-sign is in flight, the page polls only already-loaded rows and merges those updates without resetting pagination state.
 
 ## What Is and Isn't Persisted
 

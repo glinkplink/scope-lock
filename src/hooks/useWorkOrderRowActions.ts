@@ -5,7 +5,6 @@ import type {
   Job,
   WorkOrderListChangeOrderPreview,
   WorkOrderInvoiceStatus,
-  WorkOrderListJob,
 } from '../types/db';
 
 export type WorkOrderRowActionsDeps = {
@@ -122,12 +121,8 @@ export function useWorkOrderRowActions({
     return request;
   }, [getInvoice]);
 
-  const prefetchJob = useCallback((jobId: string) => {
-    void getHydratedJob(jobId);
-  }, [getHydratedJob]);
-
   const runWithJobHydration = async (
-    listJob: WorkOrderListJob,
+    listJob: { id: string },
     fn: (fullJob: Job) => void
   ) => {
     if (!beginRowAction(listJob.id)) return;
@@ -140,16 +135,16 @@ export function useWorkOrderRowActions({
     }
   };
 
-  const handleOpenDetail = useCallback((listJob: WorkOrderListJob) => {
+  const handleOpenDetail = useCallback((listJob: { id: string }) => {
     onOpenWorkOrderDetail(listJob.id);
   }, [onOpenWorkOrderDetail]);
 
-  const handleStartInvoice = useCallback((listJob: WorkOrderListJob) => {
+  const handleStartInvoice = useCallback((listJob: { id: string }) => {
     void runWithJobHydration(listJob, (full) => onStartInvoice(full));
   }, [onStartInvoice]);
 
   const handleOpenChangeOrderDetail = useCallback((
-    listJob: WorkOrderListJob,
+    listJob: { id: string },
     changeOrderPreview: WorkOrderListChangeOrderPreview
   ) => {
     if (!beginRowAction(listJob.id)) return;
@@ -171,7 +166,7 @@ export function useWorkOrderRowActions({
     })();
   }, [getHydratedChangeOrder, getHydratedJob, onOpenChangeOrderDetail]);
 
-  const handleOpenPendingInvoice = useCallback((listJob: WorkOrderListJob, status: WorkOrderInvoiceStatus) => {
+  const handleOpenPendingInvoice = useCallback((listJob: { id: string }, status: WorkOrderInvoiceStatus) => {
     if (!beginRowAction(listJob.id)) return;
     void (async () => {
       try {
@@ -193,6 +188,5 @@ export function useWorkOrderRowActions({
     handleOpenChangeOrderDetail,
     handleStartInvoice,
     handleOpenPendingInvoice,
-    prefetchJob,
   };
 }

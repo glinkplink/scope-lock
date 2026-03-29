@@ -2,12 +2,18 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   BusinessProfile,
   ChangeOrder,
-  Job,
   Invoice,
-  EsignJobStatus,
+  Job,
   WorkOrderDashboardJob,
+  WorkOrdersDashboardCursor,
+  WorkOrdersDashboardSummary,
 } from '../types/db';
-import { listWorkOrdersDashboard, getJobById } from '../lib/db/jobs';
+import {
+  getJobById,
+  getWorkOrdersDashboardSummary,
+  listWorkOrdersDashboard,
+  listWorkOrdersDashboardPage,
+} from '../lib/db/jobs';
 import { getChangeOrderById } from '../lib/db/change-orders';
 import { getInvoice } from '../lib/db/invoices';
 import { useEsignPoller } from '../hooks/useEsignPoller';
@@ -19,6 +25,7 @@ import { formatWorkOrderListJobType } from '../lib/work-order-list-label';
 import './WorkOrdersPage.css';
 
 const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
+const WORK_ORDERS_PAGE_SIZE = 25;
 
 const USD_FORMATTER = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -37,9 +44,9 @@ function hasBusinessPhone(profile: BusinessProfile | null): boolean {
   return Boolean(profile?.phone?.replace(/\D/g, '').length);
 }
 
-function formatUsd(amount: number): string {
-  const n = Number.isFinite(amount) ? amount : 0;
-  return USD_FORMATTER.format(n);
+function formatUsd(amount: number | null | undefined): string {
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) return '—';
+  return USD_FORMATTER.format(amount);
 }
 
 function formatRowDate(job: WorkOrderDashboardJob): string {
@@ -50,7 +57,7 @@ function formatRowDate(job: WorkOrderDashboardJob): string {
   return ROW_DATE_FORMATTER.format(new Date(y, m - 1, d));
 }
 
-function renderEsignStrip(status: EsignJobStatus) {
+function renderEsignStrip(status: WorkOrderDashboardJob['esign_status']) {
   const progress = getEsignProgressModel(status);
   if (status === 'not_sent') return null;
 
@@ -75,7 +82,8 @@ function renderEsignStrip(status: EsignJobStatus) {
 function hasInFlightEsign(job: WorkOrderDashboardJob): boolean {
   return (
     shouldPollEsignStatus(job.esign_status) ||
-    job.changeOrders.some((changeOrder) => shouldPollEsignStatus(changeOrder.esign_status))
+    job.hasInFlightChangeOrders ||
+    job.changeOrderPreview.some((changeOrder) => shouldPollEsignStatus(changeOrder.esign_status))
   );
 }
 
@@ -92,7 +100,31 @@ function mergeDashboardRows(
   return currentJobs.map((job) => refreshedById.get(job.id) ?? job);
 }
 
-function coStatusTone(status: EsignJobStatus): 'inactive' | 'active' | 'success' | 'danger' | 'warning' {
+function appendDashboardRows(
+  currentJobs: WorkOrderDashboardJob[],
+  nextJobs: WorkOrderDashboardJob[]
+): WorkOrderDashboardJob[] {
+  if (nextJobs.length === 0) return currentJobs;
+
+  const mergedJobs = [...currentJobs];
+  const indexById = new Map(currentJobs.map((job, index) => [job.id, index]));
+
+  nextJobs.forEach((job) => {
+    const existingIndex = indexById.get(job.id);
+    if (existingIndex == null) {
+      indexById.set(job.id, mergedJobs.length);
+      mergedJobs.push(job);
+      return;
+    }
+    mergedJobs[existingIndex] = job;
+  });
+
+  return mergedJobs;
+}
+
+function coStatusTone(
+  status: WorkOrderDashboardJob['changeOrderPreview'][number]['esign_status']
+): 'inactive' | 'active' | 'success' | 'danger' | 'warning' {
   switch (status) {
     case 'sent':
     case 'opened':
@@ -112,11 +144,11 @@ function coStatusTone(status: EsignJobStatus): 'inactive' | 'active' | 'success'
 type WorkOrderRowProps = {
   job: WorkOrderDashboardJob;
   rowBusy: boolean;
-  onPrefetchJob: (jobId: string) => void;
   onOpenDetail: (job: WorkOrderDashboardJob) => void;
+  onOpenMoreChangeOrders: (job: WorkOrderDashboardJob) => void;
   onOpenChangeOrderDetail: (
     job: WorkOrderDashboardJob,
-    changeOrder: WorkOrderDashboardJob['changeOrders'][number]
+    changeOrder: WorkOrderDashboardJob['changeOrderPreview'][number]
   ) => void;
   onStartInvoice: (job: WorkOrderDashboardJob) => void;
   onOpenPendingInvoice: (job: WorkOrderDashboardJob) => void;
@@ -125,8 +157,8 @@ type WorkOrderRowProps = {
 const WorkOrderRow = memo(function WorkOrderRow({
   job,
   rowBusy,
-  onPrefetchJob,
   onOpenDetail,
+  onOpenMoreChangeOrders,
   onOpenChangeOrderDetail,
   onStartInvoice,
   onOpenPendingInvoice,
@@ -134,6 +166,7 @@ const WorkOrderRow = memo(function WorkOrderRow({
   const woLabel =
     job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const invoice = job.latestInvoice;
+  const hiddenChangeOrderCount = Math.max(job.changeOrderCount - job.changeOrderPreview.length, 0);
 
   return (
     <li className="work-orders-row">
@@ -143,8 +176,6 @@ const WorkOrderRow = memo(function WorkOrderRow({
           className="work-orders-row-detail-hit"
           disabled={rowBusy}
           onClick={() => onOpenDetail(job)}
-          onMouseEnter={() => onPrefetchJob(job.id)}
-          onFocus={() => onPrefetchJob(job.id)}
         >
           <span className="work-orders-wo">{woLabel}</span>
           {renderEsignStrip(job.esign_status)}
@@ -153,9 +184,9 @@ const WorkOrderRow = memo(function WorkOrderRow({
         <span className="work-orders-meta">
           <span className="work-orders-meta-date">{formatRowDate(job)}</span>
           <span className="work-orders-meta-type">{formatWorkOrderListJobType(job)}</span>
-          {job.changeOrders.length > 0 ? (
+          {job.changeOrderPreview.length > 0 || hiddenChangeOrderCount > 0 ? (
             <span className="work-orders-co-shortcuts" role="list" aria-label={`${woLabel} change orders`}>
-              {job.changeOrders.map((changeOrder) => {
+              {job.changeOrderPreview.map((changeOrder) => {
                 const coLabel = `CO #${String(changeOrder.co_number).padStart(4, '0')}`;
                 const statusLabel = formatEsignStatusLabel(changeOrder.esign_status);
                 return (
@@ -183,6 +214,19 @@ const WorkOrderRow = memo(function WorkOrderRow({
                   </span>
                 );
               })}
+              {hiddenChangeOrderCount > 0 ? (
+                <span className="work-orders-co-shortcut-wrap" role="listitem">
+                  <button
+                    type="button"
+                    className="work-orders-co-more-button"
+                    disabled={rowBusy}
+                    onClick={() => onOpenMoreChangeOrders(job)}
+                    aria-label={`Open work order for ${hiddenChangeOrderCount} more change orders`}
+                  >
+                    {`+${hiddenChangeOrderCount} more`}
+                  </button>
+                </span>
+              ) : null}
             </span>
           ) : null}
         </span>
@@ -249,6 +293,11 @@ export function WorkOrdersPage({
   const [jobs, setJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobsError, setJobsError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<WorkOrdersDashboardCursor | null>(null);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<WorkOrdersDashboardSummary | null>(null);
 
   const {
     busyJobIds: actionLoadingJobIds,
@@ -256,7 +305,6 @@ export function WorkOrdersPage({
     handleOpenChangeOrderDetail,
     handleStartInvoice,
     handleOpenPendingInvoice,
-    prefetchJob,
   } = useWorkOrderRowActions({
     userId,
     getJobById,
@@ -277,45 +325,54 @@ export function WorkOrdersPage({
     }
   });
 
-  const loadDashboard = useCallback(async (jobIds?: string[]) => {
-    const dashboardRows = await listWorkOrdersDashboard(userId, jobIds);
-    return dashboardRows;
-  }, [userId]);
-
   useEffect(() => {
     let cancelled = false;
     setJobsLoading(true);
     setJobsError(null);
     setJobs([]);
+    setHasMore(false);
+    setNextCursor(null);
+    setLoadMoreError(null);
+    setSummary(null);
 
-    void (async () => {
-      const dashboardRows = await loadDashboard();
+    void Promise.all([
+      listWorkOrdersDashboardPage(userId, WORK_ORDERS_PAGE_SIZE),
+      getWorkOrdersDashboardSummary(userId),
+    ]).then(([pageResult, summaryResult]) => {
       if (cancelled) return;
-      if (dashboardRows.length === 0) {
-        const hasLoadFailure = dashboardRows.length === 0;
-        if (hasLoadFailure) {
-          setJobsError(null);
-        }
+
+      if (pageResult.error) {
+        setJobs([]);
+        setHasMore(false);
+        setNextCursor(null);
+        setJobsError(`Could not load work orders (${pageResult.error.message}).`);
+      } else {
+        setJobs(pageResult.data);
+        setHasMore(pageResult.hasMore);
+        setNextCursor(pageResult.nextCursor);
+        setJobsError(null);
       }
-      setJobs(dashboardRows);
-      setJobsLoading(false);
-    })().catch((error: unknown) => {
-      if (cancelled) return;
-      setJobsError(error instanceof Error ? error.message : 'Could not load work orders.');
+
+      if (summaryResult.error) {
+        setSummary(null);
+      } else {
+        setSummary(summaryResult.data);
+      }
+
       setJobsLoading(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [loadDashboard]);
+  }, [userId]);
 
   const inFlightJobIds = useMemo(() => collectInFlightJobIds(jobs), [jobs]);
 
   useEsignPoller({
     enabled: inFlightJobIds.length > 0,
     pollOnce: async () => {
-      const refreshedJobs = await loadDashboard(inFlightJobIds);
+      const refreshedJobs = await listWorkOrdersDashboard(userId, inFlightJobIds);
       if (refreshedJobs.length === 0) return false;
       let shouldContinue = false;
       setJobs((currentJobs) => {
@@ -332,24 +389,6 @@ export function WorkOrdersPage({
     const t = setTimeout(() => onClearSuccessBanner(), 10000);
     return () => clearTimeout(t);
   }, [successBanner, onClearSuccessBanner]);
-
-  const invoicedContractTotal = useMemo(
-    () =>
-      jobs.reduce((acc, job) => {
-        if (job.latestInvoice?.status !== 'downloaded') return acc;
-        return acc + (typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0);
-      }, 0),
-    [jobs]
-  );
-
-  const pendingContractTotal = useMemo(
-    () =>
-      jobs.reduce((acc, job) => {
-        if (job.latestInvoice && job.latestInvoice.status !== 'draft') return acc;
-        return acc + (typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0);
-      }, 0),
-    [jobs]
-  );
 
   const showProfileNudge = !hasBusinessPhone(profile);
 
@@ -370,10 +409,47 @@ export function WorkOrdersPage({
     [handleOpenPendingInvoice]
   );
 
+  const handleOpenMoreChangeOrders = useCallback(
+    (job: WorkOrderDashboardJob) => {
+      handleOpenDetail(job);
+    },
+    [handleOpenDetail]
+  );
+
+  const handleLoadMore = useCallback(() => {
+    if (loadMoreLoading || !hasMore || !nextCursor) return;
+
+    setLoadMoreLoading(true);
+    setLoadMoreError(null);
+
+    void listWorkOrdersDashboardPage(userId, WORK_ORDERS_PAGE_SIZE, nextCursor).then((result) => {
+      if (result.error) {
+        setLoadMoreError(`Could not load more work orders (${result.error.message}).`);
+        setLoadMoreLoading(false);
+        return;
+      }
+
+      setJobs((currentJobs) => appendDashboardRows(currentJobs, result.data));
+      setHasMore(result.hasMore);
+      setNextCursor(result.nextCursor);
+      setLoadMoreLoading(false);
+    });
+  }, [hasMore, loadMoreLoading, nextCursor, userId]);
+
+  const summaryInvoicedDisplay = formatUsd(summary?.invoicedContractTotal);
+  const summaryPendingDisplay = formatUsd(summary?.pendingContractTotal);
+
   return (
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Work Orders</h1>
+        <button
+          type="button"
+          className="work-orders-create-btn"
+          onClick={onCreateWorkOrder}
+        >
+          Create Work Order
+        </button>
       </div>
 
       {showProfileNudge ? (
@@ -434,39 +510,49 @@ export function WorkOrdersPage({
           >
             <span className="work-orders-summary-item work-orders-summary-invoiced">
               <span className="work-orders-summary-label">Invoiced:</span>
-              <span className="work-orders-summary-amount">{formatUsd(invoicedContractTotal)}</span>
+              <span className="work-orders-summary-amount">{summaryInvoicedDisplay}</span>
             </span>
             <span className="work-orders-summary-item work-orders-summary-pending">
               <span className="work-orders-summary-label">Pending Invoice:</span>
-              <span className="work-orders-summary-amount">{formatUsd(pendingContractTotal)}</span>
+              <span className="work-orders-summary-amount">{summaryPendingDisplay}</span>
             </span>
-          </div>
-          <div className="work-orders-create-below-summary">
-            <button
-              type="button"
-              className="work-orders-create-btn"
-              onClick={onCreateWorkOrder}
-            >
-              Create Work Order
-            </button>
           </div>
           {jobs.length === 0 ? (
             <p className="work-orders-empty">No work orders yet.</p>
           ) : (
-            <ul className="work-orders-list">
-              {jobs.map((job) => (
-                <WorkOrderRow
-                  key={job.id}
-                  job={job}
-                  rowBusy={actionLoadingJobIds.has(job.id)}
-                  onPrefetchJob={prefetchJob}
-                  onOpenDetail={handleOpenDetail}
-                  onOpenChangeOrderDetail={handleOpenChangeOrderDetail}
-                  onStartInvoice={handleStartInvoice}
-                  onOpenPendingInvoice={handleOpenPendingInvoiceForRow}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="work-orders-list">
+                {jobs.map((job) => (
+                  <WorkOrderRow
+                    key={job.id}
+                    job={job}
+                    rowBusy={actionLoadingJobIds.has(job.id)}
+                    onOpenDetail={handleOpenDetail}
+                    onOpenMoreChangeOrders={handleOpenMoreChangeOrders}
+                    onOpenChangeOrderDetail={handleOpenChangeOrderDetail}
+                    onStartInvoice={handleStartInvoice}
+                    onOpenPendingInvoice={handleOpenPendingInvoiceForRow}
+                  />
+                ))}
+              </ul>
+              {loadMoreError ? (
+                <div className="error-banner work-orders-load-more-error" role="alert">
+                  {loadMoreError}
+                </div>
+              ) : null}
+              {hasMore ? (
+                <div className="work-orders-load-more-wrap">
+                  <button
+                    type="button"
+                    className="work-orders-load-more-btn"
+                    disabled={loadMoreLoading}
+                    onClick={handleLoadMore}
+                  >
+                    {loadMoreLoading ? 'Loading…' : 'Load More'}
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </>
       )}

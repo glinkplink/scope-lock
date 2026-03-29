@@ -3,6 +3,8 @@ import type {
   EsignJobStatus,
   Job,
   WorkOrderDashboardJob,
+  WorkOrdersDashboardCursor,
+  WorkOrdersDashboardSummary,
   WorkOrderListChangeOrderPreview,
   WorkOrderListJob,
   WorkOrderInvoiceStatus,
@@ -113,17 +115,108 @@ function mapWorkOrderInvoiceStatusRow(row: Record<string, unknown>): WorkOrderIn
 }
 
 function mapWorkOrderDashboardRow(row: Record<string, unknown>): WorkOrderDashboardJob {
-  const listRow = mapWorkOrderListRow(row);
+  const priceRaw = row.price;
+  const price =
+    typeof priceRaw === 'number' && Number.isFinite(priceRaw)
+      ? priceRaw
+      : Number(priceRaw) || 0;
+  const ocRaw = row.other_classification;
+  const other_classification =
+    ocRaw != null && String(ocRaw).trim() !== '' ? String(ocRaw).trim() : null;
+  const esignRaw = row.esign_status;
+  const esign_status: EsignJobStatus =
+    esignRaw === 'sent' ||
+    esignRaw === 'opened' ||
+    esignRaw === 'completed' ||
+    esignRaw === 'declined' ||
+    esignRaw === 'expired'
+      ? esignRaw
+      : 'not_sent';
+  const fullChangeOrders = mapDashboardChangeOrderPreviewRows(
+    row.change_orders_preview ?? row.change_orders
+  );
+  const changeOrderCountRaw = row.change_order_count;
+  const changeOrderCount =
+    typeof changeOrderCountRaw === 'number' && Number.isFinite(changeOrderCountRaw)
+      ? changeOrderCountRaw
+      : Number(changeOrderCountRaw) || fullChangeOrders.length;
   const latestInvoice =
     row.latest_invoice && typeof row.latest_invoice === 'object'
       ? mapWorkOrderInvoiceStatusRow(row.latest_invoice as Record<string, unknown>)
       : null;
+  const hasInFlightChangeOrdersRaw = row.has_in_flight_change_orders;
+  const hasInFlightChangeOrders =
+    typeof hasInFlightChangeOrdersRaw === 'boolean'
+      ? hasInFlightChangeOrdersRaw
+      : fullChangeOrders.some((changeOrder) =>
+          changeOrder.esign_status === 'sent' || changeOrder.esign_status === 'opened'
+        );
 
   return {
-    ...listRow,
+    id: String(row.id),
+    wo_number: row.wo_number != null ? Number(row.wo_number) : null,
+    customer_name: String(row.customer_name ?? ''),
+    job_type: String(row.job_type ?? ''),
+    other_classification,
+    agreement_date: (row.agreement_date as string | null) ?? null,
+    created_at: String(row.created_at ?? ''),
+    price,
+    esign_status,
+    changeOrderCount,
+    changeOrderPreview: fullChangeOrders.slice(0, 2),
+    hasInFlightChangeOrders,
     latestInvoice,
   };
 }
+
+function mapDashboardChangeOrderPreviewRows(raw: unknown): WorkOrderListChangeOrderPreview[] {
+  const changeOrderRows = Array.isArray(raw) ? raw : [];
+  return changeOrderRows
+    .filter(
+      (value): value is Record<string, unknown> => typeof value === 'object' && value !== null
+    )
+    .map((value) => mapWorkOrderListChangeOrderRow(value))
+    .sort((a, b) => a.co_number - b.co_number);
+}
+
+function mapWorkOrdersDashboardSummaryRow(row: Record<string, unknown>): WorkOrdersDashboardSummary {
+  const jobCountRaw = row.job_count;
+  const invoicedContractTotalRaw = row.invoiced_contract_total;
+  const pendingContractTotalRaw = row.pending_contract_total;
+
+  return {
+    jobCount:
+      typeof jobCountRaw === 'number' && Number.isFinite(jobCountRaw)
+        ? jobCountRaw
+        : Number(jobCountRaw) || 0,
+    invoicedContractTotal:
+      typeof invoicedContractTotalRaw === 'number' && Number.isFinite(invoicedContractTotalRaw)
+        ? invoicedContractTotalRaw
+        : Number(invoicedContractTotalRaw) || 0,
+    pendingContractTotal:
+      typeof pendingContractTotalRaw === 'number' && Number.isFinite(pendingContractTotalRaw)
+        ? pendingContractTotalRaw
+        : Number(pendingContractTotalRaw) || 0,
+  };
+}
+
+export type ListWorkOrdersDashboardPageResult =
+  | {
+      data: WorkOrderDashboardJob[];
+      error: null;
+      hasMore: boolean;
+      nextCursor: WorkOrdersDashboardCursor | null;
+    }
+  | {
+      data: null;
+      error: Error;
+      hasMore: false;
+      nextCursor: null;
+    };
+
+export type GetWorkOrdersDashboardSummaryResult =
+  | { data: WorkOrdersDashboardSummary; error: null }
+  | { data: null; error: Error };
 
 export const listJobsForWorkOrders = async (userId: string): Promise<WorkOrderListJob[]> => {
   const { data, error } = await supabase
@@ -155,6 +248,70 @@ export const listWorkOrdersDashboard = async (
   }
 
   return (data ?? []).map((row: unknown) => mapWorkOrderDashboardRow(row as Record<string, unknown>));
+};
+
+export const listWorkOrdersDashboardPage = async (
+  userId: string,
+  limit: number,
+  cursor: WorkOrdersDashboardCursor | null = null
+): Promise<ListWorkOrdersDashboardPageResult> => {
+  const pageSize = Math.max(1, limit);
+  const fetchLimit = pageSize + 1;
+
+  const { data, error } = await supabase.rpc('list_work_orders_dashboard_page', {
+    p_user_id: userId,
+    p_limit: fetchLimit,
+    p_cursor_created_at: cursor?.created_at ?? null,
+    p_cursor_id: cursor?.id ?? null,
+  });
+
+  if (error) {
+    console.error('Error listing paginated work orders dashboard:', error);
+    return {
+      data: null,
+      error: new Error(error.message),
+      hasMore: false,
+      nextCursor: null,
+    };
+  }
+
+  const mappedRows = (data ?? []).map((row: unknown) =>
+    mapWorkOrderDashboardRow(row as Record<string, unknown>)
+  );
+  const hasMore = mappedRows.length > pageSize;
+  const visibleRows = hasMore ? mappedRows.slice(0, pageSize) : mappedRows;
+  const tailRow = visibleRows.length > 0 ? visibleRows[visibleRows.length - 1] : null;
+
+  return {
+    data: visibleRows,
+    error: null,
+    hasMore,
+    nextCursor:
+      hasMore && tailRow
+        ? {
+            created_at: tailRow.created_at,
+            id: tailRow.id,
+          }
+        : null,
+  };
+};
+
+export const getWorkOrdersDashboardSummary = async (
+  userId: string
+): Promise<GetWorkOrdersDashboardSummaryResult> => {
+  const { data, error } = await supabase
+    .rpc('get_work_orders_dashboard_summary', { p_user_id: userId })
+    .single();
+
+  if (error) {
+    console.error('Error loading work orders dashboard summary:', error);
+    return { data: null, error: new Error(error.message) };
+  }
+
+  return {
+    data: mapWorkOrdersDashboardSummaryRow(data as Record<string, unknown>),
+    error: null,
+  };
 };
 
 export const listInFlightEsignJobs = async (userId: string): Promise<WorkOrderListJob[]> => {

@@ -3,17 +3,28 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ChangeOrder, Invoice, Job, WorkOrderDashboardJob } from '../../types/db';
+import type {
+  ChangeOrder,
+  Invoice,
+  Job,
+  WorkOrderDashboardJob,
+  WorkOrdersDashboardCursor,
+  WorkOrdersDashboardSummary,
+} from '../../types/db';
 import { WorkOrdersPage } from '../WorkOrdersPage';
 import { ESIGN_POLL_INTERVAL_MS } from '../../lib/esign-live';
 
 const listWorkOrdersDashboard = vi.fn();
+const listWorkOrdersDashboardPage = vi.fn();
+const getWorkOrdersDashboardSummary = vi.fn();
 const getJobById = vi.fn();
 const getChangeOrderById = vi.fn();
 const getInvoice = vi.fn();
 
 vi.mock('../../lib/db/jobs', () => ({
   listWorkOrdersDashboard: (...args: unknown[]) => listWorkOrdersDashboard(...args),
+  listWorkOrdersDashboardPage: (...args: unknown[]) => listWorkOrdersDashboardPage(...args),
+  getWorkOrdersDashboardSummary: (...args: unknown[]) => getWorkOrdersDashboardSummary(...args),
   getJobById: (...args: unknown[]) => getJobById(...args),
 }));
 
@@ -25,6 +36,12 @@ vi.mock('../../lib/db/invoices', () => ({
   getInvoice: (...args: unknown[]) => getInvoice(...args),
 }));
 
+const summaryResult: WorkOrdersDashboardSummary = {
+  jobCount: 2,
+  invoicedContractTotal: 125,
+  pendingContractTotal: 275,
+};
+
 const listJobA: WorkOrderDashboardJob = {
   id: 'job-a',
   wo_number: 1,
@@ -35,7 +52,9 @@ const listJobA: WorkOrderDashboardJob = {
   created_at: '2025-01-01T12:00:00Z',
   price: 100,
   esign_status: 'not_sent',
-  changeOrders: [],
+  changeOrderCount: 0,
+  changeOrderPreview: [],
+  hasInFlightChangeOrders: false,
   latestInvoice: null,
 };
 
@@ -49,14 +68,16 @@ const listJobB: WorkOrderDashboardJob = {
   created_at: '2025-01-02T12:00:00Z',
   price: 200,
   esign_status: 'sent',
-  changeOrders: [],
+  changeOrderCount: 0,
+  changeOrderPreview: [],
+  hasInFlightChangeOrders: false,
   latestInvoice: null,
 };
 
 function previewCO(
   id: string,
   coNumber: number,
-  esignStatus: WorkOrderDashboardJob['changeOrders'][number]['esign_status']
+  esignStatus: WorkOrderDashboardJob['changeOrderPreview'][number]['esign_status']
 ) {
   return {
     id,
@@ -176,6 +197,18 @@ function minimalInvoice(id: string): Invoice {
   };
 }
 
+function makePageResult(
+  data: WorkOrderDashboardJob[],
+  opts?: { hasMore?: boolean; nextCursor?: WorkOrdersDashboardCursor | null }
+) {
+  return {
+    data,
+    error: null,
+    hasMore: opts?.hasMore ?? false,
+    nextCursor: opts?.nextCursor ?? null,
+  } as const;
+}
+
 function latestWorkOrdersListUl(): HTMLElement {
   const lists = document.querySelectorAll('ul.work-orders-list');
   expect(lists.length).toBeGreaterThan(0);
@@ -187,6 +220,7 @@ function latestWorkOrdersListUl(): HTMLElement {
 }
 
 function renderPage() {
+  const onCreateWorkOrder = vi.fn();
   const onStartInvoice = vi.fn();
   const onOpenPendingInvoice = vi.fn();
   const onOpenWorkOrderDetail = vi.fn();
@@ -198,7 +232,7 @@ function renderPage() {
       profile={null}
       successBanner={null}
       onClearSuccessBanner={onClearSuccessBanner}
-      onCreateWorkOrder={() => {}}
+      onCreateWorkOrder={onCreateWorkOrder}
       onCompleteProfileClick={() => {}}
       onStartInvoice={onStartInvoice}
       onOpenPendingInvoice={onOpenPendingInvoice}
@@ -207,6 +241,7 @@ function renderPage() {
     />
   );
   return {
+    onCreateWorkOrder,
     onStartInvoice,
     onOpenPendingInvoice,
     onOpenWorkOrderDetail,
@@ -229,10 +264,14 @@ describe('WorkOrdersPage', () => {
 
   beforeEach(() => {
     listWorkOrdersDashboard.mockReset();
+    listWorkOrdersDashboardPage.mockReset();
+    getWorkOrdersDashboardSummary.mockReset();
     getJobById.mockReset();
     getChangeOrderById.mockReset();
     getInvoice.mockReset();
-    listWorkOrdersDashboard.mockResolvedValue([listJobA]);
+    listWorkOrdersDashboardPage.mockResolvedValue(makePageResult([listJobA]));
+    getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryResult, error: null });
+    listWorkOrdersDashboard.mockResolvedValue([]);
     getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
     getChangeOrderById.mockImplementation((id: string) =>
       Promise.resolve(minimalFullChangeOrder(id, Number(id.replace(/\D/g, '')) || 1))
@@ -240,8 +279,26 @@ describe('WorkOrdersPage', () => {
     getInvoice.mockImplementation((id: string) => Promise.resolve(minimalInvoice(id)));
   });
 
-  it('loads the dashboard from a single query and shows summary totals', async () => {
-    listWorkOrdersDashboard.mockResolvedValue([listJobA, listJobB]);
+  it('renders the Create Work Order button and calls onCreateWorkOrder', async () => {
+    const user = userEvent.setup();
+    const { onCreateWorkOrder } = renderPage();
+
+    await screen.findByText('Customer A');
+    await user.click(screen.getByRole('button', { name: /create work order/i }));
+
+    expect(onCreateWorkOrder).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the first page and whole-dataset summary from separate queries', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(makePageResult([listJobA, listJobB]));
+    getWorkOrdersDashboardSummary.mockResolvedValue({
+      data: {
+        jobCount: 2,
+        invoicedContractTotal: 150,
+        pendingContractTotal: 250,
+      },
+      error: null,
+    });
 
     renderPage();
 
@@ -250,17 +307,47 @@ describe('WorkOrdersPage', () => {
       expect(screen.getByText('Customer B')).toBeInTheDocument();
     });
 
-    expect(listWorkOrdersDashboard).toHaveBeenCalledTimes(1);
-    expect(listWorkOrdersDashboard).toHaveBeenCalledWith('u1', undefined);
-    expect(screen.getByText('$0')).toBeInTheDocument();
-    expect(screen.getByText('$300')).toBeInTheDocument();
+    expect(listWorkOrdersDashboardPage).toHaveBeenCalledWith('u1', 25);
+    expect(getWorkOrdersDashboardSummary).toHaveBeenCalledWith('u1');
+    expect(screen.getByText('$150')).toBeInTheDocument();
+    expect(screen.getByText('$250')).toBeInTheDocument();
   });
 
-  it('polls only in-flight rows and merges the refreshed result', async () => {
+  it('loads more rows with cursor pagination and appends without replacing earlier rows', async () => {
+    const nextCursor = { created_at: '2025-01-02T12:00:00Z', id: 'job-b' };
+    listWorkOrdersDashboardPage
+      .mockResolvedValueOnce(makePageResult([listJobA, listJobB], { hasMore: true, nextCursor }))
+      .mockResolvedValueOnce(
+        makePageResult([
+          {
+            ...listJobA,
+            id: 'job-c',
+            customer_name: 'Customer C',
+            wo_number: 3,
+            created_at: '2025-01-03T12:00:00Z',
+          },
+        ])
+      );
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText('Customer B');
+    await user.click(screen.getByRole('button', { name: /load more/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Customer C')).toBeInTheDocument();
+    });
+
+    expect(listWorkOrdersDashboardPage).toHaveBeenNthCalledWith(2, 'u1', 25, nextCursor);
+    expect(screen.getByText('Customer A')).toBeInTheDocument();
+    expect(screen.getByText('Customer B')).toBeInTheDocument();
+  });
+
+  it('polls loaded rows with in-flight work-order statuses and merges the refresh result', async () => {
     vi.useFakeTimers();
-    listWorkOrdersDashboard
-      .mockResolvedValueOnce([listJobA, listJobB])
-      .mockResolvedValueOnce([{ ...listJobB, esign_status: 'completed' }]);
+    listWorkOrdersDashboardPage.mockResolvedValue(makePageResult([listJobA, listJobB]));
+    listWorkOrdersDashboard.mockResolvedValue([{ ...listJobB, esign_status: 'completed' }]);
 
     renderPage();
     await flushAsync();
@@ -272,12 +359,44 @@ describe('WorkOrdersPage', () => {
     });
     await flushAsync();
 
-    expect(listWorkOrdersDashboard).toHaveBeenNthCalledWith(2, 'u1', ['job-b']);
+    expect(listWorkOrdersDashboard).toHaveBeenCalledWith('u1', ['job-b']);
     expect(screen.getByLabelText('E-signature status: Signed')).toBeInTheDocument();
     expect(screen.getByText('Customer A')).toBeInTheDocument();
   });
 
-  it('opens work-order detail immediately with the row job id', async () => {
+  it('polls loaded rows when hidden change orders are in flight via hasInFlightChangeOrders', async () => {
+    vi.useFakeTimers();
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        {
+          ...listJobA,
+          changeOrderCount: 4,
+          changeOrderPreview: [previewCO('co-1', 1, 'completed'), previewCO('co-2', 2, 'completed')],
+          hasInFlightChangeOrders: true,
+        },
+      ])
+    );
+    listWorkOrdersDashboard.mockResolvedValue([
+      {
+        ...listJobA,
+        changeOrderCount: 4,
+        changeOrderPreview: [previewCO('co-1', 1, 'completed'), previewCO('co-2', 2, 'completed')],
+        hasInFlightChangeOrders: false,
+      },
+    ]);
+
+    renderPage();
+    await flushAsync();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS);
+    });
+    await flushAsync();
+
+    expect(listWorkOrdersDashboard).toHaveBeenCalledWith('u1', ['job-a']);
+  });
+
+  it('opens work-order detail immediately with the row job id and does not prefetch on click', async () => {
     const user = userEvent.setup();
     const { onOpenWorkOrderDetail } = renderPage();
 
@@ -285,36 +404,57 @@ describe('WorkOrdersPage', () => {
     await user.click(screen.getByRole('button', { name: /Customer A/i }));
 
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a');
-    expect(getJobById).toHaveBeenCalledTimes(1);
+    expect(getJobById).not.toHaveBeenCalled();
   });
 
-  it('prefetches a full job on hover and reuses it for invoice actions', async () => {
+  it('hydrates a full job only when starting an invoice', async () => {
     const user = userEvent.setup();
     const { onStartInvoice } = renderPage();
 
     await screen.findByText('Customer A');
-    await user.hover(screen.getByRole('button', { name: /Customer A/i }));
-
-    await waitFor(() => {
-      expect(getJobById).toHaveBeenCalledWith('job-a');
-    });
-
     await user.click(screen.getByRole('button', { name: /^Invoice$/i }));
 
     await waitFor(() => {
       expect(onStartInvoice).toHaveBeenCalledTimes(1);
     });
-    expect(onStartInvoice.mock.calls[0][0].id).toBe('job-a');
-    expect(getJobById).toHaveBeenCalledTimes(1);
+    expect(getJobById).toHaveBeenCalledWith('job-a');
   });
 
-  it('renders inline change order shortcuts in order and opens hydrated CO detail', async () => {
-    listWorkOrdersDashboard.mockResolvedValue([
-      {
-        ...listJobA,
-        changeOrders: [previewCO('co-2', 2, 'completed'), previewCO('co-1', 1, 'opened')],
-      },
-    ]);
+  it('shows only preview change-order shortcuts and routes +N more to work-order detail', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        {
+          ...listJobA,
+          changeOrderCount: 4,
+          changeOrderPreview: [previewCO('co-1', 1, 'opened'), previewCO('co-2', 2, 'completed')],
+          hasInFlightChangeOrders: true,
+        },
+      ])
+    );
+
+    const user = userEvent.setup();
+    const { onOpenWorkOrderDetail } = renderPage();
+
+    await screen.findByText('Customer A');
+    expect(screen.getAllByRole('button', { name: /Open CO #/i })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /open work order for 2 more change orders/i })).toHaveTextContent('+2 more');
+
+    await user.click(screen.getByRole('button', { name: /open work order for 2 more change orders/i }));
+
+    expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a');
+  });
+
+  it('opens hydrated change-order detail from preview shortcuts', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        {
+          ...listJobA,
+          changeOrderCount: 2,
+          changeOrderPreview: [previewCO('co-2', 2, 'completed'), previewCO('co-1', 1, 'opened')],
+          hasInFlightChangeOrders: true,
+        },
+      ])
+    );
     getJobById.mockResolvedValue(minimalFullJob('job-a', 'Customer A'));
     getChangeOrderById.mockImplementation((id: string) =>
       Promise.resolve(minimalFullChangeOrder(id, id === 'co-1' ? 1 : 2))
@@ -324,11 +464,6 @@ describe('WorkOrdersPage', () => {
     const { onOpenChangeOrderDetail } = renderPage();
 
     await screen.findByText('Customer A');
-    const shortcutButtons = screen.getAllByRole('button', { name: /Open CO #/i });
-    expect(shortcutButtons).toHaveLength(2);
-    expect(screen.getByText('CO #0001')).toBeInTheDocument();
-    expect(screen.getByText('CO #0002')).toBeInTheDocument();
-
     await user.click(screen.getByRole('button', { name: 'Open CO #0001' }));
 
     await waitFor(() => {
@@ -338,38 +473,31 @@ describe('WorkOrdersPage', () => {
     expect(onOpenChangeOrderDetail.mock.calls[0][1].id).toBe('co-1');
   });
 
-  it('shows date on first meta line and capitalized job type on second', async () => {
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('Customer A')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Jan 1, 2025')).toBeInTheDocument();
-    expect(screen.getByText('Repair')).toBeInTheDocument();
-  });
-
-  it('renders Pending and Invoiced actions from the dashboard invoice fields', async () => {
-    listWorkOrdersDashboard.mockResolvedValue([
-      {
-        ...listJobA,
-        latestInvoice: {
-          id: 'inv-a',
-          job_id: 'job-a',
-          status: 'draft',
-          invoice_number: 1,
-          created_at: '2025-01-03T00:00:00Z',
+  it('renders Pending and Invoiced actions from dashboard invoice fields', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        {
+          ...listJobA,
+          latestInvoice: {
+            id: 'inv-a',
+            job_id: 'job-a',
+            status: 'draft',
+            invoice_number: 1,
+            created_at: '2025-01-03T00:00:00Z',
+          },
         },
-      },
-      {
-        ...listJobB,
-        latestInvoice: {
-          id: 'inv-b',
-          job_id: 'job-b',
-          status: 'downloaded',
-          invoice_number: 2,
-          created_at: '2025-01-04T00:00:00Z',
+        {
+          ...listJobB,
+          latestInvoice: {
+            id: 'inv-b',
+            job_id: 'job-b',
+            status: 'downloaded',
+            invoice_number: 2,
+            created_at: '2025-01-04T00:00:00Z',
+          },
         },
-      },
-    ]);
+      ])
+    );
 
     renderPage();
 
@@ -381,18 +509,20 @@ describe('WorkOrdersPage', () => {
   });
 
   it('opens the pending invoice using the invoice id from the dashboard row', async () => {
-    listWorkOrdersDashboard.mockResolvedValue([
-      {
-        ...listJobA,
-        latestInvoice: {
-          id: 'inv-a',
-          job_id: 'job-a',
-          status: 'draft',
-          invoice_number: 1,
-          created_at: '2025-01-03T00:00:00Z',
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        {
+          ...listJobA,
+          latestInvoice: {
+            id: 'inv-a',
+            job_id: 'job-a',
+            status: 'draft',
+            invoice_number: 1,
+            created_at: '2025-01-03T00:00:00Z',
+          },
         },
-      },
-    ]);
+      ])
+    );
 
     const user = userEvent.setup();
     const { onOpenPendingInvoice } = renderPage();
@@ -404,6 +534,13 @@ describe('WorkOrdersPage', () => {
       expect(onOpenPendingInvoice).toHaveBeenCalledTimes(1);
     });
     expect(getInvoice).toHaveBeenCalledWith('inv-a');
+  });
+
+  it('shows date on first meta line and capitalized job type on second', async () => {
+    renderPage();
+    await screen.findByText('Customer A');
+    expect(screen.getByText('Jan 1, 2025')).toBeInTheDocument();
+    expect(screen.getByText('Repair')).toBeInTheDocument();
   });
 
   it('clears the success banner after 10 seconds and not before', async () => {

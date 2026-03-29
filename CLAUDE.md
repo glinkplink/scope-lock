@@ -86,7 +86,7 @@ src/
     AgreementDocumentSections.tsx  # Renders agreement sections (preview, detail, PDF body)
     EditProfilePage.tsx      # Edit business profile + agreement defaults
     EditProfilePage.css      # EditProfilePage-only styles
-    WorkOrdersPage.tsx       # List jobs; “Create Work Order” below invoiced/pending summary (same as Home); invoice actions; opens detail
+    WorkOrdersPage.tsx       # Paginated work-order dashboard; toolbar “Create Work Order”; invoice actions; opens detail
     WorkOrdersPage.css       # WorkOrdersPage-only list/dashboard chrome + invoice warning banner
     WorkOrderDetailPage.tsx  # Saved job → agreement + job-level invoice strip + change orders + PDFs
     WorkOrderDetailPage.css  # WO detail invoice strip + CO sublist (e.g. `.co-list-*`)
@@ -133,7 +133,7 @@ src/
     db/
       profile.ts             # getProfile, upsertProfile, updateNextWoNumber
       clients.ts             # listClients, upsertClient, deleteClient
-      jobs.ts                # listJobs, saveWorkOrder, dashboard RPC mapping, create/update/delete
+      jobs.ts                # listJobs, saveWorkOrder, dashboard page/summary RPC mapping, create/update/delete
       invoices.ts            # Invoice CRUD + mark downloaded; line item `source` in JSON
       change-orders.ts       # Change order CRUD + totals
   hooks/
@@ -145,7 +145,7 @@ src/
     useInvoiceFlow.ts        # Invoice wizard/final page flow state
     useScaledPreview.ts      # 816px preview scaling helpers
     useWorkOrderDraft.ts     # Draft state + next_wo_number refresh after first save; optional onNewDraft (e.g. clear App guest information fields)
-    useWorkOrderRowActions.ts # Work Orders row prefetch + CO/invoice hydration helpers
+    useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
   types/
     db.ts                    # BusinessProfile, Client, Job, Invoice, … (+ esign_* fields on Job, ChangeOrder)
     index.ts                 # WelderJob, AgreementSection, SignatureBlockData
@@ -182,9 +182,10 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 
 **Work Orders details worth remembering:**
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
-- `WorkOrdersPage` loads from the Supabase RPC `list_work_orders_dashboard`; invoice badge state is part of each dashboard row instead of a separate client-side invoice query/join.
-- `WorkOrdersPage` shows inline per-job change-order shortcuts beneath the WO e-sign strip; each shortcut opens CO detail directly, and CO detail returns to Work Orders when entered from that list.
-- Work Orders e-sign polling refreshes only in-flight rows and merges them back into the list; it no longer reloads the full dashboard on every poll tick.
+- `WorkOrdersPage` keeps the toolbar **Create Work Order** button; treat it as required UI.
+- `WorkOrdersPage` loads row pages from `list_work_orders_dashboard_page` and whole-dataset summary totals from `get_work_orders_dashboard_summary`; the summary is not derived from the currently loaded rows.
+- `WorkOrdersPage` shows up to two inline change-order shortcuts per row plus a `+N more` affordance that opens work-order detail by `jobId`.
+- Work Orders e-sign polling refreshes only loaded in-flight rows; targeted row refresh can still use the older `list_work_orders_dashboard` RPC because `0014` is already applied.
 - Clicking a work-order row navigates immediately with `jobId`; `WorkOrderDetailPage` loads the full job row locally and shows a loading state while hydrating.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.
 - `ChangeOrderWizard` now saves the CO, sends the DocuSeal request immediately, then routes to `ChangeOrderDetailPage`; CO business `status` tracks approval lifecycle (`pending_approval` after send/open, `approved` on completed signature, `rejected` on decline).

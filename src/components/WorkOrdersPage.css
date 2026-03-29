@@ -27,12 +27,12 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0;
-  margin-bottom: 0;
+  gap: var(--wo-header-rhythm);
+  margin-bottom: var(--wo-header-rhythm);
 }
 
 .work-orders-title {
-  margin: 0 0 var(--wo-header-rhythm);
+  margin: 0;
   font-size: calc(1.5rem + 6px);
   font-weight: 700;
   line-height: 1.2;
@@ -66,13 +66,6 @@
 
 .work-orders-create-btn:hover {
   background: var(--primary-hover);
-}
-
-.work-orders-create-below-summary {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--space-md);
-  margin-bottom: var(--space-md);
 }
 
 .work-orders-profile-nudge {
@@ -219,6 +212,38 @@
   color: #9a3412;
 }
 
+.work-orders-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-lg);
+}
+
+.work-orders-load-more-btn {
+  min-width: 140px;
+  padding: 10px var(--space-xl);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-white);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.work-orders-load-more-btn:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.work-orders-load-more-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.work-orders-load-more-error {
+  margin-top: var(--space-md);
+}
+
 .work-orders-page .work-orders-meta {
   display: flex;
   flex-direction: column;
@@ -323,6 +348,30 @@
 }
 
 .work-orders-page .work-orders-co-shortcut:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.work-orders-page .work-orders-co-more-button {
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-white);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.work-orders-page .work-orders-co-more-button:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.work-orders-page .work-orders-co-more-button:disabled {
   opacity: 0.65;
   cursor: wait;
 }
