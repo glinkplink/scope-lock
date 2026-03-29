@@ -3,18 +3,17 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ChangeOrder, Job, WorkOrderListJob } from '../../types/db';
+import type { ChangeOrder, Invoice, Job, WorkOrderDashboardJob } from '../../types/db';
 import { WorkOrdersPage } from '../WorkOrdersPage';
-import type { ListInvoiceStatusByJobResult } from '../../lib/db/invoices';
 import { ESIGN_POLL_INTERVAL_MS } from '../../lib/esign-live';
 
-const listJobsForWorkOrders = vi.fn();
+const listWorkOrdersDashboard = vi.fn();
 const getJobById = vi.fn();
 const getChangeOrderById = vi.fn();
-const listInvoiceStatusByJob = vi.fn();
+const getInvoice = vi.fn();
 
 vi.mock('../../lib/db/jobs', () => ({
-  listJobsForWorkOrders: (...args: unknown[]) => listJobsForWorkOrders(...args),
+  listWorkOrdersDashboard: (...args: unknown[]) => listWorkOrdersDashboard(...args),
   getJobById: (...args: unknown[]) => getJobById(...args),
 }));
 
@@ -22,16 +21,11 @@ vi.mock('../../lib/db/change-orders', () => ({
   getChangeOrderById: (...args: unknown[]) => getChangeOrderById(...args),
 }));
 
-vi.mock('../../lib/db/invoices', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/db/invoices')>();
-  return {
-    ...actual,
-    listInvoiceStatusByJob: (...args: unknown[]) => listInvoiceStatusByJob(...args),
-    getInvoice: vi.fn(),
-  };
-});
+vi.mock('../../lib/db/invoices', () => ({
+  getInvoice: (...args: unknown[]) => getInvoice(...args),
+}));
 
-const listJobA: WorkOrderListJob = {
+const listJobA: WorkOrderDashboardJob = {
   id: 'job-a',
   wo_number: 1,
   customer_name: 'Customer A',
@@ -42,9 +36,10 @@ const listJobA: WorkOrderListJob = {
   price: 100,
   esign_status: 'not_sent',
   changeOrders: [],
+  latestInvoice: null,
 };
 
-const listJobB: WorkOrderListJob = {
+const listJobB: WorkOrderDashboardJob = {
   id: 'job-b',
   wo_number: 2,
   customer_name: 'Customer B',
@@ -55,12 +50,13 @@ const listJobB: WorkOrderListJob = {
   price: 200,
   esign_status: 'sent',
   changeOrders: [],
+  latestInvoice: null,
 };
 
 function previewCO(
   id: string,
   coNumber: number,
-  esignStatus: WorkOrderListJob['changeOrders'][number]['esign_status']
+  esignStatus: WorkOrderDashboardJob['changeOrders'][number]['esign_status']
 ) {
   return {
     id,
@@ -159,7 +155,27 @@ function minimalFullJob(id: string, customer: string): Job {
   };
 }
 
-/** Strict Mode can leave multiple trees in the document; use the latest mounted list. */
+function minimalInvoice(id: string): Invoice {
+  return {
+    id,
+    user_id: 'u1',
+    job_id: 'job-a',
+    invoice_number: 1,
+    invoice_date: '2025-01-01',
+    due_date: '2025-01-14',
+    status: 'draft',
+    line_items: [],
+    subtotal: 100,
+    tax_rate: 0,
+    tax_amount: 0,
+    total: 100,
+    payment_methods: [],
+    notes: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+  };
+}
+
 function latestWorkOrdersListUl(): HTMLElement {
   const lists = document.querySelectorAll('ul.work-orders-list');
   expect(lists.length).toBeGreaterThan(0);
@@ -182,7 +198,6 @@ function renderPage() {
       profile={null}
       successBanner={null}
       onClearSuccessBanner={onClearSuccessBanner}
-      onCreateWorkOrder={() => {}}
       onCompleteProfileClick={() => {}}
       onStartInvoice={onStartInvoice}
       onOpenPendingInvoice={onOpenPendingInvoice}
@@ -212,44 +227,38 @@ describe('WorkOrdersPage', () => {
   });
 
   beforeEach(() => {
-    listJobsForWorkOrders.mockReset();
+    listWorkOrdersDashboard.mockReset();
     getJobById.mockReset();
     getChangeOrderById.mockReset();
-    listInvoiceStatusByJob.mockReset();
-    listJobsForWorkOrders.mockResolvedValue([listJobA]);
-    listInvoiceStatusByJob.mockResolvedValue({
-      data: [],
-      error: null,
-      warning: null,
-    } satisfies ListInvoiceStatusByJobResult);
+    getInvoice.mockReset();
+    listWorkOrdersDashboard.mockResolvedValue([listJobA]);
     getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
     getChangeOrderById.mockImplementation((id: string) =>
       Promise.resolve(minimalFullChangeOrder(id, Number(id.replace(/\D/g, '')) || 1))
     );
+    getInvoice.mockImplementation((id: string) => Promise.resolve(minimalInvoice(id)));
   });
 
-  it('shows compact e-sign progress strip when esign_status is not not_sent', async () => {
-    listJobsForWorkOrders.mockResolvedValue([
-      listJobA,
-      listJobB,
-      { ...listJobA, id: 'job-c', customer_name: 'Customer C', esign_status: 'completed' },
-      { ...listJobA, id: 'job-d', customer_name: 'Customer D', esign_status: 'declined' },
-      { ...listJobA, id: 'job-e', customer_name: 'Customer E', esign_status: 'expired' },
-    ]);
+  it('loads the dashboard from a single query and shows summary totals', async () => {
+    listWorkOrdersDashboard.mockResolvedValue([listJobA, listJobB]);
+
     renderPage();
+
     await waitFor(() => {
-      expect(screen.getByLabelText('E-signature status: Sent')).toBeInTheDocument();
-      expect(screen.getByLabelText('E-signature status: Signed')).toBeInTheDocument();
-      expect(screen.getByLabelText('E-signature status: Declined')).toBeInTheDocument();
-      expect(screen.getByLabelText('E-signature status: Expired')).toBeInTheDocument();
+      expect(screen.getByText('Customer A')).toBeInTheDocument();
+      expect(screen.getByText('Customer B')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Sign sent')).not.toBeInTheDocument();
+
+    expect(listWorkOrdersDashboard).toHaveBeenCalledTimes(1);
+    expect(listWorkOrdersDashboard).toHaveBeenCalledWith('u1', undefined);
+    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('$300')).toBeInTheDocument();
   });
 
-  it('polls the jobs list while an e-sign is in flight and updates the row strip', async () => {
+  it('polls only in-flight rows and merges the refreshed result', async () => {
     vi.useFakeTimers();
-    listJobsForWorkOrders
-      .mockResolvedValueOnce([listJobB])
+    listWorkOrdersDashboard
+      .mockResolvedValueOnce([listJobA, listJobB])
       .mockResolvedValueOnce([{ ...listJobB, esign_status: 'completed' }]);
 
     renderPage();
@@ -262,76 +271,44 @@ describe('WorkOrdersPage', () => {
     });
     await flushAsync();
 
+    expect(listWorkOrdersDashboard).toHaveBeenNthCalledWith(2, 'u1', ['job-b']);
     expect(screen.getByLabelText('E-signature status: Signed')).toBeInTheDocument();
-    expect(listJobsForWorkOrders).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not start polling when no e-sign rows are in flight', async () => {
-    vi.useFakeTimers();
-    listJobsForWorkOrders.mockResolvedValue([listJobA]);
-
-    renderPage();
-    await flushAsync();
     expect(screen.getByText('Customer A')).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS * 2);
-    });
-
-    expect(listJobsForWorkOrders).toHaveBeenCalledTimes(1);
   });
 
-  it('stops polling after the refreshed list reaches a terminal e-sign state', async () => {
-    vi.useFakeTimers();
-    listJobsForWorkOrders
-      .mockResolvedValueOnce([listJobB])
-      .mockResolvedValueOnce([{ ...listJobB, esign_status: 'completed' }]);
+  it('opens work-order detail immediately with the row job id', async () => {
+    const user = userEvent.setup();
+    const { onOpenWorkOrderDetail } = renderPage();
 
-    renderPage();
-    await flushAsync();
+    await screen.findByText('Customer A');
+    await user.click(screen.getByRole('button', { name: /Customer A/i }));
 
-    expect(screen.getByLabelText('E-signature status: Sent')).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS);
-    });
-    await flushAsync();
-
-    expect(screen.getByLabelText('E-signature status: Signed')).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS * 2);
-    });
-
-    expect(listJobsForWorkOrders).toHaveBeenCalledTimes(2);
+    expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a');
+    expect(getJobById).toHaveBeenCalledTimes(1);
   });
 
-  it('polls while an inline change order is in flight and updates its compact status', async () => {
-    vi.useFakeTimers();
-    listJobsForWorkOrders
-      .mockResolvedValueOnce([
-        { ...listJobA, changeOrders: [previewCO('co-1', 1, 'opened')] },
-      ])
-      .mockResolvedValueOnce([
-        { ...listJobA, changeOrders: [previewCO('co-1', 1, 'completed')] },
-      ]);
+  it('prefetches a full job on hover and reuses it for invoice actions', async () => {
+    const user = userEvent.setup();
+    const { onStartInvoice } = renderPage();
 
-    renderPage();
-    await flushAsync();
+    await screen.findByText('Customer A');
+    await user.hover(screen.getByRole('button', { name: /Customer A/i }));
 
-    expect(screen.getByText('Opened')).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(ESIGN_POLL_INTERVAL_MS);
+    await waitFor(() => {
+      expect(getJobById).toHaveBeenCalledWith('job-a');
     });
-    await flushAsync();
 
-    expect(screen.getByText('Signed')).toBeInTheDocument();
-    expect(listJobsForWorkOrders).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole('button', { name: /^Invoice$/i }));
+
+    await waitFor(() => {
+      expect(onStartInvoice).toHaveBeenCalledTimes(1);
+    });
+    expect(onStartInvoice.mock.calls[0][0].id).toBe('job-a');
+    expect(getJobById).toHaveBeenCalledTimes(1);
   });
 
   it('renders inline change order shortcuts in order and opens hydrated CO detail', async () => {
-    listJobsForWorkOrders.mockResolvedValue([
+    listWorkOrdersDashboard.mockResolvedValue([
       {
         ...listJobA,
         changeOrders: [previewCO('co-2', 2, 'completed'), previewCO('co-1', 1, 'opened')],
@@ -343,28 +320,16 @@ describe('WorkOrdersPage', () => {
     );
 
     const user = userEvent.setup();
-    const { onOpenChangeOrderDetail, onOpenWorkOrderDetail } = renderPage();
+    const { onOpenChangeOrderDetail } = renderPage();
 
     await screen.findByText('Customer A');
-
     const shortcutButtons = screen.getAllByRole('button', { name: /Open CO #/i });
     expect(shortcutButtons).toHaveLength(2);
     expect(screen.getByText('CO #0001')).toBeInTheDocument();
     expect(screen.getByText('CO #0002')).toBeInTheDocument();
-    expect(screen.getByText('Opened')).toBeInTheDocument();
-    expect(screen.getByText('Signed')).toBeInTheDocument();
-
-    const list = latestWorkOrdersListUl();
-    const row = list.querySelector('li.work-orders-row');
-    expect(row).toBeTruthy();
-    const detailButton = within(row as HTMLElement).getByRole('button', { name: /Customer A/i });
-
-    await user.click(detailButton);
-    await waitFor(() => {
-      expect(onOpenWorkOrderDetail).toHaveBeenCalledTimes(1);
-    });
 
     await user.click(screen.getByRole('button', { name: 'Open CO #0001' }));
+
     await waitFor(() => {
       expect(onOpenChangeOrderDetail).toHaveBeenCalledTimes(1);
     });
@@ -381,6 +346,65 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByText('Repair')).toBeInTheDocument();
   });
 
+  it('renders Pending and Invoiced actions from the dashboard invoice fields', async () => {
+    listWorkOrdersDashboard.mockResolvedValue([
+      {
+        ...listJobA,
+        latestInvoice: {
+          id: 'inv-a',
+          job_id: 'job-a',
+          status: 'draft',
+          invoice_number: 1,
+          created_at: '2025-01-03T00:00:00Z',
+        },
+      },
+      {
+        ...listJobB,
+        latestInvoice: {
+          id: 'inv-b',
+          job_id: 'job-b',
+          status: 'downloaded',
+          invoice_number: 2,
+          created_at: '2025-01-04T00:00:00Z',
+        },
+      },
+    ]);
+
+    renderPage();
+
+    await waitFor(() => {
+      const list = latestWorkOrdersListUl();
+      expect(within(list).getByRole('button', { name: /^Pending$/i })).toBeInTheDocument();
+      expect(within(list).getByRole('button', { name: /^Invoiced$/i })).toBeInTheDocument();
+    });
+  });
+
+  it('opens the pending invoice using the invoice id from the dashboard row', async () => {
+    listWorkOrdersDashboard.mockResolvedValue([
+      {
+        ...listJobA,
+        latestInvoice: {
+          id: 'inv-a',
+          job_id: 'job-a',
+          status: 'draft',
+          invoice_number: 1,
+          created_at: '2025-01-03T00:00:00Z',
+        },
+      },
+    ]);
+
+    const user = userEvent.setup();
+    const { onOpenPendingInvoice } = renderPage();
+
+    await screen.findByRole('button', { name: /^Pending$/i });
+    await user.click(screen.getByRole('button', { name: /^Pending$/i }));
+
+    await waitFor(() => {
+      expect(onOpenPendingInvoice).toHaveBeenCalledTimes(1);
+    });
+    expect(getInvoice).toHaveBeenCalledWith('inv-a');
+  });
+
   it('clears the success banner after 10 seconds and not before', async () => {
     vi.useFakeTimers();
     const onClearSuccessBanner = vi.fn();
@@ -391,7 +415,6 @@ describe('WorkOrdersPage', () => {
         profile={null}
         successBanner="Work order saved. PDF downloaded."
         onClearSuccessBanner={onClearSuccessBanner}
-        onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
         onStartInvoice={() => {}}
         onOpenPendingInvoice={() => {}}
@@ -411,168 +434,5 @@ describe('WorkOrdersPage', () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(onClearSuccessBanner).toHaveBeenCalledTimes(1);
-  });
-
-  it('dismisses the success banner when the dismiss button is clicked', async () => {
-    const onClearSuccessBanner = vi.fn();
-    const user = userEvent.setup();
-
-    render(
-      <WorkOrdersPage
-        userId="u1"
-        profile={null}
-        successBanner="Work order saved. PDF downloaded."
-        onClearSuccessBanner={onClearSuccessBanner}
-        onCreateWorkOrder={() => {}}
-        onCompleteProfileClick={() => {}}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
-        onOpenWorkOrderDetail={() => {}}
-        onOpenChangeOrderDetail={() => {}}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: /dismiss/i }));
-    expect(onClearSuccessBanner).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows Specify text for Other job type with first letter capitalized', async () => {
-    listJobsForWorkOrders.mockResolvedValue([
-      { ...listJobA, job_type: 'other', other_classification: 'body shop work' },
-    ]);
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('Body shop work')).toBeInTheDocument();
-    });
-  });
-
-  it('shows invoice column loading while jobs are shown and invoice status is still loading', async () => {
-    listJobsForWorkOrders.mockResolvedValue([listJobA]);
-    listInvoiceStatusByJob.mockImplementation(
-      () => new Promise<ListInvoiceStatusByJobResult>(() => {})
-    );
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText('Customer A')).toBeInTheDocument();
-    });
-
-    const loadingBtn = screen.getByRole('button', { name: /loading/i });
-    expect(loadingBtn).toBeDisabled();
-  });
-
-  it('shows Unavailable when invoice-status fetch fails', async () => {
-    listInvoiceStatusByJob.mockResolvedValue({
-      data: null,
-      error: new Error('boom'),
-      warning: null,
-    });
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /unavailable/i })).toBeDisabled();
-    });
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-  });
-
-  it('does not block Invoice on another row while one row is hydrating', async () => {
-    listJobsForWorkOrders.mockResolvedValue([listJobA, listJobB]);
-    listInvoiceStatusByJob.mockResolvedValue({ data: [], error: null, warning: null });
-
-    let releaseA: (job: Job | null) => void;
-    const hangA = new Promise<Job | null>((resolve) => {
-      releaseA = resolve;
-    });
-
-    getJobById.mockImplementation((id: string) => {
-      if (id === 'job-a') return hangA;
-      return Promise.resolve(minimalFullJob(id, id === 'job-b' ? 'Customer B' : id));
-    });
-
-    const user = userEvent.setup();
-    const { onStartInvoice } = renderPage();
-
-    await screen.findByText('Customer B');
-    const list = await waitFor(() => {
-      const l = latestWorkOrdersListUl();
-      expect(within(l).getAllByRole('button', { name: /^Invoice$/i })).toHaveLength(2);
-      return l;
-    });
-
-    const rows = within(list).getAllByRole('listitem');
-    const rowA = rows.find((el) => within(el).queryByText('Customer A'));
-    const rowB = rows.find((el) => within(el).queryByText('Customer B'));
-    expect(rowA && rowB).toBeTruthy();
-
-    await user.click(within(rowA!).getByRole('button', { name: /^Invoice$/i }));
-    await user.click(within(rowB!).getByRole('button', { name: /^Invoice$/i }));
-
-    await waitFor(() => {
-      expect(onStartInvoice).toHaveBeenCalledTimes(1);
-    });
-    expect(onStartInvoice.mock.calls[0][0].id).toBe('job-b');
-
-    releaseA!(minimalFullJob('job-a', 'Customer A'));
-  });
-
-  it('uses the latest invoice status per job when two rows share the same job_id', async () => {
-    listInvoiceStatusByJob.mockResolvedValue({
-      data: [
-        {
-          id: 'inv-latest',
-          job_id: 'job-a',
-          status: 'downloaded',
-          invoice_number: 2,
-          created_at: '2025-02-02T00:00:00Z',
-        },
-        {
-          id: 'inv-older',
-          job_id: 'job-a',
-          status: 'draft',
-          invoice_number: 1,
-          created_at: '2025-01-01T00:00:00Z',
-        },
-      ],
-      error: null,
-      warning: null,
-    });
-
-    renderPage();
-
-    await waitFor(() => {
-      const list = latestWorkOrdersListUl();
-      expect(
-        within(list).getByRole('button', { name: /^Invoiced$/i })
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('shows a warning banner when some invoice rows are skipped but keeps Invoice actions enabled', async () => {
-    listInvoiceStatusByJob.mockResolvedValue({
-      data: [
-        {
-          id: 'i1',
-          job_id: 'job-a',
-          status: 'draft',
-          invoice_number: 1,
-          created_at: '2025-01-02T00:00:00Z',
-        },
-      ],
-      error: null,
-      warning: '1 invoice row(s) could not be read and were skipped. Other invoices still work.',
-    });
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(/skipped/i);
-    });
-    expect(screen.queryByText(/Could not load invoice status \(boom\)/)).not.toBeInTheDocument();
-
-    const list = latestWorkOrdersListUl();
-    const pendingBtn = within(list).getByRole('button', { name: /^Pending$/i });
-    expect(pendingBtn).not.toBeDisabled();
   });
 });

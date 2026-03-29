@@ -270,6 +270,7 @@ describe('WorkOrderDetailPage', () => {
     render(
       <WorkOrderDetailPage
         userId="u1"
+        jobId="job-1"
         job={minimalJob()}
         profile={minimalProfile()}
         onBack={() => {}}
@@ -307,6 +308,7 @@ describe('WorkOrderDetailPage', () => {
       render(
         <WorkOrderDetailPage
           userId="u1"
+          jobId="job-1"
           job={jobWithEsign(status)}
           profile={minimalProfile()}
           onBack={() => {}}
@@ -348,6 +350,7 @@ describe('WorkOrderDetailPage', () => {
       return (
         <WorkOrderDetailPage
           userId="u1"
+          jobId={job.id}
           job={job}
           profile={minimalProfile()}
           onJobUpdated={setJob}
@@ -381,6 +384,7 @@ describe('WorkOrderDetailPage', () => {
     render(
       <WorkOrderDetailPage
         userId="u1"
+        jobId="job-1"
         job={jobWithEsign('sent')}
         profile={minimalProfile()}
         onBack={() => {}}
@@ -405,6 +409,7 @@ describe('WorkOrderDetailPage', () => {
     render(
       <WorkOrderDetailPage
         userId="u1"
+        jobId="job-1"
         job={minimalJob()}
         profile={minimalProfile()}
         onBack={() => {}}
@@ -433,6 +438,7 @@ describe('WorkOrderDetailPage', () => {
     render(
       <WorkOrderDetailPage
         userId="u1"
+        jobId="job-1"
         job={minimalJob()}
         profile={minimalProfile()}
         onBack={() => {}}

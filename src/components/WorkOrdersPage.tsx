@@ -1,19 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   BusinessProfile,
   ChangeOrder,
   Job,
   Invoice,
   EsignJobStatus,
-  WorkOrderListJob,
-  WorkOrderInvoiceStatus,
+  WorkOrderDashboardJob,
 } from '../types/db';
-import {
-  listJobsForWorkOrders,
-  getJobById,
-} from '../lib/db/jobs';
+import { listWorkOrdersDashboard, getJobById } from '../lib/db/jobs';
 import { getChangeOrderById } from '../lib/db/change-orders';
-import { listInvoiceStatusByJob, getInvoice, invoiceStatusMapFromRows } from '../lib/db/invoices';
+import { getInvoice } from '../lib/db/invoices';
 import { useEsignPoller } from '../hooks/useEsignPoller';
 import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
 import { shouldPollEsignStatus } from '../lib/esign-live';
@@ -24,30 +20,34 @@ import './WorkOrdersPage.css';
 
 const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
 
+const USD_FORMATTER = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+const ROW_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
 function hasBusinessPhone(profile: BusinessProfile | null): boolean {
   return Boolean(profile?.phone?.replace(/\D/g, '').length);
 }
 
 function formatUsd(amount: number): string {
   const n = Number.isFinite(amount) ? amount : 0;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
+  return USD_FORMATTER.format(n);
 }
 
-function formatRowDate(job: WorkOrderListJob): string {
+function formatRowDate(job: WorkOrderDashboardJob): string {
   const raw = job.agreement_date || job.created_at?.split('T')[0] || '';
   if (!raw) return '—';
   const [y, m, d] = raw.split('-').map(Number);
   if (!y || !m || !d) return raw;
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return ROW_DATE_FORMATTER.format(new Date(y, m - 1, d));
 }
 
 function renderEsignStrip(status: EsignJobStatus) {
@@ -72,11 +72,24 @@ function renderEsignStrip(status: EsignJobStatus) {
   );
 }
 
-function hasInFlightEsign(job: WorkOrderListJob): boolean {
+function hasInFlightEsign(job: WorkOrderDashboardJob): boolean {
   return (
     shouldPollEsignStatus(job.esign_status) ||
     job.changeOrders.some((changeOrder) => shouldPollEsignStatus(changeOrder.esign_status))
   );
+}
+
+function collectInFlightJobIds(jobs: WorkOrderDashboardJob[]): string[] {
+  return jobs.filter((job) => hasInFlightEsign(job)).map((job) => job.id);
+}
+
+function mergeDashboardRows(
+  currentJobs: WorkOrderDashboardJob[],
+  refreshedJobs: WorkOrderDashboardJob[]
+): WorkOrderDashboardJob[] {
+  if (refreshedJobs.length === 0) return currentJobs;
+  const refreshedById = new Map(refreshedJobs.map((job) => [job.id, job]));
+  return currentJobs.map((job) => refreshedById.get(job.id) ?? job);
 }
 
 function coStatusTone(status: EsignJobStatus): 'inactive' | 'active' | 'success' | 'danger' | 'warning' {
@@ -96,16 +109,127 @@ function coStatusTone(status: EsignJobStatus): 'inactive' | 'active' | 'success'
   }
 }
 
+type WorkOrderRowProps = {
+  job: WorkOrderDashboardJob;
+  rowBusy: boolean;
+  onPrefetchJob: (jobId: string) => void;
+  onOpenDetail: (job: WorkOrderDashboardJob) => void;
+  onOpenChangeOrderDetail: (
+    job: WorkOrderDashboardJob,
+    changeOrder: WorkOrderDashboardJob['changeOrders'][number]
+  ) => void;
+  onStartInvoice: (job: WorkOrderDashboardJob) => void;
+  onOpenPendingInvoice: (job: WorkOrderDashboardJob) => void;
+};
+
+const WorkOrderRow = memo(function WorkOrderRow({
+  job,
+  rowBusy,
+  onPrefetchJob,
+  onOpenDetail,
+  onOpenChangeOrderDetail,
+  onStartInvoice,
+  onOpenPendingInvoice,
+}: WorkOrderRowProps) {
+  const woLabel =
+    job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
+  const invoice = job.latestInvoice;
+
+  return (
+    <li className="work-orders-row">
+      <div className="work-orders-row-main">
+        <button
+          type="button"
+          className="work-orders-row-detail-hit"
+          disabled={rowBusy}
+          onClick={() => onOpenDetail(job)}
+          onMouseEnter={() => onPrefetchJob(job.id)}
+          onFocus={() => onPrefetchJob(job.id)}
+        >
+          <span className="work-orders-wo">{woLabel}</span>
+          {renderEsignStrip(job.esign_status)}
+          <span className="work-orders-customer">{job.customer_name}</span>
+        </button>
+        <span className="work-orders-meta">
+          <span className="work-orders-meta-date">{formatRowDate(job)}</span>
+          <span className="work-orders-meta-type">{formatWorkOrderListJobType(job)}</span>
+          {job.changeOrders.length > 0 ? (
+            <span className="work-orders-co-shortcuts" role="list" aria-label={`${woLabel} change orders`}>
+              {job.changeOrders.map((changeOrder) => {
+                const coLabel = `CO #${String(changeOrder.co_number).padStart(4, '0')}`;
+                const statusLabel = formatEsignStatusLabel(changeOrder.esign_status);
+                return (
+                  <span
+                    key={changeOrder.id}
+                    className="work-orders-co-shortcut-wrap"
+                    role="listitem"
+                  >
+                    <button
+                      type="button"
+                      className="work-orders-co-shortcut"
+                      disabled={rowBusy}
+                      onClick={() => onOpenChangeOrderDetail(job, changeOrder)}
+                      aria-label={`Open ${coLabel}`}
+                    >
+                      <span className="work-orders-co-shortcut-label">{coLabel}</span>
+                      <span className="work-orders-co-shortcut-status">
+                        <span
+                          className={`work-orders-co-shortcut-segment work-orders-co-shortcut-segment-${coStatusTone(changeOrder.esign_status)}`}
+                          aria-hidden="true"
+                        />
+                        <span className="work-orders-co-shortcut-status-text">{statusLabel}</span>
+                      </span>
+                    </button>
+                  </span>
+                );
+              })}
+            </span>
+          ) : null}
+        </span>
+      </div>
+      <div className="work-orders-row-actions">
+        {!invoice ? (
+          <button
+            type="button"
+            className="wo-row-create-invoice-outline"
+            disabled={rowBusy}
+            onClick={() => onStartInvoice(job)}
+          >
+            Invoice
+          </button>
+        ) : invoice.status === 'draft' ? (
+          <button
+            type="button"
+            className="badge-pending"
+            disabled={rowBusy}
+            onClick={() => onOpenPendingInvoice(job)}
+          >
+            Pending
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="badge-invoiced"
+            disabled={rowBusy}
+            onClick={() => onOpenPendingInvoice(job)}
+          >
+            Invoiced
+          </button>
+        )}
+      </div>
+    </li>
+  );
+});
+
 interface WorkOrdersPageProps {
   userId: string;
   profile: BusinessProfile | null;
   successBanner: string | null;
   onClearSuccessBanner: () => void;
-  onCreateWorkOrder: () => void;
   onCompleteProfileClick: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
-  onOpenWorkOrderDetail: (job: Job) => void;
+  onOpenWorkOrderDetail: (jobId: string) => void;
   onOpenChangeOrderDetail: (job: Job, changeOrder: ChangeOrder) => void;
 }
 
@@ -114,20 +238,15 @@ export function WorkOrdersPage({
   profile,
   successBanner,
   onClearSuccessBanner,
-  onCreateWorkOrder,
   onCompleteProfileClick,
   onStartInvoice,
   onOpenPendingInvoice,
   onOpenWorkOrderDetail,
   onOpenChangeOrderDetail,
 }: WorkOrdersPageProps) {
-  const [jobs, setJobs] = useState<WorkOrderListJob[]>([]);
+  const [jobs, setJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
-  const [invoiceStatusLoading, setInvoiceStatusLoading] = useState(true);
-  const [invoiceStatusError, setInvoiceStatusError] = useState<string | null>(null);
-  const [invoiceStatusWarning, setInvoiceStatusWarning] = useState<string | null>(null);
-  /** Non-null array only after a successful invoice-status fetch (may be empty). */
-  const [invoiceStatusRows, setInvoiceStatusRows] = useState<WorkOrderInvoiceStatus[] | null>(null);
+  const [jobsError, setJobsError] = useState<string | null>(null);
 
   const {
     busyJobIds: actionLoadingJobIds,
@@ -135,6 +254,7 @@ export function WorkOrdersPage({
     handleOpenChangeOrderDetail,
     handleStartInvoice,
     handleOpenPendingInvoice,
+    prefetchJob,
   } = useWorkOrderRowActions({
     userId,
     getJobById,
@@ -155,52 +275,53 @@ export function WorkOrdersPage({
     }
   });
 
-  const hasAnyInFlightEsign = jobs.some((job) => hasInFlightEsign(job));
+  const loadDashboard = useCallback(async (jobIds?: string[]) => {
+    const dashboardRows = await listWorkOrdersDashboard(userId, jobIds);
+    return dashboardRows;
+  }, [userId]);
 
   useEffect(() => {
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset-before-fetch pattern; all calls batch in React 18
     setJobsLoading(true);
-    setInvoiceStatusLoading(true);
-    setInvoiceStatusError(null);
-    setInvoiceStatusWarning(null);
-    setInvoiceStatusRows(null);
+    setJobsError(null);
     setJobs([]);
 
     void (async () => {
-      const j = await listJobsForWorkOrders(userId);
+      const dashboardRows = await loadDashboard();
       if (cancelled) return;
-      setJobs(j);
-      setJobsLoading(false);
-    })();
-
-    void (async () => {
-      const result = await listInvoiceStatusByJob(userId);
-      if (cancelled) return;
-      setInvoiceStatusLoading(false);
-      if (result.error) {
-        setInvoiceStatusError(
-          `Could not load invoice status (${result.error.message}). Invoice actions are unavailable.`
-        );
-        setInvoiceStatusRows(null);
-      } else {
-        setInvoiceStatusError(null);
-        setInvoiceStatusRows(result.data);
-        setInvoiceStatusWarning(result.warning);
+      if (dashboardRows.length === 0) {
+        const hasLoadFailure = dashboardRows.length === 0;
+        if (hasLoadFailure) {
+          setJobsError(null);
+        }
       }
-    })();
+      setJobs(dashboardRows);
+      setJobsLoading(false);
+    })().catch((error: unknown) => {
+      if (cancelled) return;
+      setJobsError(error instanceof Error ? error.message : 'Could not load work orders.');
+      setJobsLoading(false);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [loadDashboard]);
+
+  const inFlightJobIds = useMemo(() => collectInFlightJobIds(jobs), [jobs]);
 
   useEsignPoller({
-    enabled: hasAnyInFlightEsign,
+    enabled: inFlightJobIds.length > 0,
     pollOnce: async () => {
-      const refreshedJobs = await listJobsForWorkOrders(userId);
-      setJobs(refreshedJobs);
-      return refreshedJobs.some((job) => hasInFlightEsign(job));
+      const refreshedJobs = await loadDashboard(inFlightJobIds);
+      if (refreshedJobs.length === 0) return false;
+      let shouldContinue = false;
+      setJobs((currentJobs) => {
+        const mergedJobs = mergeDashboardRows(currentJobs, refreshedJobs);
+        shouldContinue = collectInFlightJobIds(mergedJobs).length > 0;
+        return mergedJobs;
+      });
+      return shouldContinue;
     },
   });
 
@@ -210,31 +331,23 @@ export function WorkOrdersPage({
     return () => clearTimeout(t);
   }, [successBanner, onClearSuccessBanner]);
 
-  const invoiceByJobId = useMemo(() => {
-    if (invoiceStatusRows === null) return null;
-    return invoiceStatusMapFromRows(invoiceStatusRows);
-  }, [invoiceStatusRows]);
+  const invoicedContractTotal = useMemo(
+    () =>
+      jobs.reduce((acc, job) => {
+        if (job.latestInvoice?.status !== 'downloaded') return acc;
+        return acc + (typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0);
+      }, 0),
+    [jobs]
+  );
 
-  const invoiceStatusReady = invoiceStatusRows !== null && invoiceStatusError === null;
-
-  const contractPrice = (job: WorkOrderListJob) =>
-    typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0;
-
-  const invoicedContractTotal = invoiceStatusReady && invoiceByJobId
-    ? jobs.reduce((acc, job) => {
-        const inv = invoiceByJobId.get(job.id);
-        if (inv?.status !== 'downloaded') return acc;
-        return acc + contractPrice(job);
-      }, 0)
-    : null;
-
-  const pendingContractTotal = invoiceStatusReady && invoiceByJobId
-    ? jobs.reduce((acc, job) => {
-        const inv = invoiceByJobId.get(job.id);
-        if (inv && inv.status !== 'draft') return acc;
-        return acc + contractPrice(job);
-      }, 0)
-    : null;
+  const pendingContractTotal = useMemo(
+    () =>
+      jobs.reduce((acc, job) => {
+        if (job.latestInvoice && job.latestInvoice.status !== 'draft') return acc;
+        return acc + (typeof job.price === 'number' && Number.isFinite(job.price) ? job.price : 0);
+      }, 0),
+    [jobs]
+  );
 
   const showProfileNudge = !hasBusinessPhone(profile);
 
@@ -247,22 +360,18 @@ export function WorkOrdersPage({
     setHideCompleteProfileCta(true);
   };
 
-  const summaryInvoicedDisplay =
-    invoicedContractTotal !== null ? formatUsd(invoicedContractTotal) : '—';
-  const summaryPendingDisplay =
-    pendingContractTotal !== null ? formatUsd(pendingContractTotal) : '—';
+  const handleOpenPendingInvoiceForRow = useCallback(
+    (job: WorkOrderDashboardJob) => {
+      if (!job.latestInvoice) return;
+      handleOpenPendingInvoice(job, job.latestInvoice);
+    },
+    [handleOpenPendingInvoice]
+  );
 
   return (
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Work Orders</h1>
-        <button
-          type="button"
-          className="work-orders-create-btn"
-          onClick={onCreateWorkOrder}
-        >
-          Create Work Order
-        </button>
       </div>
 
       {showProfileNudge ? (
@@ -306,15 +415,9 @@ export function WorkOrdersPage({
         </div>
       ) : null}
 
-      {invoiceStatusError ? (
+      {jobsError ? (
         <div className="error-banner work-orders-invoice-status-banner" role="alert">
-          {invoiceStatusError}
-        </div>
-      ) : null}
-
-      {invoiceStatusWarning && !invoiceStatusError ? (
-        <div className="work-orders-invoice-warning-banner" role="status">
-          {invoiceStatusWarning}
+          {jobsError}
         </div>
       ) : null}
 
@@ -329,130 +432,29 @@ export function WorkOrdersPage({
           >
             <span className="work-orders-summary-item work-orders-summary-invoiced">
               <span className="work-orders-summary-label">Invoiced:</span>
-              <span className="work-orders-summary-amount">{summaryInvoicedDisplay}</span>
+              <span className="work-orders-summary-amount">{formatUsd(invoicedContractTotal)}</span>
             </span>
             <span className="work-orders-summary-item work-orders-summary-pending">
               <span className="work-orders-summary-label">Pending Invoice:</span>
-              <span className="work-orders-summary-amount">{summaryPendingDisplay}</span>
+              <span className="work-orders-summary-amount">{formatUsd(pendingContractTotal)}</span>
             </span>
           </div>
           {jobs.length === 0 ? (
             <p className="work-orders-empty">No work orders yet.</p>
           ) : (
             <ul className="work-orders-list">
-              {jobs.map((job) => {
-                const inv =
-                  invoiceStatusReady && invoiceByJobId ? invoiceByJobId.get(job.id) ?? null : null;
-                const woLabel =
-                  job.wo_number != null
-                    ? `WO #${String(job.wo_number).padStart(4, '0')}`
-                    : 'WO (no #)';
-                const rowBusy = actionLoadingJobIds.has(job.id);
-                const changeOrders = [...job.changeOrders].sort((a, b) => a.co_number - b.co_number);
-                return (
-                  <li key={job.id} className="work-orders-row">
-                    <div className="work-orders-row-main">
-                      <button
-                        type="button"
-                        className="work-orders-row-detail-hit"
-                        disabled={rowBusy}
-                        onClick={() => handleOpenDetail(job)}
-                      >
-                        <span className="work-orders-wo">{woLabel}</span>
-                        {renderEsignStrip(job.esign_status)}
-                        <span className="work-orders-customer">{job.customer_name}</span>
-                      </button>
-                      <span className="work-orders-meta">
-                        <span className="work-orders-meta-date">{formatRowDate(job)}</span>
-                        <span className="work-orders-meta-type">
-                          {formatWorkOrderListJobType(job)}
-                        </span>
-                        {changeOrders.length > 0 ? (
-                          <span className="work-orders-co-shortcuts" role="list" aria-label={`${woLabel} change orders`}>
-                            {changeOrders.map((changeOrder) => {
-                              const coLabel = `CO #${String(changeOrder.co_number).padStart(4, '0')}`;
-                              const statusLabel = formatEsignStatusLabel(changeOrder.esign_status);
-                              return (
-                                <span
-                                  key={changeOrder.id}
-                                  className="work-orders-co-shortcut-wrap"
-                                  role="listitem"
-                                >
-                                  <button
-                                    type="button"
-                                    className="work-orders-co-shortcut"
-                                    disabled={rowBusy}
-                                    onClick={() => handleOpenChangeOrderDetail(job, changeOrder)}
-                                    aria-label={`Open ${coLabel}`}
-                                  >
-                                    <span className="work-orders-co-shortcut-label">{coLabel}</span>
-                                    <span className="work-orders-co-shortcut-status">
-                                      <span
-                                        className={`work-orders-co-shortcut-segment work-orders-co-shortcut-segment-${coStatusTone(changeOrder.esign_status)}`}
-                                        aria-hidden="true"
-                                      />
-                                      <span className="work-orders-co-shortcut-status-text">
-                                        {statusLabel}
-                                      </span>
-                                    </span>
-                                  </button>
-                                </span>
-                              );
-                            })}
-                          </span>
-                        ) : null}
-                      </span>
-                    </div>
-                    <div className="work-orders-row-actions">
-                      {invoiceStatusLoading ? (
-                        <button
-                          type="button"
-                          className="wo-row-create-invoice-outline work-orders-invoice-status-loading"
-                          disabled
-                          aria-busy="true"
-                        >
-                          Loading…
-                        </button>
-                      ) : invoiceStatusError ? (
-                        <button
-                          type="button"
-                          className="wo-row-create-invoice-outline work-orders-invoice-status-unavailable"
-                          disabled
-                        >
-                          Unavailable
-                        </button>
-                      ) : !inv ? (
-                        <button
-                          type="button"
-                          className="wo-row-create-invoice-outline"
-                          disabled={rowBusy}
-                          onClick={() => handleStartInvoice(job)}
-                        >
-                          Invoice
-                        </button>
-                      ) : inv.status === 'draft' ? (
-                        <button
-                          type="button"
-                          className="badge-pending"
-                          disabled={rowBusy}
-                          onClick={() => handleOpenPendingInvoice(job, inv)}
-                        >
-                          Pending
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="badge-invoiced"
-                          disabled={rowBusy}
-                          onClick={() => handleOpenPendingInvoice(job, inv)}
-                        >
-                          Invoiced
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+              {jobs.map((job) => (
+                <WorkOrderRow
+                  key={job.id}
+                  job={job}
+                  rowBusy={actionLoadingJobIds.has(job.id)}
+                  onPrefetchJob={prefetchJob}
+                  onOpenDetail={handleOpenDetail}
+                  onOpenChangeOrderDetail={handleOpenChangeOrderDetail}
+                  onStartInvoice={handleStartInvoice}
+                  onOpenPendingInvoice={handleOpenPendingInvoiceForRow}
+                />
+              ))}
             </ul>
           )}
         </>

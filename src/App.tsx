@@ -1,6 +1,5 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { JobForm } from './components/JobForm';
-import { AgreementPreview } from './components/AgreementPreview';
 import { AuthPage } from './components/AuthPage';
 import { BusinessProfileForm } from './components/BusinessProfileForm';
 import { HomePage } from './components/HomePage';
@@ -11,19 +10,65 @@ import { upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { buildInitialProfileDefaults } from './lib/defaults';
 import { getInvoice } from './lib/db/invoices';
-import type { BusinessProfile, Job } from './types/db';
+import type { BusinessProfile, ChangeOrder, Job } from './types/db';
 import { Settings } from 'lucide-react';
-import { WorkOrdersPage } from './components/WorkOrdersPage';
-import { InvoiceWizard } from './components/InvoiceWizard';
-import { InvoiceFinalPage } from './components/InvoiceFinalPage';
-import { WorkOrderDetailPage } from './components/WorkOrderDetailPage';
-import { ChangeOrderDetailPage } from './components/ChangeOrderDetailPage';
-import { ChangeOrderWizard } from './components/ChangeOrderWizard';
 import { useInvoiceFlow } from './hooks/useInvoiceFlow';
 import { useChangeOrderFlow } from './hooks/useChangeOrderFlow';
 import { useWorkOrderDraft } from './hooks/useWorkOrderDraft';
 import { normalizeOwnerFullName } from './lib/owner-name';
 import './App.css';
+
+const loadAgreementPreview = () =>
+  import('./components/AgreementPreview').then((module) => ({ default: module.AgreementPreview }));
+const loadWorkOrdersPage = () =>
+  import('./components/WorkOrdersPage').then((module) => ({ default: module.WorkOrdersPage }));
+const loadInvoiceWizard = () =>
+  import('./components/InvoiceWizard').then((module) => ({ default: module.InvoiceWizard }));
+const loadInvoiceFinalPage = () =>
+  import('./components/InvoiceFinalPage').then((module) => ({ default: module.InvoiceFinalPage }));
+const loadWorkOrderDetailPage = () =>
+  import('./components/WorkOrderDetailPage').then((module) => ({ default: module.WorkOrderDetailPage }));
+const loadChangeOrderDetailPage = () =>
+  import('./components/ChangeOrderDetailPage').then((module) => ({ default: module.ChangeOrderDetailPage }));
+const loadChangeOrderWizard = () =>
+  import('./components/ChangeOrderWizard').then((module) => ({ default: module.ChangeOrderWizard }));
+
+const AgreementPreview = lazy(loadAgreementPreview);
+const WorkOrdersPage = lazy(loadWorkOrdersPage);
+const InvoiceWizard = lazy(loadInvoiceWizard);
+const InvoiceFinalPage = lazy(loadInvoiceFinalPage);
+const WorkOrderDetailPage = lazy(loadWorkOrderDetailPage);
+const ChangeOrderDetailPage = lazy(loadChangeOrderDetailPage);
+const ChangeOrderWizard = lazy(loadChangeOrderWizard);
+
+function scheduleIdleTask(task: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+
+  if (typeof idleWindow.requestIdleCallback === 'function') {
+    const id = idleWindow.requestIdleCallback(task);
+    return () => {
+      if (typeof idleWindow.cancelIdleCallback === 'function') {
+        idleWindow.cancelIdleCallback(id);
+      }
+    };
+  }
+
+  const timeoutId = window.setTimeout(task, 250);
+  return () => window.clearTimeout(timeoutId);
+}
+
+function renderLazyPage(page: ReactNode) {
+  return (
+    <Suspense fallback={<div className="app-loading">Loading...</div>}>
+      {page}
+    </Suspense>
+  );
+}
 
 function App() {
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
@@ -41,6 +86,7 @@ function App() {
     setWorkOrdersSuccessBanner,
   });
 
+  const [workOrderDetailJobId, setWorkOrderDetailJobId] = useState<string | null>(null);
   const [workOrderDetailJob, setWorkOrderDetailJob] = useState<import('./types/db').Job | null>(null);
   const [changeOrderListVersion, setChangeOrderListVersion] = useState(0);
   const [profileEntrySource, setProfileEntrySource] = useState<'work-orders' | null>(null);
@@ -120,13 +166,21 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    if (!user) return;
+    return scheduleIdleTask(() => {
+      void loadWorkOrdersPage();
+    });
+  }, [user]);
+
   const openWorkOrders = () => {
     setProfileEntrySource(null);
     navigateTo('work-orders');
   };
 
-  const handleOpenWorkOrderDetail = (jobRow: Job) => {
-    setWorkOrderDetailJob(jobRow);
+  const handleOpenWorkOrderDetail = (jobId: string) => {
+    setWorkOrderDetailJobId(jobId);
+    setWorkOrderDetailJob(null);
     navigateTo('work-order-detail');
   };
 
@@ -134,11 +188,13 @@ function App() {
     jobRow: Job,
     changeOrderRow: import('./types/db').ChangeOrder
   ) => {
+    setWorkOrderDetailJobId(jobRow.id);
     setWorkOrderDetailJob(jobRow);
     changeOrderFlow.handleOpenCODetail(changeOrderRow, 'work-orders');
   };
 
   const handleBackFromWorkOrderDetail = () => {
+    setWorkOrderDetailJobId(null);
     setWorkOrderDetailJob(null);
     changeOrderFlow.resetFlowForBackToList();
     navigateTo('work-orders');
@@ -146,6 +202,7 @@ function App() {
 
   const handleBackFromCODetail = () => {
     if (changeOrder.coDetailBackTarget === 'work-orders') {
+      setWorkOrderDetailJobId(null);
       setWorkOrderDetailJob(null);
     }
     changeOrderFlow.handleBackFromCODetail();
@@ -153,6 +210,7 @@ function App() {
 
   const handleDeleteCOFromDetail = () => {
     if (changeOrder.coDetailBackTarget === 'work-orders') {
+      setWorkOrderDetailJobId(null);
       setWorkOrderDetailJob(null);
     }
     changeOrderFlow.handleDeleteCOFromDetail();
@@ -231,14 +289,13 @@ function App() {
       return homePageEl;
     }
     if (view === 'work-orders' && user) {
-      return (
+      return renderLazyPage(
         <WorkOrdersPage
           key={user.id}
           userId={user.id}
           profile={profile}
           successBanner={workOrdersSuccessBanner}
           onClearSuccessBanner={() => setWorkOrdersSuccessBanner(null)}
-          onCreateWorkOrder={draftFlow.createNewAgreement}
           onCompleteProfileClick={() => {
             setProfileEntrySource('work-orders');
             navigateTo('profile');
@@ -250,25 +307,35 @@ function App() {
         />
       );
     }
-    if (view === 'work-order-detail' && user && profile && workOrderDetailJob) {
-      return (
+    if (view === 'work-order-detail' && user && profile && workOrderDetailJobId) {
+      return renderLazyPage(
         <WorkOrderDetailPage
-          key={`${workOrderDetailJob.id}-${changeOrderListVersion}`}
+          key={`${workOrderDetailJobId}-${changeOrderListVersion}`}
           userId={user.id}
+          jobId={workOrderDetailJobId}
           job={workOrderDetailJob}
           profile={profile}
           changeOrderListVersion={changeOrderListVersion}
-          onJobUpdated={setWorkOrderDetailJob}
+          onJobLoaded={(job: Job) => {
+            setWorkOrderDetailJobId(job.id);
+            setWorkOrderDetailJob(job);
+          }}
+          onJobUpdated={(job: Job) => {
+            setWorkOrderDetailJobId(job.id);
+            setWorkOrderDetailJob(job);
+          }}
           onBack={handleBackFromWorkOrderDetail}
           onStartChangeOrder={changeOrderFlow.handleStartChangeOrderFromDetail}
-          onStartChangeOrderInvoice={(co, invoiceId) => {
+          onStartChangeOrderInvoice={(co: ChangeOrder, invoiceId: string | null) => {
+            const activeJob = workOrderDetailJob;
+            if (!activeJob) return;
             if (!invoiceId) {
-              invoiceFlow.handleStartChangeOrderInvoice(workOrderDetailJob, co);
+              invoiceFlow.handleStartChangeOrderInvoice(activeJob, co);
               return;
             }
             void getInvoice(invoiceId).then((inv) => {
               if (!inv) return;
-              invoiceFlow.handleOpenPendingChangeOrderInvoice(workOrderDetailJob, co, inv);
+              invoiceFlow.handleOpenPendingChangeOrderInvoice(activeJob, co, inv);
             });
           }}
           onOpenCODetail={changeOrderFlow.handleOpenCODetail}
@@ -276,7 +343,7 @@ function App() {
       );
     }
     if (view === 'co-detail' && user && profile && workOrderDetailJob && changeOrder.coDetailCO) {
-      return (
+      return renderLazyPage(
         <ChangeOrderDetailPage
           key={changeOrder.coDetailCO.id}
           userId={user.id}
@@ -291,7 +358,7 @@ function App() {
       );
     }
     if (view === 'change-order-wizard' && user && profile && changeOrder.changeOrderFlowJob) {
-      return (
+      return renderLazyPage(
         <ChangeOrderWizard
           key={changeOrder.wizardExistingCO?.id ?? 'new-co'}
           userId={user.id}
@@ -304,7 +371,7 @@ function App() {
       );
     }
     if (view === 'invoice-wizard' && user && profile && invoice.invoiceFlowJob) {
-      return (
+      return renderLazyPage(
         <InvoiceWizard
           key={`${invoice.invoiceFlowJob.id}-${invoice.invoiceFlowChangeOrder?.id ?? 'job'}-${invoice.wizardExistingInvoice?.id ?? 'new'}`}
           userId={user.id}
@@ -318,7 +385,7 @@ function App() {
       );
     }
     if (view === 'invoice-final' && user && profile && invoice.invoiceFlowJob && invoice.activeInvoice) {
-      return (
+      return renderLazyPage(
         <InvoiceFinalPage
           invoice={invoice.activeInvoice}
           job={invoice.invoiceFlowJob}
@@ -348,7 +415,7 @@ function App() {
         />
       );
     }
-    return (
+    return renderLazyPage(
       <AgreementPreview
         job={draft.job}
         profile={profile}
@@ -374,6 +441,7 @@ function App() {
           onClick={() => {
             navigateTo('home');
             invoiceFlow.resetInvoiceFlow();
+            setWorkOrderDetailJobId(null);
             setWorkOrderDetailJob(null);
             changeOrderFlow.resetChangeOrderFlow();
           }}

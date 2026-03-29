@@ -133,7 +133,7 @@ src/
     db/
       profile.ts             # getProfile, upsertProfile, updateNextWoNumber
       clients.ts             # listClients, upsertClient, deleteClient
-      jobs.ts                # listJobs, createJob, updateJob, deleteJob, saveWorkOrder
+      jobs.ts                # listJobs, saveWorkOrder, dashboard RPC mapping, create/update/delete
       invoices.ts            # Invoice CRUD + mark downloaded; line item `source` in JSON
       change-orders.ts       # Change order CRUD + totals
   hooks/
@@ -145,7 +145,7 @@ src/
     useInvoiceFlow.ts        # Invoice wizard/final page flow state
     useScaledPreview.ts      # 816px preview scaling helpers
     useWorkOrderDraft.ts     # Draft state + next_wo_number refresh after first save; optional onNewDraft (e.g. clear App guest information fields)
-    useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
+    useWorkOrderRowActions.ts # Work Orders row prefetch + CO/invoice hydration helpers
   types/
     db.ts                    # BusinessProfile, Client, Job, Invoice, … (+ esign_* fields on Job, ChangeOrder)
     index.ts                 # WelderJob, AgreementSection, SignatureBlockData
@@ -182,13 +182,16 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 
 **Work Orders details worth remembering:**
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
+- `WorkOrdersPage` loads from the Supabase RPC `list_work_orders_dashboard`; invoice badge state is part of each dashboard row instead of a separate client-side invoice query/join.
 - `WorkOrdersPage` shows inline per-job change-order shortcuts beneath the WO e-sign strip; each shortcut opens CO detail directly, and CO detail returns to Work Orders when entered from that list.
-- If invoice-status rows are partially malformed, the page shows a warning banner but keeps valid invoice actions enabled.
+- Work Orders e-sign polling refreshes only in-flight rows and merges them back into the list; it no longer reloads the full dashboard on every poll tick.
+- Clicking a work-order row navigates immediately with `jobId`; `WorkOrderDetailPage` loads the full job row locally and shows a loading state while hydrating.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.
 - `ChangeOrderWizard` now saves the CO, sends the DocuSeal request immediately, then routes to `ChangeOrderDetailPage`; CO business `status` tracks approval lifecycle (`pending_approval` after send/open, `approved` on completed signature, `rejected` on decline).
 - **`jobs.esign_*` and `change_orders.esign_*`:** list/detail surfaces show e-sign progress, signing actions, and signed artifacts from the same DocuSeal state model. While e-sign is in-flight, detail pages call **`GET /api/esign/work-orders/:id/status`** or **`GET /api/esign/change-orders/:id/status`** (authenticated) to reconcile DocuSeal into the row; webhooks update the same fields. **Email** subject/body for DocuSeal notifications and **signed PDF** layout are best verified on the **deployed** app (public URL + production-like env), not assumed identical to every local setup.
 
 **`view` in `App.tsx`:** `'home' | 'form' | 'preview' | 'profile' | 'work-orders' | 'work-order-detail' | 'co-detail' | 'change-order-wizard' | 'invoice-wizard' | 'invoice-final' | 'auth'` (plus `pushState` / `popstate` for back/forward).
+- `App.tsx` lazy-loads preview, Work Orders, detail, change-order, and invoice screens. The initial shell stays eager; heavy document/dashboard flows load on demand, and the Work Orders chunk is idle-prefetched after sign-in.
 
 ---
 

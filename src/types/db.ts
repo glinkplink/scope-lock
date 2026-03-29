@@ -128,6 +128,10 @@ export interface WorkOrderListJob {
   changeOrders: WorkOrderListChangeOrderPreview[];
 }
 
+export interface WorkOrderDashboardJob extends WorkOrderListJob {
+  latestInvoice: WorkOrderInvoiceStatus | null;
+}
+
 /** Invoice fields needed for Work Orders list actions / summary (no line_items). */
 export interface WorkOrderInvoiceStatus {
   id: string;

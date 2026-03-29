@@ -143,7 +143,7 @@ scope-lock/
 │   │   ├── useInvoiceFlow.ts         # Invoice wizard/final page flow state
 │   │   ├── useScaledPreview.ts       # 816px preview scaling for WO/invoice mini previews
 │   │   ├── useWorkOrderDraft.ts      # New/edit draft state + next_wo_number refresh path
-│   │   └── useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
+│   │   └── useWorkOrderRowActions.ts # Work Orders row prefetch + CO/invoice hydration helpers
 │   ├── lib/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
@@ -178,14 +178,14 @@ scope-lock/
 │   │   └── db/
 │   │       ├── profile.ts            # getProfile, upsertProfile, updateNextWoNumber (counter patch)
 │   │       ├── clients.ts            # listClients / upsertClient / deleteClient (JobForm search when authed)
-│   │       ├── jobs.ts               # listJobs, saveWorkOrder, create/update/delete
+│   │       ├── jobs.ts               # listJobs, saveWorkOrder, dashboard RPC mapping, create/update/delete
 │   │       ├── change-orders.ts      # list/create/update/delete change orders; computeCOTotal
 │   │       └── invoices.ts           # createInvoice (RPC counter), updateInvoice, list, get, mark downloaded
 │   ├── types/
 │   │   ├── index.ts                  # WelderJob, AgreementSection, SignatureBlockData
 │   │   ├── db.ts                     # BusinessProfile, Client, Job, ChangeOrder (+ esign_* fields)
 │   │   └── capture-flow.ts           # CaptureFlow type for anonymous capture modal
-│   ├── App.tsx                       # Root component - view state machine
+│   ├── App.tsx                       # Root component - view state machine + lazy-loaded document/dashboard screens
 │   └── main.tsx                      # Entry point
 ├── server/
 │   ├── app-server.mjs               # App server + /api/pdf + e-sign + DocuSeal webhook
@@ -312,7 +312,9 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 ### Work Orders dashboard rollups (Option B)
 
 - **Invoiced** / **Pending Invoice** on **`WorkOrdersPage`** sum **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. The summary strip is labeled **Contract value** so this is explicit. Using invoice totals for rollups (**Option A**) is deferred.
-- If **`listInvoiceStatusByJob`** encounters malformed invoice rows, the page shows a warning banner and continues rendering valid invoice actions for unaffected jobs. Query failures still disable invoice actions.
+- **`WorkOrdersPage`** now reads from the SQL RPC **`list_work_orders_dashboard(p_user_id uuid, p_job_ids uuid[] default null)`**, which returns the job list, inline change-order previews, and the latest **job-level** invoice badge in one round-trip.
+- Job-level invoice classification in the RPC uses a JSONB scan over **`invoices.line_items`**: an invoice is job-level only when no line item has a non-empty `change_order_id`.
+- While e-sign is in flight, the page polls only the affected `job_id`s through the same RPC and merges those rows into existing state instead of refetching the full dashboard.
 
 ## What Is and Isn't Persisted
 

@@ -49,9 +49,11 @@ import './WorkOrderDetailPage.css';
 
 interface WorkOrderDetailPageProps {
   userId: string;
-  job: Job;
+  jobId: string;
+  job?: Job | null;
   profile: BusinessProfile | null;
   changeOrderListVersion?: number;
+  onJobLoaded?: (job: Job) => void;
   onJobUpdated?: (job: Job) => void;
   onBack: () => void;
   onStartChangeOrder: () => void;
@@ -61,9 +63,11 @@ interface WorkOrderDetailPageProps {
 
 export function WorkOrderDetailPage({
   userId,
-  job,
+  jobId,
+  job: initialJob = null,
   profile,
   changeOrderListVersion = 0,
+  onJobLoaded,
   onJobUpdated,
   onBack,
   onStartChangeOrder,
@@ -78,6 +82,9 @@ export function WorkOrderDetailPage({
   const [esignBusy, setEsignBusy] = useState(false);
   const [esignSigningLinkCopied, setEsignSigningLinkCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [hydratedJob, setHydratedJob] = useState<Job | null>(initialJob);
+  const [jobLoading, setJobLoading] = useState(() => initialJob === null);
+  const [jobLoadError, setJobLoadError] = useState('');
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [coLoading, setCoLoading] = useState(true);
   const [coError, setCoError] = useState('');
@@ -90,15 +97,65 @@ export function WorkOrderDetailPage({
   const [coNewCoBlockError, setCoNewCoBlockError] = useState<string | null>(null);
   const [coNewCoBlockedByInvoice, setCoNewCoBlockedByInvoice] = useState(false);
 
-  const welderJob = useMemo(() => jobRowToWelderJob(job, profile), [job, profile]);
-  const sections = useMemo(() => generateAgreement(welderJob, profile), [welderJob, profile]);
+  useEffect(() => {
+    if (!initialJob || initialJob.id !== jobId) return;
+    setHydratedJob(initialJob);
+    setJobLoading(false);
+    setJobLoadError('');
+  }, [initialJob, jobId]);
+
+  useEffect(() => {
+    if (initialJob && initialJob.id === jobId) return;
+
+    let cancelled = false;
+    setJobLoading(true);
+    setJobLoadError('');
+    setHydratedJob(null);
+
+    void (async () => {
+      const row = await getJobById(jobId);
+      if (cancelled) return;
+      if (!row) {
+        setJobLoadError('Could not load work order.');
+        setHydratedJob(null);
+        setJobLoading(false);
+        return;
+      }
+      setHydratedJob(row);
+      setJobLoading(false);
+      onJobLoaded?.(row);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialJob, jobId, onJobLoaded]);
+
+  const job = initialJob && initialJob.id === jobId ? initialJob : hydratedJob;
+
+  const welderJob = useMemo(
+    () => (job ? jobRowToWelderJob(job, profile) : null),
+    [job, profile]
+  );
+  const sections = useMemo(
+    () => (welderJob ? generateAgreement(welderJob, profile) : null),
+    [welderJob, profile]
+  );
 
   const woLabel =
-    job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
-  const customerTitle = job.customer_name.trim() || 'Customer';
-  const esignProgress = useMemo(() => getEsignProgressModel(job.esign_status), [job.esign_status]);
+    job?.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
+  const customerTitle = job?.customer_name.trim() || 'Customer';
+  const esignProgress = useMemo(
+    () => getEsignProgressModel(job?.esign_status ?? 'not_sent'),
+    [job?.esign_status]
+  );
 
   const loadCOs = useCallback(async () => {
+    if (!job) {
+      setChangeOrders([]);
+      setCoLoading(false);
+      return;
+    }
     setCoLoading(true);
     setCoError('');
     try {
@@ -110,13 +167,14 @@ export function WorkOrderDetailPage({
     } finally {
       setCoLoading(false);
     }
-  }, [job.id]);
+  }, [job]);
 
   useEffect(() => {
     void loadCOs();
   }, [loadCOs, changeOrderListVersion]);
 
   useEffect(() => {
+    if (!job) return;
     let cancelled = false;
     setCoInvoiceStatusLoading(true);
     setCoInvoiceStatusError(null);
@@ -140,9 +198,10 @@ export function WorkOrderDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [job.id, userId, changeOrderListVersion]);
+  }, [job, userId, changeOrderListVersion]);
 
   useEffect(() => {
+    if (!job) return;
     let cancelled = false;
     setCoNewCoBlockLoading(true);
     setCoNewCoBlockError(null);
@@ -166,14 +225,14 @@ export function WorkOrderDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [job.id, userId, changeOrderListVersion]);
+  }, [job, userId, changeOrderListVersion]);
 
   const createChangeOrderDisabled =
     downloading || coNewCoBlockLoading || coNewCoBlockError !== null || coNewCoBlockedByInvoice;
 
   const handleDownloadPdf = async () => {
     setPdfError('');
-    if (!documentRef.current) {
+    if (!welderJob || !documentRef.current) {
       setPdfError('Document is not ready. Try again.');
       return;
     }
@@ -189,6 +248,12 @@ export function WorkOrderDetailPage({
   };
 
   const footerMeta = useMemo(() => {
+    if (!welderJob) {
+      return {
+        providerName: profile?.business_name ?? '',
+        providerPhone: profile?.phone ?? '',
+      };
+    }
     return {
       providerName: getPdfFooterBusinessName(profile, welderJob),
       providerPhone: getPdfFooterPhone(profile, welderJob),
@@ -201,21 +266,26 @@ export function WorkOrderDetailPage({
   }, [coInvoiceStatusRows]);
 
   const refreshJobRow = useCallback(async () => {
+    if (!job) return null;
     try {
       const r = await pollWorkOrderEsignStatus(job.id);
       const updatedJob = mergeEsignResponseIntoJob(job, r);
+      setHydratedJob(updatedJob);
       onJobUpdated?.(updatedJob);
       return updatedJob;
     } catch {
       // Fallback to passive DB read if active poll fails
       const row = await getJobById(job.id);
-      if (row && onJobUpdated) onJobUpdated(row);
+      if (row) {
+        setHydratedJob(row);
+        onJobUpdated?.(row);
+      }
       return row;
     }
   }, [job, onJobUpdated]);
 
   useEsignPoller({
-    enabled: Boolean(onJobUpdated) && shouldPollEsignStatus(job.esign_status),
+    enabled: Boolean(job && onJobUpdated) && shouldPollEsignStatus(job?.esign_status ?? 'not_sent'),
     pollOnce: async () => {
       const row = await refreshJobRow();
       if (!row) return false;
@@ -237,9 +307,12 @@ export function WorkOrderDetailPage({
       clearTimeout(copySigningLinkTimeoutRef.current);
       copySigningLinkTimeoutRef.current = null;
     }
-  }, [job.id, job.esign_embed_src]);
+  }, [job?.id, job?.esign_embed_src]);
 
   const buildEsignPayload = async () => {
+    if (!job || !welderJob) {
+      throw new Error('Work order is not ready yet.');
+    }
     const wo = String(welderJob.wo_number).padStart(4, '0');
     const agreementSections = generateAgreement(welderJob, profile);
     const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
@@ -278,6 +351,7 @@ export function WorkOrderDetailPage({
   };
 
   const handleEsignSend = async () => {
+    if (!job) return;
     setEsignError('');
     if (!(job.customer_email || '').trim()) {
       setEsignError('Customer email is missing on this work order. Edit the job or agreement to add it.');
@@ -296,6 +370,7 @@ export function WorkOrderDetailPage({
   };
 
   const handleEsignResend = async () => {
+    if (!job) return;
     setEsignError('');
     setEsignBusy(true);
     try {
@@ -310,6 +385,7 @@ export function WorkOrderDetailPage({
   };
 
   const handleCopySigningLink = async () => {
+    if (!job) return;
     const url = job.esign_embed_src;
     if (!url) return;
     setEsignError('');
@@ -330,6 +406,7 @@ export function WorkOrderDetailPage({
   };
 
   const downloadCombinedPdf = async () => {
+    if (!job || !welderJob || !sections) return;
     setPdfError('');
     setDownloading(true);
     try {
@@ -349,6 +426,34 @@ export function WorkOrderDetailPage({
       setDownloading(false);
     }
   };
+
+  if (jobLoading && !job) {
+    return (
+      <div className="work-order-detail-page">
+        <div className="invoice-final-nav">
+          <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
+            Go Back
+          </button>
+        </div>
+        <p className="work-orders-loading">Loading work order…</p>
+      </div>
+    );
+  }
+
+  if (!job || !welderJob || !sections) {
+    return (
+      <div className="work-order-detail-page">
+        <div className="invoice-final-nav">
+          <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
+            Go Back
+          </button>
+        </div>
+        <div className="error-banner" role="alert">
+          {jobLoadError || 'Could not load work order.'}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="work-order-detail-page">

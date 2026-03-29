@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ChangeOrder,
   Invoice,
@@ -13,7 +13,7 @@ export type WorkOrderRowActionsDeps = {
   getJobById: (jobId: string) => Promise<Job | null>;
   getChangeOrderById: (changeOrderId: string) => Promise<ChangeOrder | null>;
   getInvoice: (invoiceId: string) => Promise<Invoice | null>;
-  onOpenWorkOrderDetail: (job: Job) => void;
+  onOpenWorkOrderDetail: (jobId: string) => void;
   onOpenChangeOrderDetail: (job: Job, changeOrder: ChangeOrder) => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
@@ -38,11 +38,17 @@ export function useWorkOrderRowActions({
   const jobCacheRef = useRef<Map<string, Job>>(new Map());
   const changeOrderCacheRef = useRef<Map<string, ChangeOrder>>(new Map());
   const invoiceCacheRef = useRef<Map<string, Invoice>>(new Map());
+  const inflightJobRequestsRef = useRef<Map<string, Promise<Job | null>>>(new Map());
+  const inflightChangeOrderRequestsRef = useRef<Map<string, Promise<ChangeOrder | null>>>(new Map());
+  const inflightInvoiceRequestsRef = useRef<Map<string, Promise<Invoice | null>>>(new Map());
 
   useEffect(() => {
     jobCacheRef.current = new Map();
     changeOrderCacheRef.current = new Map();
     invoiceCacheRef.current = new Map();
+    inflightJobRequestsRef.current = new Map();
+    inflightChangeOrderRequestsRef.current = new Map();
+    inflightInvoiceRequestsRef.current = new Map();
     actionLoadingIdsRef.current = new Set();
     setActionLoadingJobIds(new Set());
   }, [userId]);
@@ -59,20 +65,74 @@ export function useWorkOrderRowActions({
     setActionLoadingJobIds(new Set(actionLoadingIdsRef.current));
   };
 
+  const getHydratedJob = useCallback(async (jobId: string): Promise<Job | null> => {
+    const cached = jobCacheRef.current.get(jobId);
+    if (cached) return cached;
+
+    const inflight = inflightJobRequestsRef.current.get(jobId);
+    if (inflight) return inflight;
+
+    const request = getJobById(jobId)
+      .then((job) => {
+        if (job) jobCacheRef.current.set(jobId, job);
+        return job;
+      })
+      .finally(() => {
+        inflightJobRequestsRef.current.delete(jobId);
+      });
+    inflightJobRequestsRef.current.set(jobId, request);
+    return request;
+  }, [getJobById]);
+
+  const getHydratedChangeOrder = useCallback(async (changeOrderId: string): Promise<ChangeOrder | null> => {
+    const cached = changeOrderCacheRef.current.get(changeOrderId);
+    if (cached) return cached;
+
+    const inflight = inflightChangeOrderRequestsRef.current.get(changeOrderId);
+    if (inflight) return inflight;
+
+    const request = getChangeOrderById(changeOrderId)
+      .then((changeOrder) => {
+        if (changeOrder) changeOrderCacheRef.current.set(changeOrderId, changeOrder);
+        return changeOrder;
+      })
+      .finally(() => {
+        inflightChangeOrderRequestsRef.current.delete(changeOrderId);
+      });
+    inflightChangeOrderRequestsRef.current.set(changeOrderId, request);
+    return request;
+  }, [getChangeOrderById]);
+
+  const getHydratedInvoice = useCallback(async (invoiceId: string): Promise<Invoice | null> => {
+    const cached = invoiceCacheRef.current.get(invoiceId);
+    if (cached) return cached;
+
+    const inflight = inflightInvoiceRequestsRef.current.get(invoiceId);
+    if (inflight) return inflight;
+
+    const request = getInvoice(invoiceId)
+      .then((invoice) => {
+        if (invoice) invoiceCacheRef.current.set(invoiceId, invoice);
+        return invoice;
+      })
+      .finally(() => {
+        inflightInvoiceRequestsRef.current.delete(invoiceId);
+      });
+    inflightInvoiceRequestsRef.current.set(invoiceId, request);
+    return request;
+  }, [getInvoice]);
+
+  const prefetchJob = useCallback((jobId: string) => {
+    void getHydratedJob(jobId);
+  }, [getHydratedJob]);
+
   const runWithJobHydration = async (
     listJob: WorkOrderListJob,
     fn: (fullJob: Job) => void
   ) => {
     if (!beginRowAction(listJob.id)) return;
     try {
-      let full: Job | undefined = jobCacheRef.current.get(listJob.id);
-      if (full === undefined) {
-        const fetched = await getJobById(listJob.id);
-        if (fetched) {
-          jobCacheRef.current.set(listJob.id, fetched);
-          full = fetched;
-        }
-      }
+      const full = await getHydratedJob(listJob.id);
       if (full) fn(full);
       else console.error('WorkOrdersPage: getJobById returned no row for', listJob.id);
     } finally {
@@ -80,40 +140,25 @@ export function useWorkOrderRowActions({
     }
   };
 
-  const handleOpenDetail = (listJob: WorkOrderListJob) => {
-    void runWithJobHydration(listJob, (full) => onOpenWorkOrderDetail(full));
-  };
+  const handleOpenDetail = useCallback((listJob: WorkOrderListJob) => {
+    onOpenWorkOrderDetail(listJob.id);
+  }, [onOpenWorkOrderDetail]);
 
-  const handleStartInvoice = (listJob: WorkOrderListJob) => {
+  const handleStartInvoice = useCallback((listJob: WorkOrderListJob) => {
     void runWithJobHydration(listJob, (full) => onStartInvoice(full));
-  };
+  }, [onStartInvoice]);
 
-  const handleOpenChangeOrderDetail = (
+  const handleOpenChangeOrderDetail = useCallback((
     listJob: WorkOrderListJob,
     changeOrderPreview: WorkOrderListChangeOrderPreview
   ) => {
     if (!beginRowAction(listJob.id)) return;
     void (async () => {
       try {
-        let fullJob: Job | undefined = jobCacheRef.current.get(listJob.id);
-        if (fullJob === undefined) {
-          const job = await getJobById(listJob.id);
-          if (job) {
-            jobCacheRef.current.set(listJob.id, job);
-            fullJob = job;
-          }
-        }
-
-        let fullChangeOrder: ChangeOrder | undefined = changeOrderCacheRef.current.get(
-          changeOrderPreview.id
-        );
-        if (fullChangeOrder === undefined) {
-          const changeOrder = await getChangeOrderById(changeOrderPreview.id);
-          if (changeOrder) {
-            changeOrderCacheRef.current.set(changeOrderPreview.id, changeOrder);
-            fullChangeOrder = changeOrder;
-          }
-        }
+        const [fullJob, fullChangeOrder] = await Promise.all([
+          getHydratedJob(listJob.id),
+          getHydratedChangeOrder(changeOrderPreview.id),
+        ]);
 
         if (fullJob && fullChangeOrder) {
           onOpenChangeOrderDetail(fullJob, fullChangeOrder);
@@ -124,35 +169,23 @@ export function useWorkOrderRowActions({
         endRowAction(listJob.id);
       }
     })();
-  };
+  }, [getHydratedChangeOrder, getHydratedJob, onOpenChangeOrderDetail]);
 
-  const handleOpenPendingInvoice = (listJob: WorkOrderListJob, status: WorkOrderInvoiceStatus) => {
+  const handleOpenPendingInvoice = useCallback((listJob: WorkOrderListJob, status: WorkOrderInvoiceStatus) => {
     if (!beginRowAction(listJob.id)) return;
     void (async () => {
       try {
-        let fullJob: Job | undefined = jobCacheRef.current.get(listJob.id);
-        if (fullJob === undefined) {
-          const j = await getJobById(listJob.id);
-          if (j) {
-            jobCacheRef.current.set(listJob.id, j);
-            fullJob = j;
-          }
-        }
-        let fullInv: Invoice | undefined = invoiceCacheRef.current.get(status.id);
-        if (fullInv === undefined) {
-          const inv = await getInvoice(status.id);
-          if (inv) {
-            invoiceCacheRef.current.set(status.id, inv);
-            fullInv = inv;
-          }
-        }
+        const [fullJob, fullInv] = await Promise.all([
+          getHydratedJob(listJob.id),
+          getHydratedInvoice(status.id),
+        ]);
         if (fullJob && fullInv) onOpenPendingInvoice(fullJob, fullInv);
         else console.error('WorkOrdersPage: missing full job or invoice for pending flow');
       } finally {
         endRowAction(listJob.id);
       }
     })();
-  };
+  }, [getHydratedInvoice, getHydratedJob, onOpenPendingInvoice]);
 
   return {
     busyJobIds: actionLoadingJobIds,
@@ -160,5 +193,6 @@ export function useWorkOrderRowActions({
     handleOpenChangeOrderDetail,
     handleStartInvoice,
     handleOpenPendingInvoice,
+    prefetchJob,
   };
 }

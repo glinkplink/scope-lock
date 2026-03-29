@@ -2,8 +2,10 @@ import { supabase } from '../supabase';
 import type {
   EsignJobStatus,
   Job,
+  WorkOrderDashboardJob,
   WorkOrderListChangeOrderPreview,
   WorkOrderListJob,
+  WorkOrderInvoiceStatus,
 } from '../../types/db';
 import type { WelderJob } from '../../types';
 
@@ -87,6 +89,42 @@ function mapWorkOrderListRow(row: Record<string, unknown>): WorkOrderListJob {
   };
 }
 
+function mapWorkOrderInvoiceStatusRow(row: Record<string, unknown>): WorkOrderInvoiceStatus | null {
+  const id = row.id;
+  const job_id = row.job_id;
+  const status = row.status;
+  const created_at = row.created_at;
+  const invoice_number = row.invoice_number;
+  if (typeof id !== 'string' || typeof job_id !== 'string' || typeof created_at !== 'string') {
+    return null;
+  }
+  if (status !== 'draft' && status !== 'downloaded') return null;
+  const parsedInvoiceNumber =
+    typeof invoice_number === 'number' ? invoice_number : Number(invoice_number);
+  if (!Number.isFinite(parsedInvoiceNumber)) return null;
+
+  return {
+    id,
+    job_id,
+    status,
+    invoice_number: parsedInvoiceNumber,
+    created_at,
+  };
+}
+
+function mapWorkOrderDashboardRow(row: Record<string, unknown>): WorkOrderDashboardJob {
+  const listRow = mapWorkOrderListRow(row);
+  const latestInvoice =
+    row.latest_invoice && typeof row.latest_invoice === 'object'
+      ? mapWorkOrderInvoiceStatusRow(row.latest_invoice as Record<string, unknown>)
+      : null;
+
+  return {
+    ...listRow,
+    latestInvoice,
+  };
+}
+
 export const listJobsForWorkOrders = async (userId: string): Promise<WorkOrderListJob[]> => {
   const { data, error } = await supabase
     .from('jobs')
@@ -100,6 +138,23 @@ export const listJobsForWorkOrders = async (userId: string): Promise<WorkOrderLi
   }
 
   return (data ?? []).map((row) => mapWorkOrderListRow(row as Record<string, unknown>));
+};
+
+export const listWorkOrdersDashboard = async (
+  userId: string,
+  jobIds?: string[]
+): Promise<WorkOrderDashboardJob[]> => {
+  const { data, error } = await supabase.rpc('list_work_orders_dashboard', {
+    p_user_id: userId,
+    p_job_ids: jobIds && jobIds.length > 0 ? jobIds : null,
+  });
+
+  if (error) {
+    console.error('Error listing work orders dashboard:', error);
+    return [];
+  }
+
+  return (data ?? []).map((row: unknown) => mapWorkOrderDashboardRow(row as Record<string, unknown>));
 };
 
 export const listInFlightEsignJobs = async (userId: string): Promise<WorkOrderListJob[]> => {
