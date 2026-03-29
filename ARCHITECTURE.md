@@ -315,7 +315,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 - `0014_work_orders_dashboard.sql` remains applied and available for targeted row refresh by `job_id`; the main Work Orders list no longer relies on it for initial page load.
 - **`list_work_orders_dashboard_page`** pages jobs by `(created_at DESC, id DESC)`, aggregates only the current page’s change orders and invoices, uses `DISTINCT ON (job_id)` for latest job-level invoice lookup, and returns:
   - `change_order_count`
-  - `change_orders_preview` (first two shortcuts)
+  - `change_orders_preview` (first two COs; used for merge/poll payloads, not list chips—the UI uses **`change_order_count`** only to show **View & Create Change Orders**)
   - `has_in_flight_change_orders`
   - `latest_invoice`
 - **`get_work_orders_dashboard_summary`** runs separately from the page RPC so whole-dataset totals do not depend on the currently loaded page.

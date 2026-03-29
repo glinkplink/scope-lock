@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type {
-  ChangeOrder,
   Invoice,
   Job,
   WorkOrderDashboardJob,
@@ -26,10 +25,6 @@ vi.mock('../../lib/db/jobs', () => ({
   listWorkOrdersDashboardPage: (...args: unknown[]) => listWorkOrdersDashboardPage(...args),
   getWorkOrdersDashboardSummary: (...args: unknown[]) => getWorkOrdersDashboardSummary(...args),
   getJobById: (...args: unknown[]) => getJobById(...args),
-}));
-
-vi.mock('../../lib/db/change-orders', () => ({
-  getChangeOrderById: (...args: unknown[]) => getChangeOrderById(...args),
 }));
 
 vi.mock('../../lib/db/invoices', () => ({
@@ -84,37 +79,6 @@ function previewCO(
     job_id: 'job-a',
     co_number: coNumber,
     esign_status: esignStatus,
-  };
-}
-
-function minimalFullChangeOrder(id: string, coNumber: number): ChangeOrder {
-  return {
-    id,
-    user_id: 'u1',
-    job_id: 'job-a',
-    co_number: coNumber,
-    description: `CO ${coNumber}`,
-    reason: 'extra work',
-    status: 'pending_approval',
-    requires_approval: true,
-    line_items: [],
-    time_amount: 0,
-    time_unit: 'hours',
-    time_note: '',
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
-    esign_submission_id: null,
-    esign_submitter_id: null,
-    esign_embed_src: null,
-    esign_status: 'not_sent',
-    esign_submission_state: null,
-    esign_submitter_state: null,
-    esign_sent_at: null,
-    esign_opened_at: null,
-    esign_completed_at: null,
-    esign_declined_at: null,
-    esign_decline_reason: null,
-    esign_signed_document_url: null,
   };
 }
 
@@ -267,7 +231,6 @@ describe('WorkOrdersPage', () => {
     listWorkOrdersDashboardPage.mockReset();
     getWorkOrdersDashboardSummary.mockReset();
     getJobById.mockReset();
-    getChangeOrderById.mockReset();
     getInvoice.mockReset();
     listWorkOrdersDashboardPage.mockResolvedValue(makePageResult([listJobA]));
     getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryResult, error: null });
@@ -420,7 +383,7 @@ describe('WorkOrdersPage', () => {
     expect(getJobById).toHaveBeenCalledWith('job-a');
   });
 
-  it('shows only preview change-order shortcuts and routes +N more to work-order detail', async () => {
+  it('shows View & Create Change Orders link when changeOrderCount > 0 and opens change-orders section', async () => {
     listWorkOrdersDashboardPage.mockResolvedValue(
       makePageResult([
         {
@@ -436,41 +399,12 @@ describe('WorkOrdersPage', () => {
     const { onOpenWorkOrderDetail } = renderPage();
 
     await screen.findByText('Customer A');
-    expect(screen.getAllByRole('button', { name: /Open CO #/i })).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /open work order for 2 more change orders/i })).toHaveTextContent('View 2 more change orders');
+    const link = screen.getByRole('button', { name: /View & Create Change Orders/i });
+    expect(link).toHaveTextContent('View & Create Change Orders');
 
-    await user.click(screen.getByRole('button', { name: /open work order for 2 more change orders/i }));
+    await user.click(link);
 
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a', 'change-orders');
-  });
-
-  it('opens hydrated change-order detail from preview shortcuts', async () => {
-    listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        {
-          ...listJobA,
-          changeOrderCount: 2,
-          changeOrderPreview: [previewCO('co-2', 2, 'completed'), previewCO('co-1', 1, 'opened')],
-          hasInFlightChangeOrders: true,
-        },
-      ])
-    );
-    getJobById.mockResolvedValue(minimalFullJob('job-a', 'Customer A'));
-    getChangeOrderById.mockImplementation((id: string) =>
-      Promise.resolve(minimalFullChangeOrder(id, id === 'co-1' ? 1 : 2))
-    );
-
-    const user = userEvent.setup();
-    const { onOpenChangeOrderDetail } = renderPage();
-
-    await screen.findByText('Customer A');
-    await user.click(screen.getByRole('button', { name: 'Open CO #0001' }));
-
-    await waitFor(() => {
-      expect(onOpenChangeOrderDetail).toHaveBeenCalledTimes(1);
-    });
-    expect(onOpenChangeOrderDetail.mock.calls[0][0].id).toBe('job-a');
-    expect(onOpenChangeOrderDetail.mock.calls[0][1].id).toBe('co-1');
   });
 
   it('renders Pending and Invoiced actions from dashboard invoice fields', async () => {
@@ -557,7 +491,6 @@ describe('WorkOrdersPage', () => {
         onStartInvoice={() => {}}
         onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
-        onOpenChangeOrderDetail={() => {}}
       />
     );
 

@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   BusinessProfile,
-  ChangeOrder,
   Invoice,
   Job,
   WorkOrderDashboardJob,
@@ -14,13 +13,11 @@ import {
   listWorkOrdersDashboard,
   listWorkOrdersDashboardPage,
 } from '../lib/db/jobs';
-import { getChangeOrderById } from '../lib/db/change-orders';
 import { getInvoice } from '../lib/db/invoices';
 import { useEsignPoller } from '../hooks/useEsignPoller';
 import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
 import { shouldPollEsignStatus } from '../lib/esign-live';
 import { getEsignProgressModel } from '../lib/esign-progress';
-import { formatEsignStatusLabel } from '../lib/esign-labels';
 import './WorkOrdersPage.css';
 
 const HIDE_COMPLETE_PROFILE_CTA_PREFIX = 'scope-lock-hide-complete-profile-cta:';
@@ -121,34 +118,11 @@ function appendDashboardRows(
   return mergedJobs;
 }
 
-function coStatusTone(
-  status: WorkOrderDashboardJob['changeOrderPreview'][number]['esign_status']
-): 'inactive' | 'active' | 'success' | 'danger' | 'warning' {
-  switch (status) {
-    case 'sent':
-    case 'opened':
-      return 'active';
-    case 'completed':
-      return 'success';
-    case 'declined':
-      return 'danger';
-    case 'expired':
-      return 'warning';
-    case 'not_sent':
-    default:
-      return 'inactive';
-  }
-}
-
 type WorkOrderRowProps = {
   job: WorkOrderDashboardJob;
   rowBusy: boolean;
   onOpenDetail: (job: WorkOrderDashboardJob) => void;
-  onOpenMoreChangeOrders: (job: WorkOrderDashboardJob) => void;
-  onOpenChangeOrderDetail: (
-    job: WorkOrderDashboardJob,
-    changeOrder: WorkOrderDashboardJob['changeOrderPreview'][number]
-  ) => void;
+  onOpenChangeOrdersSection: (job: WorkOrderDashboardJob) => void;
   onStartInvoice: (job: WorkOrderDashboardJob) => void;
   onOpenPendingInvoice: (job: WorkOrderDashboardJob) => void;
 };
@@ -157,20 +131,14 @@ const WorkOrderRow = memo(function WorkOrderRow({
   job,
   rowBusy,
   onOpenDetail,
-  onOpenMoreChangeOrders,
-  onOpenChangeOrderDetail,
+  onOpenChangeOrdersSection,
   onStartInvoice,
   onOpenPendingInvoice,
 }: WorkOrderRowProps) {
   const woLabel =
     job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const invoice = job.latestInvoice;
-  const hiddenChangeOrderCount = Math.max(job.changeOrderCount - job.changeOrderPreview.length, 0);
   const jobMetaLabel = formatRowDate(job);
-  const moreChangeOrdersLabel =
-    hiddenChangeOrderCount === 1
-      ? 'View 1 more change order'
-      : `View ${hiddenChangeOrderCount} more change orders`;
 
   return (
     <li className="work-orders-row">
@@ -188,52 +156,15 @@ const WorkOrderRow = memo(function WorkOrderRow({
           {renderEsignStrip(job.esign_status)}
           <span className="work-orders-customer">{job.customer_name}</span>
         </button>
-        {job.changeOrderPreview.length > 0 || hiddenChangeOrderCount > 0 ? (
-          <span className="work-orders-meta">
-            <span className="work-orders-co-shortcuts" role="list" aria-label={`${woLabel} change orders`}>
-              {job.changeOrderPreview.map((changeOrder) => {
-                const coLabel = `CO #${String(changeOrder.co_number).padStart(4, '0')}`;
-                const statusLabel = formatEsignStatusLabel(changeOrder.esign_status);
-                return (
-                  <span
-                    key={changeOrder.id}
-                    className="work-orders-co-shortcut-wrap"
-                    role="listitem"
-                  >
-                    <button
-                      type="button"
-                      className="work-orders-co-shortcut"
-                      disabled={rowBusy}
-                      onClick={() => onOpenChangeOrderDetail(job, changeOrder)}
-                      aria-label={`Open ${coLabel}`}
-                    >
-                      <span className="work-orders-co-shortcut-label">{coLabel}</span>
-                      <span className="work-orders-co-shortcut-status">
-                        <span
-                          className={`work-orders-co-shortcut-segment work-orders-co-shortcut-segment-${coStatusTone(changeOrder.esign_status)}`}
-                          aria-hidden="true"
-                        />
-                        <span className="work-orders-co-shortcut-status-text">{statusLabel}</span>
-                      </span>
-                    </button>
-                  </span>
-                );
-              })}
-            </span>
-            {hiddenChangeOrderCount > 0 ? (
-              <span className="work-orders-co-more-wrap">
-                <button
-                  type="button"
-                  className="work-orders-co-more-button"
-                  disabled={rowBusy}
-                  onClick={() => onOpenMoreChangeOrders(job)}
-                  aria-label={`Open work order for ${hiddenChangeOrderCount} more change orders`}
-                >
-                  {moreChangeOrdersLabel}
-                </button>
-              </span>
-            ) : null}
-          </span>
+        {job.changeOrderCount > 0 ? (
+          <button
+            type="button"
+            className="work-orders-change-orders-link"
+            disabled={rowBusy}
+            onClick={() => onOpenChangeOrdersSection(job)}
+          >
+            View & Create Change Orders
+          </button>
         ) : null}
       </div>
       <div className="work-orders-row-actions">
@@ -280,7 +211,6 @@ interface WorkOrdersPageProps {
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
   onOpenWorkOrderDetail: (jobId: string, targetSection?: 'top' | 'change-orders') => void;
-  onOpenChangeOrderDetail: (job: Job, changeOrder: ChangeOrder) => void;
 }
 
 export function WorkOrdersPage({
@@ -293,7 +223,6 @@ export function WorkOrdersPage({
   onStartInvoice,
   onOpenPendingInvoice,
   onOpenWorkOrderDetail,
-  onOpenChangeOrderDetail,
 }: WorkOrdersPageProps) {
   const [jobs, setJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -307,16 +236,13 @@ export function WorkOrdersPage({
   const {
     busyJobIds: actionLoadingJobIds,
     handleOpenDetail,
-    handleOpenChangeOrderDetail,
     handleStartInvoice,
     handleOpenPendingInvoice,
   } = useWorkOrderRowActions({
     userId,
     getJobById,
-    getChangeOrderById,
     getInvoice,
     onOpenWorkOrderDetail,
-    onOpenChangeOrderDetail,
     onStartInvoice,
     onOpenPendingInvoice,
   });
@@ -332,6 +258,7 @@ export function WorkOrdersPage({
 
   useEffect(() => {
     let cancelled = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- reset list state before async fetch when userId changes */
     setJobsLoading(true);
     setJobsError(null);
     setJobs([]);
@@ -339,6 +266,7 @@ export function WorkOrdersPage({
     setNextCursor(null);
     setLoadMoreError(null);
     setSummary(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     void Promise.all([
       listWorkOrdersDashboardPage(userId, WORK_ORDERS_PAGE_SIZE),
@@ -414,7 +342,7 @@ export function WorkOrdersPage({
     [handleOpenPendingInvoice]
   );
 
-  const handleOpenMoreChangeOrders = useCallback(
+  const handleOpenChangeOrdersSection = useCallback(
     (job: WorkOrderDashboardJob) => {
       onOpenWorkOrderDetail(job.id, 'change-orders');
     },
@@ -533,8 +461,7 @@ export function WorkOrdersPage({
                     job={job}
                     rowBusy={actionLoadingJobIds.has(job.id)}
                     onOpenDetail={handleOpenDetail}
-                    onOpenMoreChangeOrders={handleOpenMoreChangeOrders}
-                    onOpenChangeOrderDetail={handleOpenChangeOrderDetail}
+                    onOpenChangeOrdersSection={handleOpenChangeOrdersSection}
                     onStartInvoice={handleStartInvoice}
                     onOpenPendingInvoice={handleOpenPendingInvoiceForRow}
                   />

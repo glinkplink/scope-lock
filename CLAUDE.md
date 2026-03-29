@@ -184,7 +184,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
 - `WorkOrdersPage` keeps the toolbar **Create Work Order** button; treat it as required UI.
 - `WorkOrdersPage` loads row pages from `list_work_orders_dashboard_page` and whole-dataset summary totals from `get_work_orders_dashboard_summary`; the summary is not derived from the currently loaded rows.
-- `WorkOrdersPage` shows up to two inline change-order shortcuts per row plus a `+N more` affordance that opens work-order detail by `jobId`.
+- `WorkOrdersPage` shows a **View & Create Change Orders** link under the client name when `changeOrderCount > 0`, opening work-order detail with scroll to the Change Orders section (no per-CO chips on the list).
 - Work Orders e-sign polling refreshes only loaded in-flight rows; targeted row refresh can still use the older `list_work_orders_dashboard` RPC because `0014` is already applied.
 - Clicking a work-order row navigates immediately with `jobId`; `WorkOrderDetailPage` loads the full job row locally and shows a loading state while hydrating.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.

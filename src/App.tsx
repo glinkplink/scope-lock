@@ -186,15 +186,6 @@ function App() {
     navigateTo('work-order-detail');
   };
 
-  const handleOpenChangeOrderDetailFromList = (
-    jobRow: Job,
-    changeOrderRow: import('./types/db').ChangeOrder
-  ) => {
-    setWorkOrderDetailJobId(jobRow.id);
-    setWorkOrderDetailJob(jobRow);
-    changeOrderFlow.handleOpenCODetail(changeOrderRow, 'work-orders');
-  };
-
   const handleBackFromWorkOrderDetail = () => {
     setWorkOrderDetailJobId(null);
     setWorkOrderDetailJob(null);
@@ -307,7 +298,6 @@ function App() {
           onStartInvoice={invoiceFlow.handleStartInvoice}
           onOpenPendingInvoice={invoiceFlow.handleOpenPendingInvoice}
           onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
-          onOpenChangeOrderDetail={handleOpenChangeOrderDetailFromList}
         />
       );
     }

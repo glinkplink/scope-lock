@@ -312,139 +312,41 @@
   text-transform: uppercase;
 }
 
-.work-orders-page .work-orders-co-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.4rem 0.45rem;
-  margin-top: 6px;
-  max-width: 100%;
-}
-
-.work-orders-page .work-orders-co-shortcut-wrap {
-  display: inline-flex;
-  align-items: stretch;
-}
-
-.work-orders-page .work-orders-co-shortcut {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+.work-orders-page .work-orders-change-orders-link {
   margin: 0;
-  padding: 0.2rem 0.45rem 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-white);
+  padding: 0;
+  align-self: flex-start;
+  border: none;
+  background: none;
   font: inherit;
-  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
   text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
 }
 
-.work-orders-page .work-orders-co-shortcut:focus {
+.work-orders-page .work-orders-change-orders-link:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.work-orders-page .work-orders-change-orders-link:focus {
   outline: none;
 }
 
-.work-orders-page .work-orders-co-shortcut:focus-visible {
+.work-orders-page .work-orders-change-orders-link:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-.work-orders-page .work-orders-co-shortcut:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--primary-light);
-}
-
-.work-orders-page .work-orders-co-shortcut:disabled {
+.work-orders-page .work-orders-change-orders-link:disabled {
   opacity: 0.65;
   cursor: wait;
-}
-
-.work-orders-page .work-orders-co-more-wrap {
-  margin-top: 0.35rem;
-}
-
-.work-orders-page .work-orders-co-more-button {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.12em;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.work-orders-page .work-orders-co-more-button:hover:not(:disabled) {
-  color: var(--primary-hover);
-}
-
-.work-orders-page .work-orders-co-more-button:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
-.work-orders-page .work-orders-co-shortcut-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--primary);
-}
-
-.work-orders-page .work-orders-co-shortcut:hover .work-orders-co-shortcut-label {
-  color: var(--primary-hover);
-}
-
-.work-orders-page .work-orders-co-shortcut-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.28rem;
-  color: var(--text-secondary);
-}
-
-.work-orders-page .work-orders-co-shortcut-segment {
-  width: 0.9rem;
-  height: 0.34rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: transparent;
-}
-
-.work-orders-page .work-orders-co-shortcut-segment-active {
-  border-color: var(--primary);
-  background: var(--primary);
-}
-
-.work-orders-page .work-orders-co-shortcut-segment-success {
-  border-color: #2d6a2e;
-  background: #2d6a2e;
-}
-
-.work-orders-page .work-orders-co-shortcut-segment-danger {
-  border-color: #9f2d20;
-  background: #9f2d20;
-}
-
-.work-orders-page .work-orders-co-shortcut-segment-warning {
-  border-color: #9a5b16;
-  background: #9a5b16;
-}
-
-.work-orders-page .work-orders-co-shortcut-status-text {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 @media (max-width: 640px) {
