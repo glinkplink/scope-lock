@@ -162,7 +162,7 @@ export function buildDocusealChangeOrderEsignParts(
           </div>
           <div class="signature-field">
             <span class="signature-field-label">Date</span>
-            <date-field name="customer_signed_date" role="${esc(customerRole)}" required="true" readonly="true" default_value="${esc(docusealUsDateToday())}" style="${FIELD_STYLE_DATE}"></date-field>
+            <date-field name="customer_signed_date" role="${esc(customerRole)}" required="true" default_value="${esc(docusealUsDateToday())}" style="${FIELD_STYLE_DATE}"></date-field>
           </div>
         </div>
         <div class="signature-block">
