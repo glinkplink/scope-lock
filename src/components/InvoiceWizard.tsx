@@ -4,6 +4,7 @@ import type {
   BusinessProfile,
   Invoice,
   ChangeOrder,
+  InvoiceLineItem,
 } from '../types/db';
 import { createInvoice, updateInvoice } from '../lib/db/invoices';
 import { listChangeOrders } from '../lib/db/change-orders';
@@ -36,13 +37,35 @@ function formatTaxPercent(rate: number): string {
   return `${(rate * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
 }
 
+function roundCurrency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function computeChangeOrderTotal(co: ChangeOrder): number {
+  return roundCurrency(
+    (Array.isArray(co.line_items) ? co.line_items : []).reduce((sum, item) => {
+      const lineTotal = Number(item.quantity) * Number(item.unit_rate);
+      return Number.isFinite(lineTotal) ? sum + lineTotal : sum;
+    }, 0)
+  );
+}
+
+function isChangeOrderInvoiceLine(line: InvoiceLineItem): boolean {
+  return (
+    line.source === 'change_order' ||
+    (typeof line.change_order_id === 'string' && line.change_order_id.trim() !== '')
+  );
+}
+
 function InvoicePreviewSummary({
-  subtotal,
+  originalTotal,
+  changeOrderTotal,
   tax_amount,
   total,
   tax_rate,
 }: {
-  subtotal: number;
+  originalTotal: number;
+  changeOrderTotal: number;
   tax_amount: number;
   total: number;
   tax_rate: number;
@@ -50,8 +73,12 @@ function InvoicePreviewSummary({
   return (
     <div className="invoice-wizard-summary" role="region" aria-label="Amount preview">
       <div className="invoice-wizard-summary-row">
-        <span>Subtotal</span>
-        <span className="invoice-wizard-summary-value">${subtotal.toFixed(2)}</span>
+        <span>Original Total</span>
+        <span className="invoice-wizard-summary-value">${originalTotal.toFixed(2)}</span>
+      </div>
+      <div className="invoice-wizard-summary-row">
+        <span>CO Total</span>
+        <span className="invoice-wizard-summary-value">${changeOrderTotal.toFixed(2)}</span>
       </div>
       <div className="invoice-wizard-summary-row">
         <span>{`Tax (${formatTaxPercent(tax_rate)})`}</span>
@@ -170,10 +197,33 @@ export function InvoiceWizard({
     existingLineItems: existingInvoice?.line_items,
   });
 
-  const subtotal = Math.round(mergedLineItems.reduce((s, i) => s + i.total, 0) * 100) / 100;
+  const subtotal = roundCurrency(mergedLineItems.reduce((s, i) => s + i.total, 0));
+  const changeOrderTotal = roundCurrency(
+    mergedLineItems.reduce((sum, line) => sum + (isChangeOrderInvoiceLine(line) ? line.total : 0), 0)
+  );
+  const originalTotal = roundCurrency(subtotal - changeOrderTotal);
   const taxRate = normalizeTaxRate(percentValueToTaxRate(taxPercent));
-  const tax_amount = Math.round(subtotal * taxRate * 100) / 100;
-  const total = Math.round((subtotal + tax_amount) * 100) / 100;
+  const tax_amount = roundCurrency(subtotal * taxRate);
+  const total = roundCurrency(subtotal + tax_amount);
+  const selectedCOAmountFields =
+    !existingInvoice && selectedCOs.length > 0 ? (
+      <>
+        {selectedCOs.map((co) => {
+          const coLabel = `CO #${String(co.co_number).padStart(4, '0')}`;
+          return (
+            <div key={co.id} className="form-group">
+              <label htmlFor={`selected-co-total-${co.id}`}>{coLabel}</label>
+              <input
+                id={`selected-co-total-${co.id}`}
+                type="number"
+                readOnly
+                value={computeChangeOrderTotal(co)}
+              />
+            </div>
+          );
+        })}
+      </>
+    ) : null;
 
   const togglePayment = (method: string) => {
     setSelectedPaymentMethods((prev) =>
@@ -413,6 +463,7 @@ export function InvoiceWizard({
           <p className="content-note" style={{ marginBottom: 16 }}>
             This invoice is for CO #{String(changeOrder.co_number).padStart(4, '0')} only.
           </p>
+          {selectedCOAmountFields}
           <div className="form-group">
             <label htmlFor="fixed-tax">Tax (%)</label>
             <input
@@ -425,7 +476,8 @@ export function InvoiceWizard({
             />
           </div>
           <InvoicePreviewSummary
-            subtotal={subtotal}
+            originalTotal={originalTotal}
+            changeOrderTotal={changeOrderTotal}
             tax_amount={tax_amount}
             total={total}
             tax_rate={taxRate}
@@ -454,6 +506,7 @@ export function InvoiceWizard({
               onChange={(e) => setFixedTotal(Number(e.target.value))}
             />
           </div>
+          {selectedCOAmountFields}
           <div className="form-group">
             <label htmlFor="fixed-tax">Tax (%)</label>
             <input
@@ -466,7 +519,8 @@ export function InvoiceWizard({
             />
           </div>
           <InvoicePreviewSummary
-            subtotal={subtotal}
+            originalTotal={originalTotal}
+            changeOrderTotal={changeOrderTotal}
             tax_amount={tax_amount}
             total={total}
             tax_rate={taxRate}
@@ -545,7 +599,8 @@ export function InvoiceWizard({
             />
           </div>
           <InvoicePreviewSummary
-            subtotal={subtotal}
+            originalTotal={originalTotal}
+            changeOrderTotal={changeOrderTotal}
             tax_amount={tax_amount}
             total={total}
             tax_rate={taxRate}
@@ -651,7 +706,8 @@ export function InvoiceWizard({
             </div>
           ) : null}
           <InvoicePreviewSummary
-            subtotal={subtotal}
+            originalTotal={originalTotal}
+            changeOrderTotal={changeOrderTotal}
             tax_amount={tax_amount}
             total={total}
             tax_rate={taxRate}

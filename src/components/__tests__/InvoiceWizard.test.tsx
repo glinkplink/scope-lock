@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BusinessProfile, ChangeOrder, Invoice, Job } from '../../types/db';
 import { InvoiceWizard } from '../InvoiceWizard';
@@ -151,6 +151,10 @@ describe('InvoiceWizard', () => {
     updateInvoice.mockResolvedValue({ data: null, error: null });
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('creates a CO-scoped invoice without showing the multi-CO picker', async () => {
     const user = userEvent.setup();
     renderWizard({ changeOrder: makeCO(2, 'Second') });
@@ -159,6 +163,12 @@ describe('InvoiceWizard', () => {
       expect(screen.getByText(/CO #0002 only/i)).toBeInTheDocument();
     });
     expect(screen.queryByText(/Change orders on this job/i)).toBeNull();
+    expect(screen.getByLabelText('CO #0002')).toHaveValue(100);
+
+    const summary = screen.getByRole('region', { name: /amount preview/i });
+    expect(within(summary).getByText((_, node) => node?.textContent === 'Original Total$0.00')).toBeInTheDocument();
+    expect(within(summary).getByText((_, node) => node?.textContent === 'CO Total$100.00')).toBeInTheDocument();
+    expect(within(summary).getByText((_, node) => node?.textContent === 'Total$100.00')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /confirm/i }));
     await user.click(screen.getByRole('button', { name: /continue/i }));
@@ -179,5 +189,22 @@ describe('InvoiceWizard', () => {
     await waitFor(() => {
       expect(screen.getByText(/Change orders on this job/i)).toBeInTheDocument();
     });
+  });
+
+  it('shows separate original and combined change-order totals in fixed pricing step one', async () => {
+    renderWizard();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('CO #0001')).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText('Original scope total')).toHaveValue(100);
+    expect(screen.getByLabelText('CO #0001')).toHaveValue(100);
+    expect(screen.getByLabelText('CO #0002')).toHaveValue(100);
+
+    const summary = screen.getByRole('region', { name: /amount preview/i });
+    expect(within(summary).getByText((_, node) => node?.textContent === 'Original Total$100.00')).toBeInTheDocument();
+    expect(within(summary).getByText((_, node) => node?.textContent === 'CO Total$200.00')).toBeInTheDocument();
+    expect(within(summary).getByText((_, node) => node?.textContent === 'Total$300.00')).toBeInTheDocument();
   });
 });
