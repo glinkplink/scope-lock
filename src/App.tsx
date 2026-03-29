@@ -238,6 +238,7 @@ function App() {
           profile={profile}
           successBanner={workOrdersSuccessBanner}
           onClearSuccessBanner={() => setWorkOrdersSuccessBanner(null)}
+          onCreateWorkOrder={draftFlow.createNewAgreement}
           onCompleteProfileClick={() => {
             setProfileEntrySource('work-orders');
             navigateTo('profile');

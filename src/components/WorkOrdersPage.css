@@ -2,6 +2,8 @@
   max-width: none;
   margin: 0 auto;
   width: 100%;
+  /* Same gap: H1 → button and button → invoiced summary (when no nudge/banners between). */
+  --wo-header-rhythm: var(--space-lg);
 }
 
 .work-orders-page .work-orders-row {
@@ -22,16 +24,48 @@
 
 .work-orders-toolbar {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  margin-bottom: var(--space-lg);
+  text-align: center;
+  gap: 0;
+  margin-bottom: 0;
 }
 
 .work-orders-title {
-  font-size: 1.25rem;
+  margin: 0 0 var(--wo-header-rhythm);
+  font-size: calc(1.5rem + 6px);
   font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .work-orders-title {
+    font-size: calc(1.75rem + 8px);
+  }
+}
+
+/* Compact primary CTA (~half visual weight of Home `.btn-large`); co-located, no App.css */
+.work-orders-create-btn {
+  box-sizing: border-box;
   margin: 0;
-  text-align: center;
+  padding: 6px var(--space-md);
+  min-height: 32px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.work-orders-create-btn:hover {
+  background: var(--primary-hover);
 }
 
 .work-orders-profile-nudge {
@@ -139,6 +173,7 @@
   align-items: baseline;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
+  padding-top: var(--wo-header-rhythm);
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border);
   font-size: 0.9375rem;

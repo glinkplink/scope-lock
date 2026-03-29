@@ -101,6 +101,7 @@ interface WorkOrdersPageProps {
   profile: BusinessProfile | null;
   successBanner: string | null;
   onClearSuccessBanner: () => void;
+  onCreateWorkOrder: () => void;
   onCompleteProfileClick: () => void;
   onStartInvoice: (job: Job) => void;
   onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
@@ -113,6 +114,7 @@ export function WorkOrdersPage({
   profile,
   successBanner,
   onClearSuccessBanner,
+  onCreateWorkOrder,
   onCompleteProfileClick,
   onStartInvoice,
   onOpenPendingInvoice,
@@ -254,6 +256,13 @@ export function WorkOrdersPage({
     <div className="work-orders-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Work Orders</h1>
+        <button
+          type="button"
+          className="work-orders-create-btn"
+          onClick={onCreateWorkOrder}
+        >
+          Create Work Order
+        </button>
       </div>
 
       {showProfileNudge ? (
