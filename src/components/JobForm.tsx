@@ -841,6 +841,7 @@ export function JobForm({
           <input
             id="agreement_date"
             type="date"
+            min={new Date().toISOString().split('T')[0]}
             value={job.agreement_date}
             onChange={(e) => updateField('agreement_date', e.target.value)}
           />
@@ -1092,6 +1093,7 @@ export function JobForm({
           <input
             id="target_start"
             type="date"
+            min={new Date().toISOString().split('T')[0]}
             value={job.target_start}
             onChange={(e) => updateField('target_start', e.target.value)}
           />
