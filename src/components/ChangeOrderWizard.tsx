@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Job, BusinessProfile, ChangeOrder, ChangeOrderLineItem } from '../types/db';
 import { createChangeOrder, updateChangeOrder, computeCOTotal } from '../lib/db/change-orders';
 import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
+import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import { mergeEsignResponseIntoChangeOrder, sendChangeOrderForSignature } from '../lib/esign-api';
 import './ChangeOrderWizard.css';
 
@@ -178,7 +179,12 @@ export function ChangeOrderWizard({
         return;
       }
 
-      const payload = buildChangeOrderEsignSendPayload(savedCo, job, profile);
+      const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
+        profile?.owner_name?.trim() || ''
+      );
+      const payload = buildChangeOrderEsignSendPayload(savedCo, job, profile, {
+        providerSignatureDataUrl,
+      });
       const response = await sendChangeOrderForSignature(savedCo.id, payload);
       onComplete(mergeEsignResponseIntoChangeOrder(savedCo, response));
     } finally {

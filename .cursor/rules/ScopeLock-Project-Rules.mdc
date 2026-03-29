@@ -120,3 +120,4 @@ Before concluding any task, verify:
   - payment terms
   - completion and liability transfer
   - workmanship warranty
+- **DocuSeal / e-sign:** Local dev works when server env is complete; **end-to-end** checks (webhook URL, notification emails, signed output) follow the **deployed** host and runtime env — see **ARCHITECTURE.md** → *E-sign (DocuSeal)* and **AGENTS.md** (DocuSeal localhost vs hosted).

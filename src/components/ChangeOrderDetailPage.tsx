@@ -9,6 +9,7 @@ import {
 } from '../lib/agreement-pdf';
 import { generateChangeOrderHtml } from '../lib/change-order-generator';
 import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
+import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import '../lib/change-order-document.css';
 import { deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
@@ -139,7 +140,12 @@ export function ChangeOrderDetailPage({
     }
     setCoEsignBusy(true);
     try {
-      const payload = buildChangeOrderEsignSendPayload(co, job, profile);
+      const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
+        profile?.owner_name?.trim() || ''
+      );
+      const payload = buildChangeOrderEsignSendPayload(co, job, profile, {
+        providerSignatureDataUrl,
+      });
       const r = await sendChangeOrderForSignature(co.id, payload);
       onCoUpdated?.(mergeEsignResponseIntoChangeOrder(co, r));
       await refreshCoRow();
@@ -154,7 +160,12 @@ export function ChangeOrderDetailPage({
     setPdfError('');
     setCoEsignBusy(true);
     try {
-      const message = buildChangeOrderEsignSendPayload(co, job, profile).message;
+      const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
+        profile?.owner_name?.trim() || ''
+      );
+      const message = buildChangeOrderEsignSendPayload(co, job, profile, {
+        providerSignatureDataUrl,
+      }).message;
       const r = await resendChangeOrderSignature(co.id, message);
       onCoUpdated?.(mergeEsignResponseIntoChangeOrder(co, r));
       await refreshCoRow();

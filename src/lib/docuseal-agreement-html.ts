@@ -2,6 +2,12 @@ import type { AgreementSection, SectionContentBlock, SignatureBlockData } from '
 import { esc } from './html-escape';
 import { DOCUSEAL_CUSTOMER_ROLE } from './docuseal-constants';
 
+/** MM/DD/YYYY for DocuSeal `date-field` default_value (US). */
+export function docusealUsDateToday(): string {
+  const d = new Date();
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 interface DocusealWorkOrderHtmlOptions {
   providerSignatureDataUrl?: string | null;
 }
@@ -55,13 +61,16 @@ export function docusealAgreementEmbeddedStyles(): string {
     .content-table.parties-party-table tr.party-table-header-row th.party-header-cell { width: 26%; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-align: left; background: #E8EEF5; color: #1C3A5E; padding: 0.7rem 0.8rem; border: 1px solid #C8C4BC; }
     .content-table.parties-party-table tr.party-table-header-row th.party-header-cell:nth-child(2),
     .content-table.parties-party-table tr.party-table-header-row th.party-header-cell:nth-child(3) { width: 37%; }
-    .signature-blocks { margin-top: 1.75rem; padding-top: 1rem; }
-    .signature-block { margin-bottom: 1.5rem; }
-    .signature-block + .signature-block { margin-top: 1.5rem; padding-top: 1rem; }
+    .signature-blocks {
+      margin-top: 1.75rem; padding-top: 1rem; display: flex; gap: 2rem;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .signature-block { flex: 1; margin-bottom: 0; }
+    .signature-block + .signature-block { margin-top: 0; padding-top: 0; }
     .signature-block-identifier { font-size: 0.825rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: #1C3A5E; margin-bottom: 1rem; }
-    .signature-field { margin-bottom: 1rem; }
+    .signature-field { margin-bottom: 1rem; padding-bottom: 2px; border-bottom: 1px solid #1A1917; }
     .signature-field-label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #8A8680; margin-bottom: 2px; }
-    .signature-field-value { min-height: 1.5em; border-bottom: 1px solid #1A1917; padding-bottom: 2px; font-size: 0.9375rem; color: #1A1917; }
+    .signature-field-value { min-height: 1.5em; padding-bottom: 2px; font-size: 0.9375rem; color: #1A1917; }
     .signature-autofill-name { font-family: 'Dancing Script', cursive; font-size: 20pt; line-height: 1.15; font-weight: 400; color: #1A1917; margin-bottom: -4px; }
     .signature-autofill-image { display: block; height: 44px; max-width: 100%; object-fit: contain; object-position: left bottom; }
   </style>`;
@@ -70,7 +79,7 @@ export function docusealAgreementEmbeddedStyles(): string {
 const FIELD_STYLE_INLINE =
   'width: 220px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
 const FIELD_STYLE_SIG =
-  'width: 220px; height: 72px; display: inline-block; margin-top: 4px; vertical-align: top;';
+  'width: 200px; height: 56px; max-height: 56px; overflow: hidden; display: inline-block; margin-top: 4px; vertical-align: top;';
 const FIELD_STYLE_DATE =
   'width: 140px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
 
@@ -163,7 +172,7 @@ function docusealBlockHtml(
     </div>
     <div class="signature-field">
       <span class="signature-field-label">Date</span>
-      <date-field name="Customer Date" role="${esc(role)}" required="true" style="${FIELD_STYLE_DATE}"></date-field>
+      <date-field name="Customer Date" role="${esc(role)}" required="true" readonly="true" default_value="${esc(docusealUsDateToday())}" style="${FIELD_STYLE_DATE}"></date-field>
     </div>
   </div>
   <div class="signature-block">

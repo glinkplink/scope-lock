@@ -47,3 +47,5 @@ The following are **living documents**, not one-time setup notes:
 When in doubt, read **CLAUDE.md** for product/context detail and **ARCHITECTURE.md** for system/deployment detail, then apply the rules above.
 
 **DocuSeal API / webhooks / HTML field syntax:** Prefer the **DocuSeal MCP** (`ask_docuseal`) when you need documentation-backed answers during implementation; it does not replace env secrets or live account verification.
+
+**DocuSeal on localhost vs hosted:** Send/resend/status routes work on **`npm run dev`** / **`npm run preview`** whenever **server** env is set in `.env` / `.env.local` (`DOCUSEAL_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, webhook header vars). **Hosted deploys** (e.g. Render) must define the same **non-`VITE_`** keys on the **running service**—build-time `VITE_*` alone is not enough. **Validating** customer notification emails, signed PDF layout, and webhooks against a **public URL** is done on the **deployed** app (correct env + DocuSeal webhook pointing at that origin); that is separate from whether localhost e-sign is configured.

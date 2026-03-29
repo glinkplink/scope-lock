@@ -4,7 +4,12 @@ import type { EsignSendDocumentsPayload } from './esign-api';
 import { esc } from './html-escape';
 import { jobLocationSingleLine } from './job-site-address';
 import { buildDocusealHtmlHeader, buildDocusealHtmlFooter, buildDocusealEsignFooterLine } from './docuseal-header-footer';
-import { docusealGoogleFontLinks, docusealAgreementEmbeddedStyles } from './docuseal-agreement-html';
+import {
+  docusealGoogleFontLinks,
+  docusealAgreementEmbeddedStyles,
+  docusealUsDateToday,
+} from './docuseal-agreement-html';
+import { DOCUSEAL_CUSTOMER_ROLE } from './docuseal-constants';
 import { jobRowToWelderJob } from './job-to-welder-job';
 
 function coLineItemsTotal(items: ChangeOrderLineItem[]): number {
@@ -100,9 +105,13 @@ function lineItemsRows(items: ChangeOrderLineItem[]): string {
 const FIELD_STYLE_INLINE =
   'width: 220px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
 const FIELD_STYLE_SIG =
-  'width: 220px; height: 72px; display: inline-block; margin-top: 4px; vertical-align: top;';
+  'width: 200px; height: 56px; max-height: 56px; overflow: hidden; display: inline-block; margin-top: 4px; vertical-align: top;';
 const FIELD_STYLE_DATE =
   'width: 140px; height: 22px; display: inline-block; margin-bottom: -4px; vertical-align: middle;';
+
+export interface ChangeOrderDocusealEsignOptions {
+  providerSignatureDataUrl?: string | null;
+}
 
 /**
  * DocuSeal submission parts for a change order: full `documents[].html` plus repeating
@@ -111,7 +120,8 @@ const FIELD_STYLE_DATE =
 export function buildDocusealChangeOrderEsignParts(
   co: ChangeOrder,
   job: Job,
-  profile: BusinessProfile | null
+  profile: BusinessProfile | null,
+  options: ChangeOrderDocusealEsignOptions = {}
 ): { html: string; html_header: string; html_footer: string } {
   const woNum = job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const coNum = `Change Order #${String(co.co_number).padStart(4, '0')}`;
@@ -131,7 +141,12 @@ export function buildDocusealChangeOrderEsignParts(
   // Customer signs; provider is pre-filled
   const ownerName = profile?.owner_name || profile?.business_name || '';
   const customerName = job.customer_name || '';
-  
+  const customerRole = DOCUSEAL_CUSTOMER_ROLE;
+  const providerSignatureDataUrl = options.providerSignatureDataUrl;
+  const providerSignatureMarkup = providerSignatureDataUrl
+    ? `<img class="signature-autofill-image" src="${esc(providerSignatureDataUrl)}" alt="Service provider signature" />`
+    : `<div class="signature-autofill-name">${esc(ownerName)}</div>`;
+
   const signatureSection = co.requires_approval
     ? `
       <div class="signature-blocks">
@@ -139,26 +154,26 @@ export function buildDocusealChangeOrderEsignParts(
           <div class="signature-block-identifier">Customer</div>
           <div class="signature-field">
             <span class="signature-field-label">Name</span>
-            <text-field name="customer_printed_name" default_value="${esc(customerName)}" style="${FIELD_STYLE_INLINE}"></text-field>
+            <text-field name="customer_printed_name" role="${esc(customerRole)}" default_value="${esc(customerName)}" style="${FIELD_STYLE_INLINE}"></text-field>
           </div>
           <div class="signature-field">
             <span class="signature-field-label">Signature</span>
-            <signature-field name="customer_signature" style="${FIELD_STYLE_SIG}"></signature-field>
+            <signature-field name="customer_signature" role="${esc(customerRole)}" format="drawn_or_typed" required="true" style="${FIELD_STYLE_SIG}"></signature-field>
           </div>
           <div class="signature-field">
             <span class="signature-field-label">Date</span>
-            <date-field name="customer_signed_date" style="${FIELD_STYLE_DATE}"></date-field>
+            <date-field name="customer_signed_date" role="${esc(customerRole)}" required="true" readonly="true" default_value="${esc(docusealUsDateToday())}" style="${FIELD_STYLE_DATE}"></date-field>
           </div>
         </div>
         <div class="signature-block">
           <div class="signature-block-identifier">Service Provider</div>
           <div class="signature-field">
             <span class="signature-field-label">Name</span>
-            <div class="signature-autofill-name">${esc(ownerName)}</div>
+            <div class="signature-field-value">${esc(ownerName)}</div>
           </div>
           <div class="signature-field">
             <span class="signature-field-label">Signature</span>
-            <div class="signature-autofill-name">${esc(ownerName)}</div>
+            <div class="signature-field-value">${providerSignatureMarkup}</div>
           </div>
           <div class="signature-field">
             <span class="signature-field-label">Date</span>
@@ -228,10 +243,11 @@ ${bodyContent}
 export function buildChangeOrderEsignSendPayload(
   co: ChangeOrder,
   job: Job,
-  profile: BusinessProfile | null
+  profile: BusinessProfile | null,
+  options: ChangeOrderDocusealEsignOptions = {}
 ): EsignSendDocumentsPayload {
   const coLabelNum = String(co.co_number).padStart(4, '0');
-  const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile);
+  const { html, html_header, html_footer } = buildDocusealChangeOrderEsignParts(co, job, profile, options);
   const contractorName = profile?.business_name ?? 'Your Contractor';
   const signerName = profile?.owner_name ?? contractorName;
   const customerFirst = job.customer_name.split(' ')[0] || job.customer_name;
