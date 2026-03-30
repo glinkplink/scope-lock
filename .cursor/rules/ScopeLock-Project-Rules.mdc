@@ -121,4 +121,4 @@ Before concluding any task, verify:
   - completion and liability transfer
   - workmanship warranty
 - **DocuSeal / e-sign:** Local dev works when server env is complete; **end-to-end** checks (webhook URL, notification emails, signed output) follow the **deployed** host and runtime env — see **ARCHITECTURE.md** → *E-sign (DocuSeal)* and **AGENTS.md** (DocuSeal localhost vs hosted).
-- **Invoice lifecycle:** Keep invoice business state separate from DocuSeal and future payments. Use invoice existence + `issued_at` for `Invoice` / `Draft` / `Invoiced` UI, keep invoice `esign_status` for the detail timeline only, and do not use PDF download as the lifecycle transition.
+- **Invoice lifecycle:** Invoice business state uses invoice existence + `issued_at` (`Invoice` / `Draft` / `Invoiced`); no invoice e-sign tracking. Payment remains a separate future state machine.

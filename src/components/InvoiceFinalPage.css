@@ -19,8 +19,10 @@
   margin-bottom: var(--space-lg);
 }
 
-.invoice-final-payment-card .wo-esign-heading {
-  margin: 0 0 var(--space-sm);
+.invoice-issued-metadata {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
 }
 
 .invoice-final-payment-text {

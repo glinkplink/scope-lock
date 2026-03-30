@@ -19,8 +19,6 @@ export interface EsignSendDocumentsPayload {
 export interface EsignApiResponse {
   jobId: string;
   coId?: string;
-  invoiceId?: string;
-  issued_at?: string | null;
   esign_submission_id: string | null;
   esign_submitter_id: string | null;
   esign_embed_src: string | null;

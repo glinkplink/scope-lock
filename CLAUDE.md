@@ -118,7 +118,7 @@ src/
     docuseal-constants.ts      # Shared DocuSeal role name(s)
     docuseal-signature-image.ts # Render DocuSeal SP signature as image in signed documents
     fetch-with-supabase-auth.ts # Same-origin fetch with Bearer from Supabase session
-    esign-api.ts               # send/resend/status helpers for work orders, change orders, and invoices
+    esign-api.ts               # send/resend/status helpers for work orders and change orders
     esign-labels.ts            # E-sign status strings for UI
     esign-progress.ts          # Shared e-sign step/tone model for detail timeline + list strip
     esign-live.ts              # Shared e-sign polling cadence + in-flight status helpers + timestamp formatting

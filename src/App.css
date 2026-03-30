@@ -2004,7 +2004,7 @@ ul.invoice-payment-list {
   color: var(--text-muted);
 }
 
-/* Shared DocuSeal timeline card used by work order, change order, and invoice detail surfaces */
+/* Shared DocuSeal timeline card used by work order and change order detail surfaces */
 
 .wo-esign-card {
   margin: 0 var(--space-md) var(--space-lg);

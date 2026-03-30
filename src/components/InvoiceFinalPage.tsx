@@ -150,9 +150,18 @@ export function InvoiceFinalPage({
       ) : null}
 
       <section className="invoice-final-payment-card" aria-labelledby="invoice-payment-heading">
-        <h2 id="invoice-payment-heading" className="wo-esign-heading">
+        <h2 id="invoice-payment-heading">
           Send Invoice
         </h2>
+        {invoiceProp.issued_at && (
+          <div className="invoice-issued-metadata">
+            Issued: {new Date(invoiceProp.issued_at).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+          </div>
+        )}
         <p className="invoice-final-payment-text">
           Payment links coming soon. Download the PDF to share manually in the meantime.
         </p>

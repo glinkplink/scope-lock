@@ -96,18 +96,6 @@ export function mapInvoiceRow(data: Record<string, unknown>): Invoice {
     notes: (data.notes as string | null) ?? null,
     created_at: data.created_at as string,
     updated_at: data.updated_at as string,
-    esign_submission_id: (data.esign_submission_id as string | null) ?? null,
-    esign_submitter_id: (data.esign_submitter_id as string | null) ?? null,
-    esign_embed_src: (data.esign_embed_src as string | null) ?? null,
-    esign_status: (data.esign_status as Invoice['esign_status']) ?? 'not_sent',
-    esign_submission_state: (data.esign_submission_state as string | null) ?? null,
-    esign_submitter_state: (data.esign_submitter_state as string | null) ?? null,
-    esign_sent_at: (data.esign_sent_at as string | null) ?? null,
-    esign_opened_at: (data.esign_opened_at as string | null) ?? null,
-    esign_completed_at: (data.esign_completed_at as string | null) ?? null,
-    esign_declined_at: (data.esign_declined_at as string | null) ?? null,
-    esign_decline_reason: (data.esign_decline_reason as string | null) ?? null,
-    esign_signed_document_url: (data.esign_signed_document_url as string | null) ?? null,
   };
 }
 
@@ -174,18 +162,6 @@ export const updateInvoice = async (
     total: invoice.total,
     payment_methods: normalizePaymentMethods(invoice.payment_methods),
     notes: invoice.notes,
-    esign_submission_id: invoice.esign_submission_id,
-    esign_submitter_id: invoice.esign_submitter_id,
-    esign_embed_src: invoice.esign_embed_src,
-    esign_status: invoice.esign_status,
-    esign_submission_state: invoice.esign_submission_state,
-    esign_submitter_state: invoice.esign_submitter_state,
-    esign_sent_at: invoice.esign_sent_at,
-    esign_opened_at: invoice.esign_opened_at,
-    esign_completed_at: invoice.esign_completed_at,
-    esign_declined_at: invoice.esign_declined_at,
-    esign_decline_reason: invoice.esign_decline_reason,
-    esign_signed_document_url: invoice.esign_signed_document_url,
   };
 
   const { data, error } = await supabase

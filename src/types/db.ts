@@ -215,18 +215,6 @@ export interface Invoice {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  esign_submission_id: string | null;
-  esign_submitter_id: string | null;
-  esign_embed_src: string | null;
-  esign_status: EsignJobStatus;
-  esign_submission_state: string | null;
-  esign_submitter_state: string | null;
-  esign_sent_at: string | null;
-  esign_opened_at: string | null;
-  esign_completed_at: string | null;
-  esign_declined_at: string | null;
-  esign_decline_reason: string | null;
-  esign_signed_document_url: string | null;
 }
 
 export interface ChangeOrderLineItem {
