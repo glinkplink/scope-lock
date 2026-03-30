@@ -25,11 +25,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-}
-
-.co-list-item .work-orders-row-main {
-  gap: 8px;
+  gap: 0;
 }
 
 .co-list-heading {
@@ -54,6 +50,7 @@
   align-items: baseline;
   gap: 6px;
   width: 100%;
+  margin-bottom: 3px;
 }
 
 .co-list-number {
@@ -72,22 +69,45 @@
 }
 
 .co-list-desc {
+  display: block;
+  width: 100%;
+  margin-bottom: 2px;
+  color: var(--primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 22ch;
+}
+
+.co-list-item .work-orders-row-detail-hit:hover .co-list-desc {
+  color: var(--primary-hover);
 }
 
 .co-list-amount {
   font-size: 14px;
   font-weight: 600;
   color: #2a7a3b;
+  margin-bottom: 8px;
 }
 
 .co-list-item .esign-strip {
   margin-top: 0;
 }
 
+.co-list-item .work-orders-row-actions {
+  display: flex;
+  align-items: center;
+}
+
 .work-orders-empty.wo-co-finalized-block {
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .co-list-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
 }

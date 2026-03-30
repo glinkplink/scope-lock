@@ -707,8 +707,8 @@ export function WorkOrderDetailPage({
                         <span className="co-list-number">CO #{String(co.co_number).padStart(4, '0')}</span>
                         <span className="co-list-date">{`· ${formatRowDate(co.created_at)}`}</span>
                       </span>
-                      <span className="co-list-amount">${computeCOTotal(co.line_items).toFixed(2)}</span>
                       <span className="work-orders-customer co-list-desc">{co.description || '—'}</span>
+                      <span className="co-list-amount">${computeCOTotal(co.line_items).toFixed(2)}</span>
                       {renderEsignStrip(co.esign_status)}
                     </button>
                   </div>

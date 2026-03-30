@@ -327,10 +327,22 @@ describe('WorkOrderDetailPage', () => {
     expect(openedRow).toBeTruthy();
     const openedRowEl = openedRow as HTMLElement;
 
-    expect(within(openedRowEl).getByText('CO #0001')).toBeInTheDocument();
+    const heading = within(openedRowEl).getByText('CO #0001');
+    const description = within(openedRowEl).getByText('Opened change order');
+    const amount = within(openedRowEl).getByText('$0.00');
+    const strip = within(openedRowEl).getByLabelText('E-signature status: Opened');
+
+    expect(heading).toBeInTheDocument();
     expect(within(openedRowEl).getByText(/Jan 1, 2025/i)).toBeInTheDocument();
-    expect(within(openedRowEl).getByText('$0.00')).toBeInTheDocument();
-    expect(within(openedRowEl).getByLabelText('E-signature status: Opened')).toBeInTheDocument();
+    expect(
+      heading.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      description.compareDocumentPosition(amount) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      amount.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     const draftRowText = screen.getByText('Draft change order');
     const draftRow = draftRowText.closest('li');

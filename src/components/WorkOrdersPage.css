@@ -14,6 +14,10 @@
   gap: 8px;
 }
 
+.work-orders-page .work-orders-row-main > .esign-strip {
+  margin-top: -2px;
+}
+
 .work-orders-page .work-orders-wo {
   font-weight: 600;
   color: var(--text-primary);
