@@ -148,7 +148,7 @@ src/
     useWorkOrderDraft.ts     # Draft state + next_wo_number refresh after first save; optional onNewDraft (e.g. clear App guest information fields)
     useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
   types/
-    db.ts                    # BusinessProfile, Client, Job, Invoice, … (+ esign_* fields on Job, ChangeOrder, Invoice)
+    db.ts                    # BusinessProfile, Client, Job, ChangeOrder, Invoice (+ esign_* fields on Job, ChangeOrder)
     index.ts                 # WelderJob, AgreementSection, SignatureBlockData
     capture-flow.ts          # CaptureFlow type for anonymous capture modal
   data/
