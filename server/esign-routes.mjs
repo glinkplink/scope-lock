@@ -1463,7 +1463,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     esign_submitter_state: patch.esign_submitter_state,
   });
 
-  const { error: upErr } = await supabase.from('jobs').update(patch).eq('id', job.id);
+  const { error: upErr } = await supabase.from('jobs').update(patch).eq('id', job.id).eq('user_id', job.user_id);
   if (upErr) {
     console.error('Webhook job update failed:', upErr);
     console.log('[webhook] update failed', {
@@ -1539,7 +1539,8 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
   const { error: upErr } = await supabase
     .from('change_orders')
     .update(patch)
-    .eq('id', co.id);
+    .eq('id', co.id)
+    .eq('user_id', co.user_id);
 
   if (upErr) {
     console.error('Webhook CO update failed:', upErr);

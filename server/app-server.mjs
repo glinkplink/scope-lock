@@ -31,10 +31,18 @@ async function getBrowser() {
       executablePath,
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    }).catch((err) => {
+      browserPromise = null;
+      throw err;
     });
   }
 
-  return browserPromise;
+  const browser = await browserPromise;
+  if (!browser.isConnected()) {
+    browserPromise = null;
+    return getBrowser();
+  }
+  return browser;
 }
 
 function sendText(res, statusCode, message) {
@@ -158,7 +166,9 @@ async function handlePdfRequest(req, res) {
     page = await browser.newPage();
     /* Letter width at 96dpi — layout matches desktop PDF regardless of client screen */
     await page.setViewport({ width: 816, height: 1056 });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setDefaultNavigationTimeout(20_000);
+    await page.setDefaultTimeout(20_000);
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20_000 });
     await page.emulateMediaType('screen');
     await page.evaluate(async () => {
       if (!('fonts' in document) || !document.fonts) return;
@@ -185,6 +195,7 @@ async function handlePdfRequest(req, res) {
         bottom: '70px',
         left: '60px',
       },
+      timeout: 30_000,
     });
 
     res.writeHead(200, {
@@ -268,7 +279,16 @@ async function createAppServer() {
 
     const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
     const normalizedPath = path.normalize(requestPath).replace(/^(\.\.[/\\])+/, '');
-    let filePath = path.join(distDir, normalizedPath);
+    // Strip leading slash so path.join works correctly
+    const safePath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
+    let filePath = path.join(distDir, safePath);
+
+    // Containment check to prevent path traversal
+    const resolvedDistDir = path.resolve(distDir);
+    if (!filePath.startsWith(resolvedDistDir + path.sep) && filePath !== resolvedDistDir) {
+      sendText(res, 403, 'Forbidden');
+      return;
+    }
 
     if (!existsSync(filePath) || filePath.endsWith(path.sep)) {
       filePath = path.join(distDir, 'index.html');
