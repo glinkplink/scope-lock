@@ -218,7 +218,11 @@ scope-lock/
 │       ├── 0011_jobs_esign_status_check.sql    # CHECK constraint on jobs.esign_status
 │       ├── 0012_jobs_inflight_esign_by_user_created_at.sql  # index for in-flight WO polling
 │       ├── 0013_change_orders_esign.sql        # DocuSeal esign_* columns + constraint + index on change_orders
-│       └── 0016_invoices_esign_and_issuance.sql # invoices.issued_at + legacy DocuSeal esign_* (unused)
+│       ├── 0014_work_orders_dashboard.sql      # list_work_orders_dashboard RPC (used for targeted row refresh)
+│       ├── 0015_work_orders_dashboard_page.sql # list_work_orders_dashboard_page + get_work_orders_dashboard_summary RPCs
+│       ├── 0016_invoices_esign_and_issuance.sql # invoices.issued_at + legacy DocuSeal esign_* columns
+│       ├── 0017_remove_invoice_esign.sql       # drops invoice-specific esign_* columns; keeps issued_at
+│       └── 0018_stripe_scaffolding.sql         # stripe_account_id + stripe_onboarding_complete on business_profiles; stripe_payment_link_id, stripe_payment_url, payment_status CHECK ('unpaid'|'paid'|'offline'), paid_at on invoices
 ├── public/
 ├── index.html
 ├── package.json
@@ -298,7 +302,7 @@ Four tables in Supabase Postgres, all with row-level security:
 | `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_submission_state, esign_submitter_state, esign_sent/opened/completed/declined_at, esign_decline_reason, esign_signed_document_url |
 | `change_orders` | user_id, job_id, **co_number** (per-job sequence, UNIQUE with job_id), description, reason, status (`draft` \| `pending_approval` \| `approved` \| `rejected`), **line_items** (jsonb), time_amount / time_unit / time_note, requires_approval, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_* timestamp/state columns — legacy `price_delta` / `time_delta` / `approved` were migrated in **0005** |
-| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, legacy `status` (`draft` \| `downloaded`), **issued_at** (business issuance marker), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes |
+| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, legacy `status` (`draft` \| `downloaded`), **issued_at** (business issuance marker; set when first payment link is created), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes, **stripe_payment_link_id**, **stripe_payment_url**, **payment_status** (`unpaid` \| `paid` \| `offline`; CHECK constraint), **paid_at** (set by Stripe webhook on payment completion) |
 
 **Invoice numbering:** `public.next_invoice_number(uuid)` updates `business_profiles` in one statement and returns the allocated number (pre-increment value). No separate `updateNextInvoiceNumber` in app code.
 
@@ -343,7 +347,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
-| Invoices | Yes | Created at wizard step 3. Business state is **Draft** until `issued_at` is set via Stripe payment-link generation, then **Invoiced**. Downloading the PDF does **not** transition invoice lifecycle. |
+| Invoices | Yes | Created at wizard step 3. Business state is **Draft** until `issued_at` is set (Stripe payment-link creation sets this), then **Invoiced**. `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook; the **Paid** badge on `InvoiceFinalPage` renders from the prop — no in-page polling. Downloading the PDF does **not** transition invoice lifecycle. |
 | Clients | Yes (rows) | Upsert on **Download & Save**; **JobForm** customer-name combobox searches when authenticated |
 | Change orders | Yes | **ChangeOrderWizard** + detail page; **`create_change_order`** RPC allocates `co_number` under an advisory lock (see **0006**); no client-side retry loop |
 | Completion signoffs | No | Schema only |
@@ -377,9 +381,9 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 
 ### Top priorities (current focus)
 
-1. **Stripe / ACH payments**
-2. **Deploy to production**
-3. **Richer client management UI**
+1. **Deploy to production**
+2. **Richer client management UI**
+3. **ACH / bank payments** (Stripe Connect + payment links are shipped; ACH is next)
 
 The checkbox sections below track shipped work and the longer backlog; the three items above are the **near-term product focus** regardless of where they also appear.
 
@@ -403,6 +407,8 @@ The checkbox sections below track shipped work and the longer backlog; the three
 - [x] Research standard welder work agreements/ contracts and edit ours to match
 - [x] Generate Invoice flow from work orders (wizard + PDF + persisted invoices)
 - [x] DocuSeal e-sign for work orders and change orders (send/resend, webhook, polling, progress timeline)
+- [x] Stripe Connect Express onboarding (Edit Profile CTA, return/refresh flow, status reconciliation)
+- [x] Stripe invoice payment links (create, copy, webhook-driven `payment_status` / `paid_at`)
 - [ ] Deploy the app server and Puppeteer route alongside production hosting
 - [ ] Richer client management UI (beyond JobForm search + save-time upsert)
 - [ ] Custom branding (logo)
@@ -412,7 +418,7 @@ The checkbox sections below track shipped work and the longer backlog; the three
 - [x] Change order flow (persisted COs, wizard, PDFs, invoice integration)
 - [ ] Work Orders rollups from invoice totals (Option A)
 - [ ] Completion signoff (schema exists)
-- [ ] Stripe / ACH payments
+- [ ] ACH / bank payments (Stripe Connect + payment links already shipped)
 - [ ] Capacitor iOS/Android packaging
 
 ## Design Principles

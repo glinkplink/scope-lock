@@ -194,7 +194,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 - Work Orders e-sign polling refreshes only loaded in-flight rows; targeted row refresh can still use the older `list_work_orders_dashboard` RPC because `0014` is already applied.
 - Clicking a work-order row navigates immediately with `jobId`; `WorkOrderDetailPage` loads the full job row locally and shows a loading state while hydrating.
 - `WorkOrderDetailPage` has a single **job-level** invoice strip; invoice actions are not rendered per change-order row.
-- Invoice business state: no invoice row shows **Invoice**, an existing invoice with `issued_at = null` shows **Draft**, and `issued_at != null` shows **Invoiced**.
+- Invoice business state: no invoice row shows **Invoice**, an existing invoice with `issued_at = null` shows **Draft**, `issued_at != null` shows **Invoiced** (payment-link creation sets `issued_at`), and `payment_status = 'paid'` shows a **Paid** badge on `InvoiceFinalPage` (set by Stripe webhook; no in-page polling).
 - `ChangeOrderWizard` now saves the CO, sends the DocuSeal request immediately, then routes to `ChangeOrderDetailPage`; CO business `status` tracks approval lifecycle (`pending_approval` after send/open, `approved` on completed signature, `rejected` on decline).
 - **`jobs.esign_*` and `change_orders.esign_*`:** detail surfaces show e-sign progress, signing actions, and signed artifacts. While e-sign is in-flight, detail pages call **`GET /api/esign/work-orders/:id/status`** or **`GET /api/esign/change-orders/:id/status`** (authenticated) to reconcile DocuSeal into the row; webhooks update the same fields. **Email** subject/body for DocuSeal notifications and **signed PDF** layout are best verified on the **deployed** app (public URL + production-like env), not assumed identical to every local setup.
 
@@ -228,7 +228,7 @@ Migrations are in `supabase/migrations/` — apply via Supabase CLI (`npx supaba
 | Current work order **draft** (form state) | No — in-memory until **Download & Save** |
 | Jobs | Yes — on **Download & Save** (`saveWorkOrder`); listed on **Work Orders** |
 | Clients | Yes — upserted on **Download & Save** keyed by `name_normalized`; **JobForm** can search/suggest when `userId` is set |
-| Invoices | Yes — wizard + final page; business state derives from `issued_at` (Stripe payment links set this in future) |
+| Invoices | Yes — wizard + final page; business state derives from `issued_at` (set when first Stripe payment link is created) and `payment_status` / `paid_at` (set by Stripe webhook) |
 | Change orders | Yes — wizard + detail; `create_change_order` RPC + migration **0006_change_order_creation_lock.sql** for atomic numbering |
 
 ---

@@ -19,7 +19,7 @@ alwaysApply: true
 - When changing rules in **any** of those files, **compare the same topic in the others** and **keep them aligned** (especially CSS co-location, HTML/`esc()` rules, architecture/deployment constraints, and minimal-diff discipline).
 - If a rule is meant to be global, mirror it across the shared rule files or replace duplication with a single explicit pointer.
 - **DocuSeal / e-sign:** Server env on the **running** process (not only `VITE_*` at build); validate webhooks and notification email on the **deployed** URL when checking production parity — **ARCHITECTURE.md** (*E-sign*) and **AGENTS.md**.
-- **Invoice lifecycle:** Business status uses invoice existence + `issued_at` (`Draft`/`Invoiced`); no invoice e-sign tracking. Payment remains a separate future state machine.
+- **Invoice lifecycle:** No row → `Invoice`, `issued_at = null` → `Draft`, `issued_at != null` → `Invoiced` (payment-link creation sets `issued_at`). `payment_status`/`paid_at` set by Stripe webhook. No invoice e-sign tracking.
 
 ## CSS (mandatory)
 - Co-locate styles: `ComponentName.tsx` + `ComponentName.css`; owner imports its own CSS.

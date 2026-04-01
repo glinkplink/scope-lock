@@ -121,4 +121,4 @@ Before concluding any task, verify:
   - completion and liability transfer
   - workmanship warranty
 - **DocuSeal / e-sign:** Local dev works when server env is complete; **end-to-end** checks (webhook URL, notification emails, signed output) follow the **deployed** host and runtime env — see **ARCHITECTURE.md** → *E-sign (DocuSeal)* and **AGENTS.md** (DocuSeal localhost vs hosted).
-- **Invoice lifecycle:** Invoice business state uses invoice existence + `issued_at` (`Invoice` / `Draft` / `Invoiced`); no invoice e-sign tracking. Payment remains a separate future state machine.
+- **Invoice lifecycle:** Invoice business state: no row → `Invoice`, `issued_at = null` → `Draft`, `issued_at != null` → `Invoiced` (payment-link creation sets `issued_at`). `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook; no invoice e-sign tracking.
