@@ -9,7 +9,11 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "lint": "eslint .",
-    "preview": "NODE_ENV=production node server/app-server.mjs"
+    "preview": "NODE_ENV=production node server/app-server.mjs",
+    "start": "NODE_ENV=production node server/app-server.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",

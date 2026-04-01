@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import puppeteer from 'puppeteer-core';
 import { tryHandleEsignRoute } from './esign-routes.mjs';
 import { tryHandleStripeRoute } from './stripe-routes.mjs';
+import { checkRateLimit, getClientIp } from './lib/rate-limit.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -254,6 +255,24 @@ async function createAppServer() {
       return;
     }
 
+    // Rate limit: 5 req/min per IP for Stripe Connect start
+    if (req.method === 'POST' && req.url === '/api/stripe/connect/start') {
+      const clientIp = getClientIp(req);
+      if (!checkRateLimit(`stripe-connect:${clientIp}`, 5, 60 * 1000)) {
+        sendJson(res, 429, { error: 'Too many requests.' });
+        return;
+      }
+    }
+
+    // Rate limit: 5 req/min per IP for esign send/resend
+    if (req.method === 'POST' && /^\/api\/esign\/(work-orders|change-orders)\/[\w-]+\/(send|resend)$/.test(req.url)) {
+      const clientIp = getClientIp(req);
+      if (!checkRateLimit(`esign:${clientIp}`, 5, 60 * 1000)) {
+        sendJson(res, 429, { error: 'Too many requests.' });
+        return;
+      }
+    }
+
     const handledStripe = await tryHandleStripeRoute(req, res, {
       readJsonBody,
       readRawBody,
@@ -265,6 +284,12 @@ async function createAppServer() {
     }
 
     if (req.method === 'POST' && req.url === '/api/pdf') {
+      // Rate limit: 10 req/min per IP
+      const clientIp = getClientIp(req);
+      if (!checkRateLimit(`pdf:${clientIp}`, 10, 60 * 1000)) {
+        sendJson(res, 429, { error: 'Too many requests.' });
+        return;
+      }
       await handlePdfRequest(req, res);
       return;
     }

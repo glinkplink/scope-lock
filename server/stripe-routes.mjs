@@ -385,6 +385,18 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
 }
 
 async function markInvoicePaidFromWebhook(supabase, invoiceId, paidAt) {
+  // Idempotency check - skip if already paid
+  const { data: existing } = await supabase
+    .from('invoices')
+    .select('payment_status')
+    .eq('id', invoiceId)
+    .maybeSingle();
+
+  if (existing?.payment_status === 'paid') {
+    console.log('[stripe webhook] invoice already paid, skipping update', { invoiceId });
+    return existing;
+  }
+
   const { data: invoice, error } = await supabase
     .from('invoices')
     .update({
@@ -428,6 +440,12 @@ async function handleWebhook(req, res, helpers) {
     return;
   }
 
+  console.log('[stripe webhook] received', {
+    eventId: event.id,
+    eventType: event.type,
+    invoiceId: event.data?.object?.metadata?.invoice_id ?? null,
+  });
+
   let supabase;
   try {
     supabase = getServiceSupabase({
@@ -454,6 +472,7 @@ async function handleWebhook(req, res, helpers) {
     event.type !== 'checkout.session.completed' &&
     event.type !== 'checkout.session.async_payment_succeeded'
   ) {
+    console.log('[stripe webhook] ignoring unhandled event type', { eventId: event.id, eventType: event.type });
     helpers.sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
@@ -472,6 +491,7 @@ async function handleWebhook(req, res, helpers) {
 
   try {
     await markInvoicePaidFromWebhook(supabase, invoiceId, paymentDateFromEvent(event));
+    console.log('[stripe webhook] marked invoice paid', { invoiceId, eventId: event.id, eventType: event.type });
   } catch (error) {
     helpers.sendJson(res, 500, {
       error: error instanceof Error ? error.message : 'Could not reconcile invoice payment.',
