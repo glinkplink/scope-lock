@@ -21,6 +21,12 @@ interface InvoiceFinalPageProps {
   onInvoiceUpdated: (invoice: Invoice) => void;
 }
 
+// NOTE: payment_status and paid_at are rendered from the invoiceProp passed by the parent.
+// These fields are only updated via the Stripe webhook handler on the server. A user sitting
+// on this page after a payment completes will not see the Paid badge until they navigate away
+// and back. There is no polling or realtime subscription here. If real-time payment confirmation
+// becomes a priority, add a polling interval or a Supabase realtime channel subscription on
+// the invoices row keyed by invoice.id.
 export function InvoiceFinalPage({
   invoice: invoiceProp,
   job,

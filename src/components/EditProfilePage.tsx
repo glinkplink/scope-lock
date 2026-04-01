@@ -16,14 +16,8 @@ import {
   validatePaymentTermsDays,
 } from '../lib/payment-terms';
 import { redirectToStripeConnect, startStripeConnect } from '../lib/stripe-connect';
+import type { StripeConnectNotice } from '../hooks/useAuthProfile';
 import './EditProfilePage.css';
-
-type StripeNoticeTone = 'success' | 'info' | 'error';
-
-export interface StripeConnectNotice {
-  tone: StripeNoticeTone;
-  message: string;
-}
 
 interface EditProfilePageProps {
   profile: BusinessProfile;

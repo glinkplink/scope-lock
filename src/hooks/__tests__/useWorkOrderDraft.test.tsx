@@ -50,8 +50,6 @@ function baseProfile(over: Partial<BusinessProfile> = {}): BusinessProfile {
     updated_at: '2025-01-01T00:00:00Z',
     ...over,
   };
-  profile.stripe_account_id = over.stripe_account_id ?? null;
-  profile.stripe_onboarding_complete = over.stripe_onboarding_complete ?? false;
   return profile;
 }
 

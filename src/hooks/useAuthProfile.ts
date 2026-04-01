@@ -233,6 +233,7 @@ export function useAuthProfile({
       if (stripeConnectState === 'refresh') {
         try {
           const status = await getStripeConnectStatus();
+          if (!active) return;
           await loadProfile({ silent: true });
           if (!active) return;
           setStripeConnectNotice(
@@ -241,6 +242,7 @@ export function useAuthProfile({
               : { tone: 'info', message: 'Stripe setup is still incomplete. Continue onboarding to finish connecting your account.' }
           );
         } catch (error) {
+          if (!active) return;
           await loadProfile({ silent: true });
           if (!active) return;
           setStripeConnectNotice({
@@ -257,6 +259,7 @@ export function useAuthProfile({
 
       try {
         const status = await getStripeConnectStatus();
+        if (!active) return;
         await loadProfile({ silent: true });
         if (!active) return;
         setStripeConnectNotice(
@@ -272,6 +275,7 @@ export function useAuthProfile({
               }
         );
       } catch (error) {
+        if (!active) return;
         await loadProfile({ silent: true });
         if (!active) return;
         setStripeConnectNotice({
