@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node server/app-server.mjs",
+    "dev:kill": "lsof -ti:3000 | xargs -r kill -9; node server/app-server.mjs",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "lint": "eslint .",

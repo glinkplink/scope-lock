@@ -281,7 +281,7 @@ function App() {
     if (view === 'work-orders' && user) {
       return renderLazyPage(
         <WorkOrdersPage
-          key={user.id}
+          key={`${user.id}-inv-${invoice.refreshKey}`}
           userId={user.id}
           profile={profile}
           successBanner={workOrdersSuccessBanner}

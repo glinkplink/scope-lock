@@ -8,6 +8,7 @@ export type InvoiceFlowState = {
   invoiceFlowTarget: 'job' | 'change_order' | null;
   wizardExistingInvoice: Invoice | null;
   activeInvoice: Invoice | null;
+  refreshKey: number;
 };
 
 const initialInvoice: InvoiceFlowState = {
@@ -16,6 +17,7 @@ const initialInvoice: InvoiceFlowState = {
   invoiceFlowTarget: null,
   wizardExistingInvoice: null,
   activeInvoice: null,
+  refreshKey: 0,
 };
 
 type LoadProfile = (opts?: { silent?: boolean }) => void | Promise<void>;
@@ -115,6 +117,7 @@ export function useInvoiceFlow(
         invoiceFlowChangeOrder: null,
         invoiceFlowTarget: null,
         activeInvoice: null,
+        refreshKey: prev.refreshKey + 1,
       }));
       navigateTo('work-orders');
     }
@@ -129,6 +132,7 @@ export function useInvoiceFlow(
       invoiceFlowTarget: null,
       activeInvoice: null,
       wizardExistingInvoice: null,
+      refreshKey: i.refreshKey + 1,
     }));
   }, [navigateTo]);
 
