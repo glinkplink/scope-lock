@@ -1,5 +1,20 @@
 import { createAccountOnboardingLink, createConnectedAccount, createInvoicePaymentLink, constructWebhookEvent } from './lib/stripe.mjs';
-import { getServiceSupabase } from './lib/service-supabase.mjs';
+import { createClient } from '@supabase/supabase-js';
+
+let serviceSupabaseSingleton = null;
+
+function getServiceSupabase({ errorCode = 'STRIPE_CONFIG', errorMessage } = {}) {
+  if (serviceSupabaseSingleton) return serviceSupabaseSingleton;
+  const url = env('SUPABASE_URL');
+  const key = env('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) {
+    const err = new Error(errorMessage || 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for Stripe routes.');
+    err.code = errorCode;
+    throw err;
+  }
+  serviceSupabaseSingleton = createClient(url, key);
+  return serviceSupabaseSingleton;
+}
 
 function env(name, fallback = '') {
   const value = process.env[name];
