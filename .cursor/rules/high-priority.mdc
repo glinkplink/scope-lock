@@ -18,6 +18,7 @@ alwaysApply: true
 - **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, **[ARCHITECTURE.md](../../ARCHITECTURE.md)**, **ScopeLock-Project-Rules.mdc**, and **this file** are **living documents**. After **substantive code changes**, update affected docs so they stay accurate.
 - When changing rules in **any** of those files, **compare the same topic in the others** and **keep them aligned** (especially CSS co-location, HTML/`esc()` rules, architecture/deployment constraints, and minimal-diff discipline).
 - If a rule is meant to be global, mirror it across the shared rule files or replace duplication with a single explicit pointer.
+- **Public branding:** Use **IronWork** in user-facing copy and product prose. Legacy internal identifiers, repo paths, storage keys, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may remain when renaming would risk breakage or make the reference inaccurate.
 - **DocuSeal / e-sign:** Server env on the **running** process (not only `VITE_*` at build); validate webhooks and notification email on the **deployed** URL when checking production parity — **ARCHITECTURE.md** (*E-sign*) and **AGENTS.md**.
 - **Invoice lifecycle:** No row → `Invoice`, `issued_at = null` → `Draft`, `issued_at != null` → `Invoiced` (payment-link creation sets `issued_at`). `payment_status`/`paid_at` set by Stripe webhook. No invoice e-sign tracking. **`InvoiceFinalPage`** refetches the invoice once on mount.
 - **E-sign UI:** No interval polling; WO/CO detail sync status on open (plus send/resend refreshes).

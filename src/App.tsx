@@ -462,7 +462,7 @@ function App() {
         <button
           type="button"
           className="app-title"
-          aria-label="ScopeLock, go to home"
+          aria-label="IronWork, go to home"
           onClick={() => {
             navigateTo('home');
             invoiceFlow.resetInvoiceFlow();
@@ -471,7 +471,7 @@ function App() {
             changeOrderFlow.resetChangeOrderFlow();
           }}
         >
-          ScopeLock
+          IRONWORK
         </button>
         <div className="header-actions">
           {!user && (
@@ -542,7 +542,7 @@ function App() {
       <main className="app-main">{renderView()}</main>
 
       <footer className="app-footer">
-        <p>ScopeLock - Protect Your Work</p>
+        <p>IronWork - Protect Your Work</p>
       </footer>
 
       {draft.showUnsavedModal && (

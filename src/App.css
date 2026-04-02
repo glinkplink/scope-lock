@@ -1,4 +1,4 @@
-/* ScopeLock — Field Notebook Style */
+/* IronWork — Field Notebook Style */
 
 :root {
   --primary: #1C3A5E;
@@ -85,9 +85,16 @@ body {
   background: none;
   border: none;
   padding: 0;
-  font: inherit;
   color: inherit;
   text-align: inherit;
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Teko', 'Barlow', sans-serif;
+  font-size: 2.125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 0.9;
+  text-transform: uppercase;
 }
 
 .app-title:focus:not(:focus-visible) {
@@ -1209,6 +1216,11 @@ body {
 
   .app-header h1 {
     font-size: 2rem;
+  }
+
+  .app-title {
+    font-size: 2.5rem;
+    letter-spacing: 0.09em;
   }
 
   .header-work-orders-link {

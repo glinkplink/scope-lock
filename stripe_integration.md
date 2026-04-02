@@ -2,7 +2,7 @@
 
 ## Summary
 
-This document captures the current Stripe and invoice-lifecycle decisions for ScopeLock.
+This document captures the current Stripe and invoice-lifecycle decisions for IronWork.
 
 The immediate priority is to finish the invoice e-sign flow and lock down the work-order/change-order invoice model. Stripe should attach to that stable invoice model instead of driving it.
 
@@ -47,7 +47,7 @@ The immediate priority is to finish the invoice e-sign flow and lock down the wo
 - Create a per-invoice Stripe Payment Link server-side.
 - Generate or refresh that link when the invoice is sent from the invoice detail surface.
 - Automatically inject the payment link into the outgoing invoice message.
-- Use Stripe metadata to attach the ScopeLock invoice identity to the payment object.
+- Use Stripe metadata to attach the IronWork invoice identity to the payment object.
 - Use Stripe webhooks to mark the invoice paid.
 - Do not rely on browser redirects or client-side polling as the source of truth for payment confirmation.
 
@@ -56,7 +56,7 @@ The immediate priority is to finish the invoice e-sign flow and lock down the wo
 - Lower implementation overhead than embedded Checkout.
 - Fits the current same-origin Node server architecture.
 - Works well with the invoice send flow already being built around DocuSeal.
-- Lets ScopeLock remain the system of record for invoice numbering, invoice PDFs, and invoice composition.
+- Lets IronWork remain the system of record for invoice numbering, invoice PDFs, and invoice composition.
 
 ## Invoice E-sign Before Stripe
 

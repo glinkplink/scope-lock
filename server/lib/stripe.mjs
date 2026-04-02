@@ -198,7 +198,7 @@ export async function createOrReuseInvoicePaymentLink({ invoice, userId, supabas
     userId,
     totalCents,
     title: `Invoice #${invoiceNumber}`,
-    description: `ScopeLock invoice #${invoiceNumber}`,
+    description: `IronWork invoice #${invoiceNumber}`,
   });
 
   if (error || !linkData?.url) {

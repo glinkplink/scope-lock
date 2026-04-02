@@ -1,4 +1,4 @@
-# ScopeLock
+# IronWork
 
 Work agreement generator for contractors (initially welders). Contractors fill out a job form and get a professional PDF agreement to send to clients.
 
@@ -213,7 +213,7 @@ Or paste each migration into Supabase Dashboard → SQL Editor.
 
 ## Deployment
 
-ScopeLock **must** run as a **long-lived Node process** with **Chrome available** on that same environment. Typical shape:
+IronWork **must** run as a **long-lived Node process** with **Chrome available** on that same environment. Typical shape:
 
 1. **`npm ci`** (or `npm install`)
 2. Set **`VITE_*`** vars for the build environment and run **`npm run build`**

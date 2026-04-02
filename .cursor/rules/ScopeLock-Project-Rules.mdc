@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 
-# ScopeLock Project Rules
+# IronWork Project Rules
 
 ## Living documentation & cross-agent alignment
 
@@ -11,6 +11,7 @@ These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CL
 - **After each substantive code change** (new UI surfaces, routes, patterns, stack or dependency changes, security or styling conventions), **review and update** the affected doc(s) so they match the repo.
 - **When editing any agent-facing file** (`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, this file, or **high-priority.mdc**), **compare the same topic across the others** and **keep rules aligned**—especially CSS co-location, HTML/`esc()` discipline, architecture/deployment constraints, and file-creation/minimal-diff discipline. Do not let one file mandate what another omits or contradicts.
 - If a rule is intended to be global, mirror it across every global-rules file or replace repetition with a single explicit pointer.
+- **Public branding:** Use **IronWork** in user-facing copy and product prose. Legacy internal identifiers, repo paths, storage keys, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may remain when renaming would risk breakage or make the reference inaccurate.
 
 ## Core principles
 - Keep the codebase small, boring, and easy to inspect manually.

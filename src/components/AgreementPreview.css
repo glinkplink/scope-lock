@@ -3,6 +3,7 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   align-items: center;
+  justify-content: center;
 }
 
 .preview-esign-hint {

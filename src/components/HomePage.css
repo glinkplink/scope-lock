@@ -27,7 +27,7 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 0;
-  margin-bottom: var(--space-md);
+  margin-bottom: calc(var(--space-xl) + var(--space-sm));
   line-height: 1.25;
 }
 
@@ -37,13 +37,6 @@
 
 .home-greeting + h1 {
   margin-top: 38px;
-}
-
-.home-description {
-  font-size: 1rem;
-  color: var(--text-secondary);
-  margin-bottom: calc(var(--space-xl) + var(--space-lg));
-  line-height: 1.65;
 }
 
 .home-content .btn-large {
@@ -67,10 +60,7 @@
 @media (min-width: 640px) {
   .home-content h1 {
     font-size: calc(2rem + 9px);
-  }
-
-  .home-description {
-    font-size: calc(1rem + 9px);
+    margin-bottom: calc(var(--space-xl) + var(--space-md));
   }
 
   .home-content .btn-large {

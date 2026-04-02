@@ -1,4 +1,4 @@
-# Agent instructions — ScopeLock
+# Agent instructions — IronWork
 
 This file is for **every** automated assistant (Cursor, Claude, Codex, and others). It defines **non‑negotiable** repo conventions. Full product context lives in **[CLAUDE.md](./CLAUDE.md)**, and deeper system/deployment reference lives in **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
@@ -43,6 +43,7 @@ The following are **living documents**, not one-time setup notes:
 - **HTML string generators:** User-controlled text in HTML builders must use `esc()` from `src/lib/html-escape.ts` (see CLAUDE.md → “Generated HTML strings”).
 - **Invoice issuance gate:** Invoice issuance (`POST /api/stripe/invoices/:id/payment-link` and `POST /api/invoices/:id/send`) is blocked until the parent work order is signature-satisfied (DocuSeal `completed` or `jobs.offline_signed_at` set). Invoice drafts can still be created before signature.
 - **E-sign / invoice UI refresh:** No client interval polling for DocuSeal. Work-order and change-order detail call `GET …/status` once on open (and send/resend already refresh). **`InvoiceFinalPage`** refetches the invoice row once on mount so Stripe webhook updates (e.g. paid) show without navigating away.
+- **Public branding:** Use **IronWork** for user-facing copy and product prose. Legacy internal identifiers, storage keys, repo paths, and factual filenames (for example **`ScopeLock-Project-Rules.mdc`**) may remain when renaming would risk breakage or make references inaccurate.
 - **Shared rules stay shared:** If you add or tighten a repo-wide rule here, mirror it in `CLAUDE.md` and the Cursor rule files in the same change.
 - **Domain vs UI, minimal diffs, no mystery dependencies:** See **ScopeLock-Project-Rules.mdc** and **high-priority.mdc**.
 

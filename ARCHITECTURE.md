@@ -1,4 +1,4 @@
-# ScopeLock Architecture
+# IronWork Architecture
 
 ## Agent documentation & living documents
 
@@ -13,10 +13,11 @@
 - **After each substantive code change** that affects architecture, deployment, system boundaries, routes, patterns, stack/dependencies, or cross-cutting implementation conventions, update whichever of these files are affected.
 - **When editing any of these agent-facing files**, compare the same topic across the others and keep them aligned, especially for architecture/deployment constraints, CSS co-location, HTML/`esc()` rules, and minimal-diff/file-discipline guidance.
 - `AGENTS.md` remains the first-stop rules file; this document is the deeper system and deployment reference.
+- **Public branding:** Use **IronWork** in product prose and user-facing copy. Legacy internal identifiers, repo paths, storage keys, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may remain where renaming would be risky or inaccurate.
 
 ## Product Purpose
 
-ScopeLock helps independent welders quickly generate short, professional job agreements for small jobs. The goal is to prevent disputes, clarify scope, and protect the welder from being blamed for issues outside their work.
+IronWork helps independent welders quickly generate short, professional job agreements for small jobs. The goal is to prevent disputes, clarify scope, and protect the welder from being blamed for issues outside their work.
 
 The generated document is a concise 1–3 page agreement, not a long legal contract.
 
@@ -499,7 +500,7 @@ npx supabase db push
 
 ## Deployment
 
-ScopeLock is **not** deployable as a static export only. The product contract includes **Download PDF** for work orders, invoices, change orders, and combined documents; all of those use **`POST /api/pdf`** on the app server.
+IronWork is **not** deployable as a static export only. The product contract includes **Download PDF** for work orders, invoices, change orders, and combined documents; all of those use **`POST /api/pdf`** on the app server.
 
 ### Runtime checklist
 

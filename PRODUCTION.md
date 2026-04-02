@@ -1,6 +1,6 @@
-# ScopeLock — Production Readiness
+# IronWork — Production Readiness
 
-Comprehensive checklist for taking ScopeLock to production. Organized by who does the work.
+Comprehensive checklist for taking IronWork to production. Organized by who does the work.
 
 ---
 
@@ -62,7 +62,7 @@ Everything in this section requires action outside the codebase — Stripe dashb
 - [x] **Register a DocuSeal account** and get an API key
 - [x] **Configure a webhook** in DocuSeal pointing to `https://[your-domain]/api/webhooks/docuseal`
   - Copy the header name and secret value — these are `DOCUSEAL_WEBHOOK_HEADER_NAME` and `DOCUSEAL_WEBHOOK_HEADER_VALUE`
-- [ ] **Test e-sign flow** end-to-end: send a work order, receive the DocuSeal email, sign, verify the work order updates in ScopeLock
+- [ ] **Test e-sign flow** end-to-end: send a work order, receive the DocuSeal email, sign, verify the work order updates in IronWork
 
 ---
 

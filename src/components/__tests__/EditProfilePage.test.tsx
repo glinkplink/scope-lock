@@ -123,6 +123,9 @@ describe('EditProfilePage payment validation', () => {
       />
     );
 
+    expect(
+      screen.getByText(/accept invoice payments through IronWork/i)
+    ).toBeInTheDocument();
     expect(screen.getByText('Not connected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Connect Stripe/i })).toHaveAttribute('type', 'button');
 

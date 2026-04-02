@@ -1,4 +1,4 @@
-# ScopeLock — CLAUDE.md
+# IronWork — CLAUDE.md
 
 Work agreement generator for contractors (initially welders). Contractors fill out a job form and get a professional PDF agreement to send to clients.
 
@@ -17,6 +17,7 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 - **After each substantive code change** (new UI, routes, patterns, stack or dependencies, security or style conventions), **review and update** whichever files are affected.
 - **When editing any of these agent-facing files**, **compare the same topic across the others** and **align** them so guidance does not drift or contradict—especially **CSS co-location**, **HTML / `esc()`** (see below), **architecture / deployment constraints**, and **file-creation / minimal-diff discipline**.
 - If a rule is intended to be global, mirror it in every file that carries global rules or replace duplication with a single explicit pointer. Do not let one file silently become stricter than the others.
+- **Public branding:** Use **IronWork** in user-facing copy and product prose. Legacy internal identifiers, storage keys, repo paths, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may stay when renaming would risk breakage or make the reference inaccurate.
 
 ---
 
@@ -31,7 +32,7 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 | E-sign | DocuSeal **HTML submissions** from the client; work-order and change-order **send/resend** plus authenticated **`GET .../status`** (DocuSeal sync), **`POST /api/webhooks/docuseal`** (see **ARCHITECTURE.md**) |
 | Payments | Stripe Connect Express onboarding via authenticated **`/api/stripe/connect/start`** + **`/api/stripe/connect/status`**; invoice payment links + **`POST /api/stripe/webhook`** |
 | Styling | Plain CSS (`index.css`, global `App.css`, and co-located component/page CSS files) — no Tailwind |
-| Font | Barlow (+ Dancing Script for agreement signature) — field notebook aesthetic |
+| Font | Barlow + Teko (header wordmark) + Dancing Script (agreement signature) — field notebook aesthetic |
 
 ---
 

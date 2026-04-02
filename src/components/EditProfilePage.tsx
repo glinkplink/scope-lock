@@ -470,7 +470,7 @@ export function EditProfilePage({
             <section className="form-section edit-profile-stripe-section">
               <h2>Stripe Connect</h2>
               <p className="section-description">
-                Connect your Stripe account here when you are ready to accept invoice payments through ScopeLock.
+                Connect your Stripe account here when you are ready to accept invoice payments through IronWork.
               </p>
 
               <div className="edit-profile-stripe-status-row">
