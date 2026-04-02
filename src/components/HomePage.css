@@ -3,13 +3,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-height: 0;
-  padding: 15vh 0 var(--space-xl);
+  width: 100%;
+  box-sizing: border-box;
+  /* Cap vertical padding ~60–80px; tighter than previous 15vh */
+  padding: clamp(1.5rem, 5vh, 5rem) var(--space-md);
 }
 
 .home-content {
   text-align: center;
-  max-width: 480px;
+  max-width: min(40rem, 100%);
+  width: 100%;
 }
 
 .home-content h1 {
@@ -17,7 +22,7 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 0;
-  margin-bottom: var(--space-sm);
+  margin-bottom: 0.375rem;
   line-height: 1.25;
 }
 
@@ -26,18 +31,19 @@
   font-weight: 500;
   line-height: 1.4;
   color: var(--text-secondary);
-  margin: 0 auto calc(var(--space-xl) + var(--space-sm));
+  margin: 0 auto var(--space-md);
   max-width: 22em;
 }
 
 .home-content > h1:first-child {
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 .home-content .btn-large {
   font-size: 0.9375rem;
   min-height: 48px;
-  padding: 10px var(--space-xl);
+  min-width: 220px;
+  padding: 15px 26px;
   box-sizing: border-box;
 }
 
@@ -53,19 +59,28 @@
 }
 
 @media (min-width: 640px) {
+  .home-page {
+    padding: clamp(1.75rem, 5vh, 5rem) var(--space-lg);
+  }
+
+  .home-content {
+    max-width: min(43.75rem, 100%);
+  }
+
   .home-content h1 {
     font-size: calc(2rem + 9px);
-    margin-bottom: var(--space-md);
+    margin-bottom: 0.5rem;
   }
 
   .home-subheading {
     font-size: 1.125rem;
-    margin-bottom: calc(var(--space-xl) + var(--space-md));
+    margin-bottom: var(--space-lg);
   }
 
   .home-content .btn-large {
     font-size: calc(1rem + 9px);
     min-height: unset;
-    padding: 14px var(--space-xl);
+    min-width: 240px;
+    padding: 16px 28px;
   }
 }
