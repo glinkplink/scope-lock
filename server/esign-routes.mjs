@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { buildEsignRowFromSubmission, pickCustomerSubmitter, DOCUSEAL_CUSTOMER_ROLE } from './docuseal-esign-state.mjs';
+import { log } from './lib/logger.mjs';
 
 /** Max UTF-8 bytes for all HTML fields forwarded to DocuSeal on send (abuse / accident guard). */
 const ESIGN_MAX_HTML_BYTES = 2 * 1024 * 1024;
@@ -1217,12 +1218,12 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   }
 
   const received = getWebhookHeader(req, headerName);
-  console.log('[webhook] request arrived', {
+  log.info('webhook request arrived', {
     headerName,
     hasHeader: Boolean(received),
   });
   if (!timingSafeEqualString(headerSecret, received)) {
-    console.log('[webhook] header rejected', {
+    log.info('[webhook] header rejected', {
       headerName,
       hasHeader: Boolean(received),
     });
@@ -1251,7 +1252,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   const submitterId = formEvent ? (data.id ?? null) : null;
   const payloadExternalId = data.external_id ?? null;
 
-  console.log('[webhook] received', {
+  log.info('[webhook] received', {
     eventType,
     eventFamily: formEvent ? 'form' : submissionEvent ? 'submission' : 'other',
     submissionId: submissionId != null ? String(submissionId) : null,
@@ -1273,12 +1274,12 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
         try {
           verifiedInfo = await verifySubmissionForFormWebhook({ esign_submission_id: coResolved.co.esign_submission_id }, data);
         } catch (e) {
-          console.error('DocuSeal verify submission failed for CO:', e);
+          log.error('DocuSeal verify submission failed for CO', log.errCtx(e));
           sendJson(res, 502, { error: 'Could not verify submission with DocuSeal.' });
           return;
         }
         if (!verifiedInfo || !verifiedInfo.verified) {
-          console.log('[webhook] ignored: could not determine submission to verify (change order)', {
+          log.info('[webhook] ignored: could not determine submission to verify (change order)', {
             coId: String(coResolved.co.id),
             submitterId: submitterId != null ? String(submitterId) : null,
           });
@@ -1295,7 +1296,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
         );
         return;
       }
-      console.log('[webhook] ignored: missing correlation', {
+      log.info('[webhook] ignored: missing correlation', {
         eventType,
         submissionId: submissionId != null ? String(submissionId) : null,
         submitterId: submitterId != null ? String(submitterId) : null,
@@ -1305,7 +1306,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
       return;
     }
 
-    console.log('[webhook] resolved job', {
+    log.info('[webhook] resolved job', {
       eventType,
       submissionId: submissionId != null ? String(submissionId) : null,
       submitterId: submitterId != null ? String(submitterId) : null,
@@ -1318,13 +1319,13 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     try {
       verifiedInfo = await verifySubmissionForFormWebhook(resolved.job, data);
     } catch (e) {
-      console.error('DocuSeal verify submission failed:', e);
+      log.error('DocuSeal verify submission failed', log.errCtx(e));
       sendJson(res, 502, { error: 'Could not verify submission with DocuSeal.' });
       return;
     }
 
     if (!verifiedInfo || !verifiedInfo.verified) {
-      console.log('[webhook] ignored: could not determine submission to verify', {
+      log.info('[webhook] ignored: could not determine submission to verify', {
         eventType,
         jobId: String(resolved.job.id),
         submitterId: submitterId != null ? String(submitterId) : null,
@@ -1334,7 +1335,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     }
   } else {
     if (submissionId == null) {
-      console.log('[webhook] ignored: missing correlation', { eventType });
+      log.info('[webhook] ignored: missing correlation', { eventType });
       sendJson(res, 200, { ok: true, ignored: true });
       return;
     }
@@ -1348,7 +1349,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
         payloadSubmissionId: String(submissionId),
       };
     } catch (e) {
-      console.error('DocuSeal verify submission failed:', e);
+      log.error('DocuSeal verify submission failed', log.errCtx(e));
       sendJson(res, 502, { error: 'Could not verify submission with DocuSeal.' });
       return;
     }
@@ -1368,7 +1369,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
         );
         return;
       }
-      console.log('[webhook] ignored: no matching job', {
+      log.info('[webhook] ignored: no matching job', {
         submissionId: String(verifiedInfo.verified.id),
         eventType,
       });
@@ -1378,7 +1379,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   }
 
   const verified = verifiedInfo.verified;
-  console.log('[webhook] verified submission', {
+  log.info('[webhook] verified submission', {
     submissionId: String(verified.id),
     submissionStatus: verified.status ?? null,
     submitterStatus: pickCustomerSubmitter(verified)?.status ?? null,
@@ -1387,7 +1388,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   });
 
   if (!formEvent) {
-    console.log('[webhook] resolved job', {
+    log.info('[webhook] resolved job', {
       submissionId: String(verified.id),
       jobId: String(resolved.job.id),
       resolvedBy: resolved.resolvedBy,
@@ -1400,7 +1401,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     verifiedInfo.payloadSubmissionId &&
     String(verified.id) !== String(verifiedInfo.payloadSubmissionId)
   ) {
-    console.log('[webhook] ignored: stale submission', {
+    log.info('[webhook] ignored: stale submission', {
       submissionId: String(verified.id),
       payloadSubmissionId: String(verifiedInfo.payloadSubmissionId),
       jobId: String(resolved.job.id),
@@ -1418,7 +1419,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
   ) {
     const rerouted = await resolveJobForVerifiedSubmissionWebhook(supabase, data, verified);
     if (rerouted && String(rerouted.job.id) !== String(resolved.job.id)) {
-      console.log('[webhook] rerouted job after verification', {
+      log.info('[webhook] rerouted job after verification', {
         submissionId: String(verified.id),
         fromJobId: String(resolved.job.id),
         toJobId: String(rerouted.job.id),
@@ -1439,7 +1440,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     job.esign_submission_id &&
     String(verified.id) !== String(job.esign_submission_id)
   ) {
-    console.log('[webhook] ignored: stale submission', {
+    log.info('[webhook] ignored: stale submission', {
       submissionId: String(verified.id),
       jobId: String(job.id),
       jobSubmissionId: String(job.esign_submission_id),
@@ -1451,7 +1452,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
 
   const patch = buildEsignRowFromSubmission(verified);
   if (!patch) {
-    console.log('[webhook] ignored: could not derive esign patch', {
+    log.info('[webhook] ignored: could not derive esign patch', {
       submissionId: String(verified.id),
       jobId: String(job.id),
     });
@@ -1459,7 +1460,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     return;
   }
 
-  console.log('[webhook] derived patch', {
+  log.info('[webhook] derived patch', {
     submissionId: String(verified.id),
     jobId: String(job.id),
     esign_status: patch.esign_status,
@@ -1469,8 +1470,8 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
 
   const { error: upErr } = await supabase.from('jobs').update(patch).eq('id', job.id).eq('user_id', job.user_id);
   if (upErr) {
-    console.error('Webhook job update failed:', upErr);
-    console.log('[webhook] update failed', {
+    log.error('Webhook job update failed', log.errCtx(upErr));
+    log.info('[webhook] update failed', {
       submissionId: String(verified.id),
       jobId: String(job.id),
       esign_status: patch.esign_status,
@@ -1480,7 +1481,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
     return;
   }
 
-  console.log('[webhook] update applied', {
+  log.info('[webhook] update applied', {
     submissionId: String(verified.id),
     jobId: String(job.id),
     esign_status: patch.esign_status,
@@ -1492,7 +1493,7 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
 /** Handle webhook update for a change order (simplified form-webhook path). */
 async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolvedBy, sendJson, res) {
   if (!verifiedInfo || !verifiedInfo.verified) {
-    console.log('[webhook] CO ignored: could not verify submission');
+    log.info('[webhook] CO ignored: could not verify submission');
     sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
@@ -1502,7 +1503,7 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
     verifiedInfo.payloadSubmissionId &&
     String(verified.id) !== String(verifiedInfo.payloadSubmissionId)
   ) {
-    console.log('[webhook] CO ignored: stale submission', {
+    log.info('[webhook] CO ignored: stale submission', {
       submissionId: String(verified.id),
       payloadSubmissionId: String(verifiedInfo.payloadSubmissionId),
       coId: String(co.id),
@@ -1517,7 +1518,7 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
     co.esign_submission_id &&
     String(verified.id) !== String(co.esign_submission_id)
   ) {
-    console.log('[webhook] CO ignored: stale submission', {
+    log.info('[webhook] CO ignored: stale submission', {
       submissionId: String(verified.id),
       coId: String(co.id),
       coSubmissionId: String(co.esign_submission_id),
@@ -1529,12 +1530,12 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
 
   const patch = buildChangeOrderPatchFromSubmission(verified, co.status);
   if (!patch) {
-    console.log('[webhook] CO ignored: no patch from submission');
+    log.info('[webhook] CO ignored: no patch from submission');
     sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
 
-  console.log('[webhook] CO derived patch', {
+  log.info('[webhook] CO derived patch', {
     coId: co.id,
     esign_status: patch.esign_status,
     esign_submission_state: patch.esign_submission_state,
@@ -1547,8 +1548,8 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
     .eq('user_id', co.user_id);
 
   if (upErr) {
-    console.error('Webhook CO update failed:', upErr);
-    console.log('[webhook] CO update failed', {
+    log.error('Webhook CO update failed', log.errCtx(upErr));
+    log.info('[webhook] CO update failed', {
       coId: co.id,
       esign_status: patch.esign_status,
       error: upErr.message,
@@ -1557,7 +1558,7 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
     return;
   }
 
-  console.log('[webhook] CO update applied', {
+  log.info('[webhook] CO update applied', {
     coId: co.id,
     esign_status: patch.esign_status,
   });
@@ -1616,7 +1617,7 @@ export async function tryHandleEsignRoute(req, res, helpers) {
       return true;
     }
   } catch (e) {
-    console.error('E-sign route error:', e);
+    log.error('E-sign route error', log.errCtx(e));
     const code = e && typeof e === 'object' && 'code' in e ? e.code : undefined;
     if (code === 'ESIGN_CONFIG') {
       sendJson(res, 503, { error: 'E-sign is temporarily unavailable.' });

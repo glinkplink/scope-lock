@@ -1,5 +1,6 @@
 import { createOrReuseInvoicePaymentLink } from './lib/stripe.mjs';
 import { esc } from './lib/html-escape.mjs';
+import { log } from './lib/logger.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -181,7 +182,7 @@ export async function tryHandleInvoiceRoute(req, res, helpers) {
     try {
       return await handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText });
     } catch (err) {
-      console.error('Invoice send error:', err);
+      log.error('Invoice send error', log.errCtx(err));
       const msg = err instanceof Error ? err.message : 'Internal server error';
       sendJson(res, 500, { error: msg });
       return true;
@@ -337,7 +338,7 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
   try {
     pdfBuffer = await renderInvoicePdf({ invoice, html, profile });
   } catch (err) {
-    console.error('PDF generation failed:', err);
+    log.error('Invoice PDF generation failed', log.errCtx(err));
     sendJson(res, 500, { error: 'Could not generate invoice PDF.' });
     return true;
   }
@@ -373,7 +374,7 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
 
   if (!resendResponse.ok) {
     const errorData = await resendResponse.json().catch(() => ({}));
-    console.error('Resend API error:', errorData);
+    log.error('Resend API error', { response: errorData });
     sendJson(res, 502, { error: 'Could not send invoice email.' });
     return true;
   }
@@ -397,7 +398,7 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     .single();
 
   if (updateErr) {
-    console.error('Failed to update invoice after send:', updateErr);
+    log.error('Failed to update invoice after send', log.errCtx(updateErr));
     // Email was sent, so return success but log the DB error
   }
 

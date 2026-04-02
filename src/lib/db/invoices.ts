@@ -337,7 +337,7 @@ export const listInvoiceStatusByJob = async (
 ): Promise<ListInvoiceStatusByJobResult> => {
   const { data, error } = await supabase
     .from('invoices')
-    .select('id, job_id, issued_at, invoice_number, created_at, line_items')
+    .select('id, job_id, issued_at, invoice_number, created_at, line_items, payment_status')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 

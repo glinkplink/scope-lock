@@ -6,6 +6,7 @@ import {
   getConnectedAccount,
   createOrReuseInvoicePaymentLink,
 } from './lib/stripe.mjs';
+import { log } from './lib/logger.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 let serviceSupabaseSingleton = null;
@@ -358,7 +359,7 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
   }
 }
 
-async function markInvoicePaidFromWebhook(supabase, invoiceId, paidAt) {
+async function markInvoicePaidFromWebhook(supabase, invoiceId, paidAt, eventId) {
   // Idempotency check - skip if already paid
   const { data: existing } = await supabase
     .from('invoices')
@@ -367,7 +368,7 @@ async function markInvoicePaidFromWebhook(supabase, invoiceId, paidAt) {
     .maybeSingle();
 
   if (existing?.payment_status === 'paid') {
-    console.log('[stripe webhook] invoice already paid, skipping update', { invoiceId });
+    log.info('invoice already paid, skipping duplicate', { invoiceId, eventId });
     return existing;
   }
 
@@ -390,12 +391,14 @@ async function markInvoicePaidFromWebhook(supabase, invoiceId, paidAt) {
 async function handleWebhook(req, res, helpers) {
   const secret = env('STRIPE_WEBHOOK_SECRET');
   if (!secret) {
+    log.warn('stripe webhook secret not configured');
     helpers.sendJson(res, 503, { error: 'Stripe webhook secret is not configured.' });
     return;
   }
 
   const signature = req.headers['stripe-signature'];
   if (!signature || typeof signature !== 'string') {
+    log.warn('missing stripe signature header');
     helpers.sendJson(res, 400, { error: 'Missing Stripe signature header.' });
     return;
   }
@@ -404,17 +407,19 @@ async function handleWebhook(req, res, helpers) {
   try {
     payload = await helpers.readRawBody(req);
   } catch {
+    log.warn('invalid webhook payload');
     helpers.sendJson(res, 400, { error: 'Invalid webhook payload.' });
     return;
   }
 
   const { data: event, error: eventErr } = constructWebhookEvent(payload, signature, secret);
   if (eventErr || !event) {
+    log.warn('stripe signature verification failed', { error: eventErr });
     helpers.sendJson(res, 400, { error: eventErr || 'Could not verify Stripe webhook.' });
     return;
   }
 
-  console.log('[stripe webhook] received', {
+  log.info('stripe webhook received', {
     eventId: event.id,
     eventType: event.type,
     invoiceId: event.data?.object?.metadata?.invoice_id ?? null,
@@ -427,6 +432,7 @@ async function handleWebhook(req, res, helpers) {
       errorMessage: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for Stripe routes.',
     });
   } catch (error) {
+    log.error('supabase not configured for stripe webhook', log.errCtx(error));
     helpers.sendJson(res, 503, {
       error: error instanceof Error ? error.message : 'Stripe is unavailable.',
     });
@@ -434,7 +440,7 @@ async function handleWebhook(req, res, helpers) {
   }
 
   if (event.type === 'checkout.session.async_payment_failed') {
-    console.log('[stripe webhook] async payment failed', {
+    log.info('async payment failed', {
       eventId: event.id,
       invoiceId: event.data?.object?.metadata?.invoice_id ?? null,
     });
@@ -446,7 +452,7 @@ async function handleWebhook(req, res, helpers) {
     event.type !== 'checkout.session.completed' &&
     event.type !== 'checkout.session.async_payment_succeeded'
   ) {
-    console.log('[stripe webhook] ignoring unhandled event type', { eventId: event.id, eventType: event.type });
+    log.info('ignoring unhandled event type', { eventId: event.id, eventType: event.type });
     helpers.sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
@@ -454,19 +460,22 @@ async function handleWebhook(req, res, helpers) {
   const session = event.data?.object;
   const invoiceId = session?.metadata?.invoice_id;
   if (typeof invoiceId !== 'string' || !invoiceId.trim()) {
+    log.warn('webhook missing invoice_id in metadata', { eventId: event.id, eventType: event.type });
     helpers.sendJson(res, 200, { ok: true, ignored: true });
     return;
   }
 
   if (event.type === 'checkout.session.completed' && session?.payment_status !== 'paid') {
+    log.info('checkout session pending async payment', { eventId: event.id, invoiceId });
     helpers.sendJson(res, 200, { ok: true, pending: true });
     return;
   }
 
   try {
-    await markInvoicePaidFromWebhook(supabase, invoiceId, paymentDateFromEvent(event));
-    console.log('[stripe webhook] marked invoice paid', { invoiceId, eventId: event.id, eventType: event.type });
+    await markInvoicePaidFromWebhook(supabase, invoiceId, paymentDateFromEvent(event), event.id);
+    log.info('marked invoice paid', { invoiceId, eventId: event.id, eventType: event.type });
   } catch (error) {
+    log.error('failed to mark invoice paid', { invoiceId, eventId: event.id, ...log.errCtx(error) });
     helpers.sendJson(res, 500, {
       error: error instanceof Error ? error.message : 'Could not reconcile invoice payment.',
     });

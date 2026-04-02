@@ -10,6 +10,7 @@ import { tryHandleEsignRoute } from './esign-routes.mjs';
 import { tryHandleStripeRoute } from './stripe-routes.mjs';
 import { tryHandleInvoiceRoute } from './invoice-routes.mjs';
 import { checkRateLimit, getClientIp } from './lib/rate-limit.mjs';
+import { log } from './lib/logger.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -211,7 +212,7 @@ async function handlePdfRequest(req, res) {
     res.end(pdf);
     return true;
   } catch (error) {
-    console.error('PDF generation failed:', error);
+    log.error('PDF generation failed', log.errCtx(error));
     const message = error instanceof Error ? error.message : 'Failed to generate PDF.';
     sendText(res, 500, message);
     return true;
@@ -315,7 +316,7 @@ async function createAppServer() {
       vite.middlewares(req, res, (err) => {
         if (err) {
           vite.ssrFixStacktrace(err);
-          console.error(err);
+          log.error('Vite SSR error', log.errCtx(err));
           sendText(res, 500, err.message);
         }
       });
@@ -349,7 +350,7 @@ async function createAppServer() {
       });
       createReadStream(filePath).pipe(res);
     } catch (error) {
-      console.error('Static file serving failed:', error);
+      log.error('Static file serving failed', log.errCtx(error));
       try {
         const indexHtml = await readFile(path.join(distDir, 'index.html'));
         res.writeHead(200, {
@@ -365,12 +366,12 @@ async function createAppServer() {
   });
 
   server.listen(port, host, () => {
-    console.log(`App server listening on http://${host}:${port}`);
-    console.log(`PDF rendering uses Chrome at ${executablePath}`);
+    log.info('app server listening', { host, port });
+    log.info('PDF rendering uses Chrome', { executablePath });
   });
 
   async function shutdown(signal) {
-    console.log(`Received ${signal}, shutting down app server...`);
+    log.info('shutting down app server', { signal });
     server.close();
 
     if (vite) {

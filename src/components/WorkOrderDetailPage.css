@@ -1,3 +1,49 @@
+.wo-invoice-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--surface-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.wo-invoice-status-loading,
+.wo-invoice-status-error {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.wo-invoice-status-error {
+  color: #c53030;
+}
+
+.wo-invoice-number {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.badge-paid {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #2a7a3b;
+  border-radius: var(--radius);
+}
+
+.badge-offline {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #744210;
+  border-radius: var(--radius);
+}
+
 .wo-detail-invoice-strip {
   border-bottom: none;
   padding-top: 0;
