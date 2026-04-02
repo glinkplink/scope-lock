@@ -48,8 +48,8 @@ import {
   getBlocksNewChangeOrdersForJob,
   listInvoiceStatusByChangeOrder,
   listInvoiceStatusByJob,
-  WorkOrderInvoiceStatus,
 } from '../lib/db/invoices';
+import type { WorkOrderInvoiceStatus } from '../lib/db/invoices';
 import './WorkOrderDetailPage.css';
 
 const ROW_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {

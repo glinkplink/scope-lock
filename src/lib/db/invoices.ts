@@ -7,6 +7,7 @@ import type {
   InvoiceLineItemSource,
   WorkOrderInvoiceStatus,
 } from '../../types/db';
+export type { WorkOrderInvoiceStatus } from '../../types/db';
 import { normalizePaymentMethods } from '../payment-methods';
 
 export type CreateInvoiceInput = {
