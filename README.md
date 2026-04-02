@@ -48,6 +48,8 @@ curl -s http://127.0.0.1:3000/api/pdf/health
 
 There is **no** `vite preview` workflow as the primary way to run the product: the supported path is **always** the custom app server so PDFs work.
 
+The client also ships install metadata for **iOS home-screen**, **Android install prompts**, and a minimal **service worker** for app-shell caching. This is an installable PWA setup, not an offline-first business workflow: PDF, auth, Stripe, and DocuSeal routes still require network access.
+
 ---
 
 ## Environment variables

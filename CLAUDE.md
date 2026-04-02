@@ -31,6 +31,7 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 | PDF | Puppeteer Core + **system Chrome**; all document PDFs via **same-origin** `POST /api/pdf` |
 | E-sign | DocuSeal **HTML submissions** from the client; work-order and change-order **send/resend** plus authenticated **`GET .../status`** (DocuSeal sync), **`POST /api/webhooks/docuseal`** (see **ARCHITECTURE.md**) |
 | Payments | Stripe Connect Express onboarding via authenticated **`/api/stripe/connect/start`** + **`/api/stripe/connect/status`**; invoice payment links + **`POST /api/stripe/webhook`** |
+| Install / PWA | `manifest.webmanifest` + root icon assets + minimal `public/sw.js` app-shell caching; installable on iOS/Android, not offline-first |
 | Styling | Plain CSS (`index.css`, global `App.css`, and co-located component/page CSS files) — no Tailwind |
 | Font | Barlow + Teko (header wordmark) + Dancing Script (agreement signature) — field notebook aesthetic |
 
@@ -73,6 +74,7 @@ src/
   App.tsx                    # Root — view state machine, auth-aware shell
   App.css                    # Global design tokens, app shell/layout, shared utilities (badges, mini e-sign strip), print/PDF globals
   index.css                  # Base reset + font stack
+  main.tsx                   # Client bootstrap + production service worker registration
   components/
     AuthPage.tsx             # Sign-in only (email + password); header “Sign In”
     AuthPage.css             # AuthPage-only styles
@@ -163,6 +165,10 @@ server/
   esign-routes.mjs           # JWT send/resend; webhook verify + service-role e-sign updates
   lib/stripe.mjs             # Stripe SDK helpers for account links, account status, payment links, webhook verification
   docuseal-esign-state.mjs   # Map DocuSeal submission/submitter → shared esign_* patch (shared w/ tests via @scope-server alias)
+public/
+  ironwork_symbol_forgeblock.svg # Canonical IronWork icon source for favicon / PWA assets
+  manifest.webmanifest      # App install metadata for iOS / Android / PWA
+  sw.js                     # Minimal same-origin app-shell caching; excludes API routes
 ```
 
 ---

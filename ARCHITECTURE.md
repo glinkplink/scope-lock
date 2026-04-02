@@ -48,6 +48,9 @@ A contractor can **start a work order without signing in**. They fill the job fo
 - **Puppeteer requires an app server** instead of pure static hosting for PDF generation.
   The frontend sends the rendered agreement HTML to the app's `/api/pdf` route so Chrome can
   render the file with much closer parity to the on-screen preview.
+- **PWA install support is metadata-first:** the app includes a manifest, platform icons, and a
+  minimal service worker for installability and shell caching, but it is **not** an offline-first
+  product. Auth, PDFs, Stripe, DocuSeal, and data mutations still require network access.
 
 ### E-sign (DocuSeal)
 
@@ -133,6 +136,10 @@ A contractor can **start a work order without signing in**. They fill the job fo
 
 ```
 scope-lock/
+├── public/
+│   ├── ironwork_symbol_forgeblock.svg # Canonical icon source
+│   ├── manifest.webmanifest         # iOS / Android / PWA install metadata
+│   └── sw.js                        # Minimal same-origin app-shell service worker
 ├── src/
 │   ├── components/
 │   │   ├── AuthPage.tsx              # Sign-in only (email + password)
