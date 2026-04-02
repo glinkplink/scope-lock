@@ -91,18 +91,18 @@ Everything in this section requires action outside the codebase — Stripe dashb
 
 ## Smoke Test Checklist (Run After Every Production Deploy)
 
-Run these manually or automate as integration tests before marking a deploy healthy:
+Run these manually or automate as integration tests before marking a deploy healthy. The first two rows are **HTTP** checks: use **curl** or a browser with a **full URL** (host + path). The app server must be running (e.g. `npm run dev` → default `http://127.0.0.1:3000`).
 
-- [ ] `GET /api/pdf/health` → `{ "ok": true }`
-- [ ] `GET /api/webhooks/docuseal` → `{ "ok": true }`
-- [ ] Sign in → Create Work Order → fill form → Preview renders
-- [ ] Download PDF (work order) → file opens correctly
+- [x] `GET /api/pdf/health` → `{ "ok": true }` — e.g. `curl -sS http://127.0.0.1:3000/api/pdf/health` locally, or `curl -sS https://ironwork.app/api/pdf/health` after deploy
+- [x] `GET /api/webhooks/docuseal` → `{ "ok": true }` — e.g. `curl -sS http://127.0.0.1:3000/api/webhooks/docuseal`
+- [x] Sign in → Create Work Order → fill form → Preview renders
+- [x] Download PDF (work order) → file opens correctly
 - [ ] Send for Signature → DocuSeal email received → sign → work order status updates in dashboard
 - [ ] Create Invoice → wizard completes → InvoiceFinalPage shows payment link button
-- [ ] Click "Create Payment Link" → link generated and copied to clipboard
+- [x] Click "Create Payment Link" → link generated and copied to clipboard
 - [ ] Mark test invoice as paid via Stripe webhook/test flow → Work Orders dashboard shows `Paid`
-- [ ] Edit Profile → Stripe section visible → "Connect Stripe" button present
-- [ ] Click "Connect Stripe" → redirects to Stripe onboarding (test mode)
+- [x] Edit Profile → Stripe section visible → "Connect Stripe" button present
+- [x] Click "Connect Stripe" → redirects to Stripe onboarding (test mode)
 - [ ] Complete onboarding → returns to app → profile shows "Connected"
 
 ---
