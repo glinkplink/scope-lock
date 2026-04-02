@@ -11,6 +11,7 @@ import { tryHandleStripeRoute } from './stripe-routes.mjs';
 import { tryHandleInvoiceRoute } from './invoice-routes.mjs';
 import { checkRateLimit, getClientIp } from './lib/rate-limit.mjs';
 import { log } from './lib/logger.mjs';
+import { initSentry, captureException, Sentry } from './lib/sentry.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -224,6 +225,7 @@ async function handlePdfRequest(req, res) {
 }
 
 async function createAppServer() {
+  initSentry();
   let vite;
 
   if (isDev) {
@@ -238,6 +240,7 @@ async function createAppServer() {
   }
 
   const server = http.createServer(async (req, res) => {
+    try {
     if (!req.url || !req.method) {
       sendText(res, 400, 'Invalid request.');
       return;
@@ -363,6 +366,11 @@ async function createAppServer() {
         sendText(res, 500, 'Failed to serve application.');
       }
     }
+    } catch (err) {
+      captureException(err, { url: req.url, method: req.method });
+      log.error('Unhandled request error', log.errCtx(err));
+      if (!res.headersSent) sendText(res, 500, 'Internal server error.');
+    }
   });
 
   server.listen(port, host, () => {
@@ -392,6 +400,18 @@ async function createAppServer() {
 
   process.on('SIGTERM', () => {
     void shutdown('SIGTERM');
+  });
+
+  process.on('uncaughtException', (err) => {
+    captureException(err);
+    log.error('Uncaught exception', log.errCtx(err));
+    void Sentry.close(2000).finally(() => process.exit(1));
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    captureException(err);
+    log.error('Unhandled rejection', log.errCtx(err));
   });
 }
 

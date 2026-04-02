@@ -72,6 +72,11 @@ A contractor can **start a work order without signing in**. They fill the job fo
 - **Return flow:** Stripe onboarding returns to `/?stripe_connect=return` and refresh uses `/?stripe_connect=refresh`. The client moves the user to **Edit Profile**, clears the query param from the URL, reloads profile state, and surfaces a status banner there.
 - **Hosted deploys (e.g. Render):** The runtime environment must include **`STRIPE_SECRET_KEY`**, **`STRIPE_WEBHOOK_SECRET`**, and optionally **`APP_BASE_URL`** if forwarded headers are not sufficient to derive the public origin for Connect return links.
 
+### Observability (app server)
+
+- **Optional `SENTRY_DSN`:** When set, `@sentry/node` is initialized in `server/app-server.mjs` after dotenv loads. Uncaught exceptions flush the Sentry client then exit the process; unhandled promise rejections are reported without exiting. The main HTTP listener callback is wrapped in try/catch so unexpected errors still log and can be sent to Sentry before a generic **500** response (when headers are not yet sent).
+- **Uptime:** External monitors should probe **`GET /api/pdf/health`** (returns **`{ "ok": true }`**) on the public origin; the app does not ship a separate heartbeat endpoint.
+
 ### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
 - **Web fonts**: PDF HTML includes the same Google Fonts `<link>`s as `index.html` (Barlow + **Dancing
   Script** for the Service Provider signature). The server waits for `document.fonts.ready`, loads

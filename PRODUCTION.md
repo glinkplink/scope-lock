@@ -46,6 +46,7 @@ Everything in this section requires action outside the codebase — Stripe dashb
   DOCUSEAL_WEBHOOK_HEADER_NAME=...             # exact header name from DocuSeal webhook settings
   DOCUSEAL_WEBHOOK_HEADER_VALUE=...            # raw secret, not hashed
   VITE_GEOAPIFY_API_KEY=...                    # optional — job site autocomplete
+  SENTRY_DSN=...                               # optional — server-side error tracking (@sentry/node)
   ```
 - [x] **Set `VITE_*` vars as build-time args** (Render: Environment → add to Build env vars) — these are baked into the client bundle at build time, not runtime
 - [x] **Verify the health check** after first deploy: `curl https://[your-domain]/api/pdf/health` → `{"ok":true}`
@@ -81,7 +82,7 @@ Everything in this section requires action outside the codebase — Stripe dashb
 
 ### Known Gaps
 
-- [ ] **No error tracking (Sentry or equivalent)** — server-side Puppeteer crashes, Stripe API errors, and DocuSeal failures are silent. No alerting, no stack traces in a dashboard. You'll only notice problems when users report them or you check logs manually. (Structured JSON logging added as partial improvement.)
+- [x] **Error tracking** — Sentry (`@sentry/node`) captures server-side exceptions, unhandled request errors, and process-level `uncaughtException` / `unhandledRejection`. Set `SENTRY_DSN` on the web service. For uptime, use an external HTTP monitor (e.g. Better Stack free tier) against `GET /api/pdf/health` at a few-minute interval with email alerts.
 - [x] **No structured logging on Stripe webhook** — payment events (paid, failed, amount mismatch) now logged with event IDs
 - [x] **Stripe webhook idempotency audit trail** — duplicate events now logged with event ID
 - [x] **`Paid` status on Work Order detail** — `WorkOrderDetailPage` now surfaces invoice `payment_status`
@@ -110,6 +111,5 @@ Run these manually or automate as integration tests before marking a deploy heal
 
 These are not blockers but are the next logical increments:
 
-1. **Error tracking (Sentry or equivalent)** — server-side crash visibility, alerting, stack traces
-2. **Change order invoice billing rules** — decide whether paid COs appear as informational rows on final WO invoices
-3. **Stripe payouts visibility** — minimal payouts summary on Edit Profile (not a full dashboard, just "your last payout was $X on DATE")
+1. **Change order invoice billing rules** — decide whether paid COs appear as informational rows on final WO invoices
+2. **Stripe payouts visibility** — minimal payouts summary on Edit Profile (not a full dashboard, just "your last payout was $X on DATE")
