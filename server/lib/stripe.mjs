@@ -29,6 +29,15 @@ export async function createConnectedAccount(email) {
     const account = await stripe.accounts.create({
       type: 'express',
       ...(email ? { email } : {}),
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_profile: {
+        // MCC 1799: Special Trade Contractors (welders, general contractors)
+        // Required for card_payments capability; without it onboarding stalls.
+        mcc: '1799',
+      },
     });
     return {
       data: {
@@ -85,6 +94,8 @@ export async function getConnectedAccount(accountId) {
         details_submitted: Boolean(account.details_submitted),
         charges_enabled: Boolean(account.charges_enabled),
         payouts_enabled: Boolean(account.payouts_enabled),
+        card_payments_status: account.capabilities?.card_payments ?? 'inactive',
+        transfers_status: account.capabilities?.transfers ?? 'inactive',
       },
       error: null,
     };

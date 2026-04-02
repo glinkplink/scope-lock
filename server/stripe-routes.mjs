@@ -109,7 +109,9 @@ function stripeConnectionStatus(profile, account = null) {
 }
 
 function isStripeOnboardingComplete(account) {
-  return Boolean(account?.details_submitted);
+  // details_submitted can be true even when required fields are past_due and charges are disabled.
+  // charges_enabled is the reliable signal that Stripe has actually verified the account.
+  return Boolean(account?.charges_enabled);
 }
 
 function paymentDateFromEvent(event) {
@@ -331,6 +333,24 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
   if (!profile?.stripe_account_id) {
     sendJson(res, 409, {
       error: 'Stripe payouts are not set up yet. Start Connect onboarding first.',
+    });
+    return;
+  }
+
+  // Guard: verify card_payments capability is active before attempting to create a payment link.
+  // Without this, Stripe returns: "You cannot create a charge on a connected account without
+  // the card_payments capability enabled."
+  const { data: connectedAccount, error: capErr } = await getConnectedAccount(profile.stripe_account_id);
+  if (capErr || !connectedAccount) {
+    sendJson(res, 502, { error: 'Could not verify Stripe account capabilities.' });
+    return;
+  }
+  if (connectedAccount.card_payments_status !== 'active') {
+    sendJson(res, 409, {
+      error:
+        connectedAccount.card_payments_status === 'pending'
+          ? 'Your Stripe account is still being verified. Complete onboarding and wait for Stripe approval before sending invoices.'
+          : 'Your Stripe account is not approved to accept payments yet. Complete Stripe onboarding to enable card payments.',
     });
     return;
   }
