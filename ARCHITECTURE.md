@@ -81,9 +81,8 @@ A contractor can **start a work order without signing in**. They fill the job fo
 - **Uptime:** External monitors should probe **`GET /api/pdf/health`** (returns **`{ "ok": true }`**) on the public origin; the app does not ship a separate heartbeat endpoint. **Runbook** (Better Stack MCP verification, optional Render logs/metrics): **[PRODUCTION.md](./PRODUCTION.md)** → *Human Intervention* → **Better Stack** / **Render**.
 
 ### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
-- **Web fonts**: PDF HTML includes the same Google Fonts `<link>`s as `index.html` (Barlow + **Dancing
-  Script** for the Service Provider signature). The server waits for `document.fonts.ready`, loads
-  Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders.
+- **Web fonts**: **`index.html`** loads Outfit, Chakra Petch, Barlow, and Dancing Script (Forge shell + document faces). **`buildPdfHtml`** (`agreement-pdf.ts`) embeds its **own** Google Fonts `<link>` for **Barlow + Dancing Script** and sets PDF `body` to Barlow; it does **not** depend on the SPA font link. The server waits for `document.fonts.ready`, loads Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders. **On-screen** agreement/invoice preview sheets use **`--font-document`** (Barlow stack) on scoped containers so typography matches PDF while the app `body` uses Outfit.
+- **Raw `App.css` in PDF HTML:** The client inlines raw `App.css` into PDF HTML. **Light document tokens** in `:root` (`--text-primary`, `--agreement-*`, etc.) must stay valid for markup; Forge shell tokens are additive. If legacy document variables are ever switched to dark semantics, **pin light values** in `buildPdfHtml` after the inlined CSS.
 - **Viewport**: PDF generation uses **`page.setViewport({ width: 816, height: 1056 })`** (Letter at
   96dpi) so layout is consistent regardless of client screen size.
 - **Preview (native 816 + optional desktop upscale)**: Sheet HTML is **816px** wide with **no

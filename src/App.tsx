@@ -11,7 +11,7 @@ import { signUp } from './lib/auth';
 import { buildInitialProfileDefaults } from './lib/defaults';
 import { getInvoice } from './lib/db/invoices';
 import type { BusinessProfile, ChangeOrder, Job } from './types/db';
-import { Settings } from 'lucide-react';
+import { ClipboardList, Home, Plus, Settings, User } from 'lucide-react';
 import { useInvoiceFlow } from './hooks/useInvoiceFlow';
 import { useChangeOrderFlow } from './hooks/useChangeOrderFlow';
 import { useWorkOrderDraft } from './hooks/useWorkOrderDraft';
@@ -78,7 +78,7 @@ class LazyPageErrorBoundary extends Component<{ children: ReactNode }, { hasErro
     if (this.state.hasError) {
       return (
         <div className="app-loading" style={{ textAlign: 'center', paddingTop: '4rem' }}>
-          <p style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>Something went wrong.</p>
+          <p style={{ color: 'var(--iron-100)', marginBottom: '1rem' }}>Something went wrong.</p>
           <button
             type="button"
             className="btn-primary"
@@ -269,6 +269,8 @@ function App() {
   }
 
   const showTabs = view === 'form' || view === 'preview';
+  const showBottomNav = Boolean(user && profile);
+  const showHeaderNavLinks = Boolean(user && !profile);
 
   const homePageEl = (
     <HomePage onCreateAgreement={draftFlow.createNewAgreement} />
@@ -453,23 +455,36 @@ function App() {
     );
   }
 
+  const mainClassName =
+    'app-main' + (showBottomNav ? ' app-main--bottom-nav' : '');
+
   return (
     <div className="app">
       <header className="app-header">
-        <button
-          type="button"
-          className="app-title"
-          aria-label="IronWork, go to home"
-          onClick={() => {
-            navigateTo('home');
-            invoiceFlow.resetInvoiceFlow();
-            setWorkOrderDetailJobId(null);
-            setWorkOrderDetailJob(null);
-            changeOrderFlow.resetChangeOrderFlow();
-          }}
-        >
-          IRONWORK
-        </button>
+        <div className="app-header-brand">
+          <img
+            className="app-logo-mark"
+            src="/ironwork_symbol_forgeblock.svg"
+            alt=""
+            width={34}
+            height={34}
+            decoding="async"
+          />
+          <button
+            type="button"
+            className="app-title"
+            aria-label="IronWork, go to home"
+            onClick={() => {
+              navigateTo('home');
+              invoiceFlow.resetInvoiceFlow();
+              setWorkOrderDetailJobId(null);
+              setWorkOrderDetailJob(null);
+              changeOrderFlow.resetChangeOrderFlow();
+            }}
+          >
+            IRONWORK
+          </button>
+        </div>
         <div className="header-actions">
           {!user && (
             <button
@@ -480,27 +495,27 @@ function App() {
               Sign In
             </button>
           )}
-          {user && (
-            <button
-              type="button"
-              className="header-work-orders-link"
-              onClick={openWorkOrders}
-            >
-              Work Orders
-            </button>
-          )}
-          {user && (
-            <button
-              type="button"
-              className="btn-header-settings"
-              onClick={() => {
-                setProfileEntrySource(null);
-                navigateTo('profile');
-              }}
-              aria-label="Edit profile"
-            >
-              <Settings className="btn-header-settings-icon" aria-hidden="true" />
-            </button>
+          {showHeaderNavLinks && (
+            <>
+              <button
+                type="button"
+                className="header-work-orders-link"
+                onClick={openWorkOrders}
+              >
+                Work Orders
+              </button>
+              <button
+                type="button"
+                className="btn-header-settings"
+                onClick={() => {
+                  setProfileEntrySource(null);
+                  navigateTo('profile');
+                }}
+                aria-label="Edit profile"
+              >
+                <Settings className="btn-header-settings-icon" aria-hidden="true" />
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -536,11 +551,61 @@ function App() {
         </nav>
       )}
 
-      <main className="app-main">{renderView()}</main>
+      <main className={mainClassName}>{renderView()}</main>
 
-      <footer className="app-footer">
-        <p>IronWork - Built for contractors who are tired of getting burned.</p>
-      </footer>
+      {showBottomNav && (
+        <nav className="app-bottom-nav" aria-label="Main">
+          <button
+            type="button"
+            className={`app-bottom-nav-item ${view === 'home' || view === 'auth' ? 'active' : ''}`}
+            onClick={() => {
+              navigateTo('home');
+              invoiceFlow.resetInvoiceFlow();
+              setWorkOrderDetailJobId(null);
+              setWorkOrderDetailJob(null);
+              changeOrderFlow.resetChangeOrderFlow();
+            }}
+          >
+            <Home className="app-bottom-nav-icon" aria-hidden="true" />
+            <span className="app-bottom-nav-label">Home</span>
+          </button>
+          <button
+            type="button"
+            className={`app-bottom-nav-item ${view === 'work-orders' ? 'active' : ''}`}
+            onClick={openWorkOrders}
+          >
+            <ClipboardList className="app-bottom-nav-icon" aria-hidden="true" />
+            <span className="app-bottom-nav-label">Work Orders</span>
+          </button>
+          <button
+            type="button"
+            className="app-bottom-nav-fab"
+            aria-label="Create work order"
+            onClick={() => draftFlow.createNewAgreement()}
+          >
+            <span className="app-bottom-nav-fab-inner">
+              <Plus className="app-bottom-nav-fab-icon" aria-hidden="true" />
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`app-bottom-nav-item ${view === 'profile' ? 'active' : ''}`}
+            onClick={() => {
+              setProfileEntrySource(null);
+              navigateTo('profile');
+            }}
+          >
+            <User className="app-bottom-nav-icon" aria-hidden="true" />
+            <span className="app-bottom-nav-label">Profile</span>
+          </button>
+        </nav>
+      )}
+
+      {!showBottomNav && (
+        <footer className="app-footer">
+          <p>IronWork - Built for contractors who are tired of getting burned.</p>
+        </footer>
+      )}
 
       {draft.showUnsavedModal && (
         <div className="modal-overlay" onClick={draftFlow.closeUnsavedModal}>

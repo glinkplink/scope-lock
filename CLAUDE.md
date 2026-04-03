@@ -33,7 +33,7 @@ Work agreement generator for contractors (initially welders). Contractors fill o
 | Payments | Stripe Connect Express onboarding via authenticated **`/api/stripe/connect/start`** + **`/api/stripe/connect/status`**; invoice payment links + **`POST /api/stripe/webhook`** |
 | Install / PWA | `manifest.webmanifest` + root icon assets + minimal `public/sw.js` app-shell caching; installable on iOS/Android, not offline-first |
 | Styling | Plain CSS (`index.css`, global `App.css`, and co-located component/page CSS files) — no Tailwind |
-| Font | Barlow + Teko (header wordmark) + Dancing Script (agreement signature) — field notebook aesthetic |
+| Font | **Forge shell:** Outfit (app UI body) + Chakra Petch (wordmark/shell headings tone) + spark accent. **Light documents:** Barlow on scoped on-screen agreement/invoice preview sheets (matches PDF `body` in `buildPdfHtml`); Dancing Script for agreement signature line in preview/PDF. `index.html` loads Outfit, Chakra Petch, Barlow, and Dancing Script. |
 
 ---
 
@@ -71,7 +71,7 @@ VITE_GEOAPIFY_API_KEY=...   # optional — job site street autocomplete
 
 ```
 src/
-  App.tsx                    # Root — view state machine, auth-aware shell
+  App.tsx                    # Root — view state machine, auth-aware Forge shell (sticky header, signed-in bottom nav, draft tab-nav for form/preview)
   App.css                    # Global design tokens, app shell/layout, shared utilities (badges, mini e-sign strip), print/PDF globals
   index.css                  # Base reset + font stack
   main.tsx                   # Client bootstrap + production service worker registration
@@ -241,25 +241,17 @@ Migrations are in `supabase/migrations/` — apply via Supabase CLI (`npx supaba
 
 ---
 
-## Design system — field notebook style
+## Design system — Forge shell + light documents
 
-The UI should feel like a contractor's work log, not a SaaS product.
+**App shell (Forge):** Dark iron surfaces (`--iron-*`), spark orange accent (`--spark`), mobile-first. Signed-in users get a **bottom nav** (Home, Work Orders, center create FAB → new work order draft, Profile). The work-order **draft flow** keeps the shell **`tab-nav`** for **Edit Work Order / Preview** (not replaced by bottom nav). Optional subtle grain on `body`. Shell chrome uses **`--shell-radius-*`** where larger radii are intentional (e.g. FAB); keep components simple—no animation libraries.
 
-**Core rules:**
-- `border-radius` max 6px — no soft bubbly cards
-- Section labels: uppercase, letter-spaced, 12px, muted color
-- Horizontal rules as section dividers (not whitespace)
-- Background: `#F7F7F5` (warm paper), not pure white
-- Header: `#1A1917` (near-black hardcover)
-- Primary action color: `#1C3A5E` (dark navy)
-- No gradients, no decorative icons, no shadows beyond 3px
+**Light documents (agreements, invoices, PDFs):** Preview sheets and generated PDFs stay **light**. Legacy light tokens in `App.css :root` (`--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-*`, etc.) remain for form cards and document markup. **`buildPdfHtml`** inlines raw `App.css`—do not redefine those semantics to dark values without pinning light values in the PDF HTML wrapper. On-screen document roots use **`font-family: var(--font-document)`** (Barlow stack) so preview matches PDF while **`body`** uses Outfit.
 
-**CSS variables** (defined in `App.css :root`):
-- `--primary`, `--primary-hover`, `--primary-light`
-- `--surface` (#F7F7F5), `--surface-white` (#FAFAF8)
-- `--border` (#C8C4BC), `--border-strong` (#8A8680)
-- `--text-primary`, `--text-secondary`, `--text-muted`
-- `--radius` (4px), `--radius-lg` (6px)
+**Practical tone:** Readable, contractor-facing, not corporate SaaS chrome.
+
+**CSS variables** (see `App.css :root`):
+- **Forge:** `--iron-*`, `--spark`, `--nav-height`, `--header-height`, `--font-app`, `--shell-radius-*`
+- **Light / document:** `--primary`, `--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-section-blue`, `--radius`, `--radius-lg`, `--font-document`
 
 **CSS co-location (mandatory — keep in sync with [AGENTS.md](./AGENTS.md) and [.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)):**
 

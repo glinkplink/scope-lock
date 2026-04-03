@@ -13,6 +13,7 @@ alwaysApply: true
 - Do not hallucinate files, imports, APIs, or infrastructure.
 - Prefer simple, boring solutions.
 - Keep the product mobile-first, short-form, and practical.
+- **UI:** Forge dark shell + light document previews/PDFs (CLAUDE.md design system).
 
 ## Living docs & alignment
 - **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, **[ARCHITECTURE.md](../../ARCHITECTURE.md)**, **ScopeLock-Project-Rules.mdc**, and **this file** are **living documents**. After **substantive code changes**, update affected docs so they stay accurate.
