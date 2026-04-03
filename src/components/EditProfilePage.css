@@ -1,7 +1,10 @@
 .edit-profile-page {
   max-width: 640px;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+  box-sizing: border-box;
+  /* --space-2xl is not defined globally; use explicit bottom clearance for fixed bottom nav + safe area */
+  padding: var(--space-lg) var(--space-md)
+    calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-xl));
 }
 
 .edit-profile-page .success-banner,
