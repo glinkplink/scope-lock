@@ -5,6 +5,7 @@ import { listInvoicesWithCustomerName, getInvoiceBusinessStatus } from '../lib/d
 import { getJobById } from '../lib/db/jobs';
 import { getChangeOrderById } from '../lib/db/change-orders';
 import { formatUsd } from '../lib/work-order-dashboard-display';
+import './WorkOrdersPage.css';
 import './InvoicesPage.css';
 
 interface InvoicesPageProps {
@@ -35,47 +36,53 @@ function formatWoLabel(woNumber: number | null): string {
   return woNumber != null ? `WO #${String(woNumber).padStart(4, '0')}` : 'WO (no #)';
 }
 
+function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } {
+  const businessStatus = getInvoiceBusinessStatus(invoice);
+  if (invoice.payment_status === 'paid') {
+    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--paid', label: 'Paid' };
+  }
+  if (invoice.payment_status === 'offline') {
+    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--offline', label: 'Paid Offline' };
+  }
+  if (businessStatus === 'draft') {
+    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--draft', label: 'Draft' };
+  }
+  return { className: 'wo-row-invoice-btn wo-row-invoice-btn--invoiced', label: 'Invoiced' };
+}
+
 interface InvoiceRowProps {
   invoice: InvoiceWithCustomerName;
   busy: boolean;
   onOpen: (invoice: InvoiceWithCustomerName) => void;
 }
 
+/** Row DOM mirrors `WorkOrderRow` in `WorkOrdersPage.tsx` so `WorkOrdersPage.css` applies. */
 function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
-  const businessStatus = getInvoiceBusinessStatus(invoice);
-
-  let badgeEl: React.ReactNode;
-  if (invoice.payment_status === 'paid') {
-    badgeEl = <span className="badge-paid">Paid</span>;
-  } else if (invoice.payment_status === 'offline') {
-    badgeEl = <span className="badge-offline">Paid Offline</span>;
-  } else if (businessStatus === 'draft') {
-    badgeEl = <span className="badge-draft">Draft</span>;
-  } else {
-    badgeEl = <span className="badge-invoiced">Invoiced</span>;
-  }
+  const pill = invoiceRowStatusPill(invoice);
 
   return (
-    <li className={`invoices-page-row${busy ? ' invoices-page-row--busy' : ''}`}>
-      <button
-        type="button"
-        className="invoices-page-row-hit"
-        onClick={() => onOpen(invoice)}
-        disabled={busy}
-      >
-        <span className="invoices-page-row-main">
-          <span className="invoices-page-row-heading">
-            <span className="invoices-page-row-label">{formatInvoiceLabel(invoice.invoice_number)}</span>
-            <span className="invoices-page-row-date">{`· ${formatInvoiceDate(invoice.invoice_date)}`}</span>
+    <li className={`work-orders-row${busy ? ' work-orders-row--busy' : ''}`}>
+      <div className="work-orders-row-main">
+        <button
+          type="button"
+          className="work-orders-row-detail-hit"
+          onClick={() => onOpen(invoice)}
+          disabled={busy}
+        >
+          <span className="work-orders-row-heading">
+            <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
+            <span className="work-orders-wo-date">{`· ${formatInvoiceDate(invoice.invoice_date)}`}</span>
           </span>
-          <span className="invoices-page-row-customer">{invoice.customer_name ?? '—'}</span>
-          <span className="invoices-page-row-wo">{formatWoLabel(invoice.wo_number)}</span>
-        </span>
-        <span className="invoices-page-row-actions">
-          <span className="invoices-page-row-amount">{formatUsd(invoice.total)}</span>
-          {badgeEl}
-        </span>
-      </button>
+          <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
+          <span className="invoices-row-wo-line">{formatWoLabel(invoice.wo_number)}</span>
+        </button>
+      </div>
+      <div className="work-orders-row-actions">
+        <div className="invoices-row-actions-stack">
+          <span className="invoices-row-amount">{formatUsd(invoice.total)}</span>
+          <span className={pill.className}>{pill.label}</span>
+        </div>
+      </div>
     </li>
   );
 }
@@ -131,13 +138,13 @@ export function InvoicesPage({ userId, onOpenInvoice, onOpenCoInvoice }: Invoice
   };
 
   return (
-    <div className="invoices-page">
-      <div className="invoices-page-header">
-        <h1 className="invoices-page-title">Invoices</h1>
+    <div className="invoices-page work-orders-page">
+      <div className="work-orders-toolbar">
+        <h1 className="work-orders-title">Invoices</h1>
       </div>
 
       {loading && (
-        <div className="invoices-page-status">Loading…</div>
+        <div className="work-orders-loading">Loading…</div>
       )}
 
       {!loading && error && (
@@ -145,11 +152,11 @@ export function InvoicesPage({ userId, onOpenInvoice, onOpenCoInvoice }: Invoice
       )}
 
       {!loading && !error && invoices.length === 0 && (
-        <div className="invoices-page-status">No invoices yet.</div>
+        <div className="work-orders-loading">No invoices yet.</div>
       )}
 
       {!loading && !error && invoices.length > 0 && (
-        <ul className="invoices-page-list">
+        <ul className="work-orders-list">
           {invoices.map((inv) => (
             <InvoiceRow
               key={inv.id}

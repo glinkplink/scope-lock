@@ -178,7 +178,7 @@ describe('InvoicesPage', () => {
     expect(screen.getByText('WO (no #)')).toBeInTheDocument();
   });
 
-  it('renders draft, invoiced, paid, and paid offline badges', async () => {
+  it('renders draft, invoiced, paid, and paid offline status pills (WO row invoice button styles)', async () => {
     listInvoicesWithCustomerName.mockResolvedValue([
       withListFields(
         baseInvoice({ id: 'inv-draft', invoice_number: 1, issued_at: null, payment_status: 'unpaid' }),
@@ -215,10 +215,10 @@ describe('InvoicesPage', () => {
       expect(screen.getByText('Draft')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Draft')).toHaveClass('badge-draft');
-    expect(screen.getByText('Invoiced')).toHaveClass('badge-invoiced');
-    expect(screen.getByText('Paid')).toHaveClass('badge-paid');
-    expect(screen.getByText('Paid Offline')).toHaveClass('badge-offline');
+    expect(screen.getByText('Draft')).toHaveClass('wo-row-invoice-btn', 'wo-row-invoice-btn--draft');
+    expect(screen.getByText('Invoiced')).toHaveClass('wo-row-invoice-btn', 'wo-row-invoice-btn--invoiced');
+    expect(screen.getByText('Paid')).toHaveClass('wo-row-invoice-btn', 'wo-row-invoice-btn--paid');
+    expect(screen.getByText('Paid Offline')).toHaveClass('wo-row-invoice-btn', 'wo-row-invoice-btn--offline');
   });
 
   it('opens normal invoice path when no single change order id is present', async () => {

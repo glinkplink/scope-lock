@@ -1,187 +1,56 @@
-.invoices-page {
-  padding: 0 0 calc(var(--nav-height) + 16px);
+/* Invoices tab: reuse WorkOrdersPage row/card CSS via shared class names + .work-orders-page */
+
+.invoices-page.work-orders-page {
   max-width: 640px;
   margin: 0 auto;
+  width: 100%;
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-md));
 }
 
-.invoices-page-header {
-  padding: 24px 16px 12px;
+.invoices-page.work-orders-page .work-orders-toolbar {
+  margin-bottom: var(--space-md);
 }
 
-.invoices-page-title {
-  font-family: var(--font-app);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--iron-100);
-  margin: 0;
-}
-
-.invoices-page-status {
-  padding: 32px 16px;
-  color: var(--iron-400);
+.invoices-page-status--error {
+  margin: 0 var(--space-md) var(--space-md);
+  padding: var(--space-md);
+  color: #e05a5a;
   font-size: 0.95rem;
   text-align: center;
 }
 
-.invoices-page-status--error {
-  color: #e05a5a;
-}
-
-.invoices-page-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.invoices-page-row {
-  list-style: none;
-  background: var(--iron-750);
-  border: 1px solid var(--iron-600);
-  border-radius: var(--shell-radius-sm);
-}
-
-.invoices-page-row--busy {
-  opacity: 0.6;
-}
-
-/* Full-card button — resets chrome, fills the li, lays out left+right columns */
-.invoices-page-row-hit {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-  width: 100%;
-  padding: var(--space-md);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.12s;
-  border-radius: inherit;
-}
-
-.invoices-page-row-hit:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.invoices-page-row-hit:disabled {
-  cursor: wait;
-}
-
-.invoices-page-row-hit:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-spark);
-  border-radius: var(--shell-radius-sm);
-}
-
-/* Left column */
-.invoices-page-row-main {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.invoices-page-row-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.invoices-page-row-label {
-  font-family: 'Chakra Petch', var(--font-app);
+/* WO # line under customer — Forge tones (same role as extra meta on WO rows) */
+.invoices-page.work-orders-page .invoices-row-wo-line {
+  margin-top: 2px;
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--iron-200);
+  font-family: 'Chakra Petch', var(--font-app);
 }
 
-.invoices-page-row-date {
-  font-size: 0.8rem;
-  color: var(--iron-400);
-}
-
-.invoices-page-row-customer {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--iron-50);
-}
-
-.invoices-page-row-wo {
-  font-size: 0.8rem;
-  color: var(--iron-400);
-}
-
-/* Right column — amount + badge */
-.invoices-page-row-actions {
+/* Right column: amount above status pill (WO rows use a single invoice button) */
+.invoices-page.work-orders-page .invoices-row-actions-stack {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  flex-shrink: 0;
 }
 
-.invoices-page-row-amount {
+.invoices-page.work-orders-page .invoices-row-amount {
   font-size: 1rem;
   font-weight: 600;
   color: var(--iron-50);
 }
 
-@media (max-width: 640px) {
-  .invoices-page-row-hit {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .invoices-page-row-actions {
-    align-self: flex-end;
-  }
+/* Status uses same classes as WO invoice buttons but is non-interactive */
+.invoices-page.work-orders-page .work-orders-row-actions span.wo-row-invoice-btn {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
 }
 
-/* Badge definitions for InvoicesPage — co-located per CSS rules */
-.invoices-page-row .badge-paid {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  background: #1a3a1a;
-  color: #4caf50;
-  border: 1px solid #2d5a2d;
-}
-
-.invoices-page-row .badge-offline {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  background: #1a2e3a;
-  color: #64b5f6;
-  border: 1px solid #1e4060;
-}
-
-.invoices-page-row .badge-draft {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  background: var(--iron-800);
-  color: var(--iron-400);
-  border: 1px solid var(--iron-700);
+.invoices-page.work-orders-page .work-orders-row--busy {
+  opacity: 0.6;
 }
