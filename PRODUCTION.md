@@ -46,12 +46,24 @@ Everything in this section requires action outside the codebase — Stripe dashb
   DOCUSEAL_WEBHOOK_HEADER_NAME=...             # exact header name from DocuSeal webhook settings
   DOCUSEAL_WEBHOOK_HEADER_VALUE=...            # raw secret, not hashed
   VITE_GEOAPIFY_API_KEY=...                    # optional — job site autocomplete
-  SENTRY_DSN=...                               # optional — server-side error tracking (@sentry/node)
+  # SENTRY_DSN — do not set for current production; error tracking (Sentry) intentionally out of scope
   ```
 - [x] **Set `VITE_*` vars as build-time args** (Render: Environment → add to Build env vars) — these are baked into the client bundle at build time, not runtime
 - [x] **Verify the health check** after first deploy: `curl https://[your-domain]/api/pdf/health` → `{"ok":true}`
 - [ ] **Set an appropriate plan** — Puppeteer + Chromium needs at least 512MB RAM; 1GB recommended
 - [x] **Confirm Docker build is used** (the repo has a `Dockerfile` — set Render to use Docker deploy, not static)
+- [ ] **Optional — ship logs to Better Stack** — In Render **Observability → Log Streams**, configure **Log Endpoint** and **Token** per [Better Stack’s Render integration](https://betterstack.com/docs/logs/render/) (application logs only).
+- [ ] **Optional — ship metrics to Better Stack** — **Separate** from Log Streams: use Render **Metrics Stream** with **Better Stack** as a destination and the **OpenTelemetry** / metrics path in Better Stack’s docs—not the same wiring as logs.
+
+### Better Stack (external uptime + Cursor MCP)
+
+IronWork does **not** embed Better Stack in code; use Better Stack (or any provider) for **HTTP uptime** against **`GET /api/pdf/health`**. The [Better Stack Uptime API](https://betterstack.com/docs/uptime/api/create-a-new-monitor/) can create monitors programmatically.
+
+- [ ] **Create the uptime monitor** — **Default: manual** in Better Stack **Uptime** (or via Uptime API): URL `https://[your-domain]/api/pdf/health`, interval ~few minutes, alerts as needed. **Exception:** if your **live** Better Stack MCP tool inventory in Cursor exposes **create/update monitor** tools, you may use those instead—check **Cursor → MCP → Better Stack** after connecting.
+- [ ] **Connect Cursor MCP** — Use Better Stack’s **remote HTTP MCP** with **OAuth** (preferred). Minimal server URL **`https://mcp.betterstack.com`** — align local **`mcp.json`** with [Better Stack MCP](https://betterstack.com/docs/getting-started/integrations/mcp/).
+- [ ] **Verify via MCP (after OAuth works)** — (1) Confirm MCP connection and tools load. (2) List monitors (`uptime_list_monitors`; call `telemetry_list_teams` first only if your session requires a `team_id`). (3) Find the production **`/api/pdf/health`** monitor by URL or name. (4) Fetch details (`uptime_get_monitor_details` in docs; Cursor may register the same tool as `uptime_get_monitor` or with a `_tool` suffix—use the exact name from your tool list). (5) Check availability (`uptime_get_monitor_availability`). (6) Check response times (`uptime_get_monitor_response_times`).
+- [ ] **Success check** — Monitor exists for the prod health URL, shows healthy in Better Stack, and `curl` to `/api/pdf/health` returns `{"ok":true}` (see smoke checklist below).
+- [ ] **Optional — log source via MCP** — With MCP authenticated, `telemetry_list_teams`, optional `telemetry_list_data_regions`, and `telemetry_create_source` (tool names in Cursor may include a `_tool` suffix) can create a Better Stack log source; use the **Log Endpoint** and **Token** Better Stack/Render show alongside Render **Log Streams** ([Render integration](https://betterstack.com/docs/logs/render/), [Create a source API](https://betterstack.com/docs/logs/api/create-a-source/)).
 
 ### DNS / Domain
 
@@ -82,7 +94,8 @@ Everything in this section requires action outside the codebase — Stripe dashb
 
 ### Known Gaps
 
-- [x] **Error tracking** — Sentry (`@sentry/node`) captures server-side exceptions, unhandled request errors, and process-level `uncaughtException` / `unhandledRejection`. Set `SENTRY_DSN` on the web service. For uptime, use an external HTTP monitor (e.g. Better Stack free tier) against `GET /api/pdf/health` at a few-minute interval with email alerts.
+- [x] **Error tracking (Sentry)** — **Intentionally not pursued** for production: leave **`SENTRY_DSN` unset** on the web service. `@sentry/node` remains in the codebase only for optional future use if you adopt it later.
+- [x] **Uptime** — External HTTP monitor (e.g. Better Stack) against `GET /api/pdf/health` at a few-minute interval with email alerts. **Operational detail:** Human Intervention → **Better Stack** and optional Render Log Streams / Metrics Stream above.
 - [x] **No structured logging on Stripe webhook** — payment events (paid, failed, amount mismatch) now logged with event IDs
 - [x] **Stripe webhook idempotency audit trail** — duplicate events now logged with event ID
 - [x] **`Paid` status on Work Order detail** — `WorkOrderDetailPage` now surfaces invoice `payment_status`
