@@ -56,7 +56,7 @@ These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CL
 - Keep UI components simple, readable, and easy to edit.
 - Do not add visual complexity, animation libraries, or design systems unless explicitly requested.
 - Prioritize function over polish.
-- **Forge shell:** The app shell is **dark** (iron palette, spark accent, Outfit + Chakra Petch). **PDFs and light document previews** stay light; scoped **Barlow** on document sheets matches PDF—see **CLAUDE.md → Design system**.
+- **Forge shell:** The app shell is **dark** (iron palette, spark accent, Outfit + Chakra Petch). Shared shell form panels and spark CTAs live in **`App.css`**; **PDFs and light document previews** stay light; scoped **Barlow** on document sheets matches PDF—see **CLAUDE.md → Design system**.
 
 ### CSS co-location (mandatory)
 - **Own your styles:** Co-locate with the owning page or component (same directory); `ComponentName.tsx` imports `./ComponentName.css` (or the repo’s established pairing).

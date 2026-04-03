@@ -104,17 +104,17 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~45 min
 
 ### Changes
-- [ ] Normalize shared button classes
+- [x] Normalize shared button classes
   - primary
   - secondary
   - success
   - danger
   - full-width utility
-- [ ] Restyle shared `.form-group` inputs/selects/textareas for dark mode
-- [ ] Restyle shared `.form-section`
-- [ ] Restyle shared section headings / labels where they are intentionally cross-cutting
-- [ ] Update shared select-arrow asset color for dark mode
-- [ ] Keep focus states strong and accessible
+- [x] Restyle shared `.form-group` inputs/selects/textareas for dark mode
+- [x] Restyle shared `.form-section`
+- [x] Restyle shared section headings / labels where they are intentionally cross-cutting
+- [x] Update shared select-arrow asset color for dark mode
+- [x] Keep focus states strong and accessible
 
 ### Notes
 - If a button or field style exists mainly for one screen, move it into that screen’s CSS instead of growing `App.css`.

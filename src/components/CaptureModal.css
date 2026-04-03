@@ -84,29 +84,7 @@
   min-width: 0;
 }
 
-.capture-modal .btn-primary {
-  background: var(--primary);
-  color: #fff;
-  border: 1px solid var(--primary);
-  padding: 10px var(--space-lg);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+.capture-modal .modal-actions .btn-primary {
   flex: 1 1 180px;
   min-width: 0;
-}
-
-.capture-modal .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-}
-
-.capture-modal .btn-primary:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
 }

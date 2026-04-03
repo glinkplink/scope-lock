@@ -143,7 +143,7 @@ export function BusinessProfileForm({
           />
         </label>
 
-        <button type="submit" disabled={loading}>
+        <button type="submit" className="btn-primary btn-full-width" disabled={loading}>
           {loading ? 'Loading...' : isNewUser ? 'Continue' : 'Save Profile'}
         </button>
 

@@ -11,36 +11,41 @@
   gap: var(--space-sm);
   margin-bottom: var(--space-xl);
   padding: var(--space-md) var(--space-lg);
-  background: var(--surface-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--form-panel-bg);
+  border: 1px solid var(--form-panel-border);
+  border-radius: var(--shell-radius-md);
   font-size: 0.875rem;
 }
 
 .business-profile-form .sign-in-prompt span {
-  color: var(--text-muted);
+  color: var(--iron-300);
   font-size: 0.8125rem;
   letter-spacing: 0.02em;
 }
 
 .business-profile-form .btn-sign-in {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--primary);
+  border: 1px solid var(--iron-600);
+  color: var(--spark);
   padding: 5px var(--space-md);
-  border-radius: var(--radius);
+  border-radius: var(--shell-radius-sm);
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .business-profile-form .btn-sign-in:hover {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+  background: rgba(255, 140, 0, 0.12);
+  color: var(--spark-hot);
+  border-color: var(--spark);
+}
+
+.business-profile-form .btn-sign-in:focus-visible {
+  outline: 2px solid var(--spark);
+  outline-offset: 2px;
 }
 
 .business-profile-form h1 {
@@ -48,15 +53,15 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-primary);
+  color: var(--iron-50);
   margin-bottom: var(--space-xl);
   text-align: center;
 }
 
 .business-profile-form form {
-  background: var(--surface-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: var(--form-panel-bg);
+  border: 1px solid var(--form-panel-border);
+  border-radius: var(--shell-radius-md);
   padding: 24px;
 }
 
@@ -66,7 +71,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--form-label);
   margin-bottom: var(--space-lg);
 }
 
@@ -77,20 +82,32 @@
   padding: 10px var(--space-md);
   font-size: 1rem;
   font-family: inherit;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: white;
-  color: var(--text-primary);
+  border: 1px solid var(--form-control-border);
+  border-radius: var(--shell-radius-sm);
+  background: var(--form-control-bg);
+  color: var(--form-control-text);
   margin-top: 6px;
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
   box-sizing: border-box;
+}
+
+.business-profile-form input::placeholder,
+.business-profile-form textarea::placeholder {
+  color: var(--form-placeholder);
+  opacity: 1;
 }
 
 .business-profile-form input:focus,
 .business-profile-form textarea:focus {
   outline: none;
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 2px rgba(28, 58, 94, 0.08);
+}
+
+.business-profile-form input:focus-visible,
+.business-profile-form textarea:focus-visible {
+  border-color: var(--spark);
+  box-shadow: var(--focus-ring-spark);
 }
 
 .business-profile-form textarea {
@@ -98,180 +115,17 @@
   min-height: 80px;
 }
 
-.business-profile-form button[type="submit"] {
-  width: 100%;
-  background: var(--primary);
-  color: white;
-  padding: 13px;
-  border: none;
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
+.business-profile-form .btn-primary {
   margin-top: var(--space-lg);
-}
-
-.business-profile-form button[type="submit"]:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
-
-.business-profile-form button[type="submit"]:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .business-profile-form .error {
-  background: var(--danger-light);
-  color: var(--danger);
+  background: rgba(185, 28, 28, 0.2);
+  color: #fecaca;
   padding: var(--space-md);
-  border-radius: var(--radius);
+  border-radius: var(--shell-radius-sm);
   font-size: 0.875rem;
   margin-top: var(--space-md);
   text-align: center;
-}
-
-.password-creation-page {
-  max-width: 440px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-md);
-  min-height: calc(100vh - 200px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.password-creation-content {
-  background: var(--surface-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-}
-
-.password-creation-page h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-primary);
-  margin-bottom: var(--space-md);
-  text-align: center;
-}
-
-.password-creation-page .email-display {
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
-  margin-bottom: var(--space-xl);
-  padding: var(--space-md);
-  background: var(--surface);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-}
-
-.password-creation-page .email-display strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.password-creation-page .form-group {
-  margin-bottom: var(--space-lg);
-}
-
-.password-creation-page label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.password-creation-page input {
-  width: 100%;
-  padding: 10px var(--space-md);
-  font-size: 1rem;
-  font-family: inherit;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: white;
-  color: var(--text-primary);
-  transition: border-color 0.15s;
-  box-sizing: border-box;
-}
-
-.password-creation-page input:focus {
-  outline: none;
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 2px rgba(28, 58, 94, 0.08);
-}
-
-.password-creation-page input::placeholder {
-  color: var(--text-muted);
-}
-
-.password-creation-page .form-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  margin-top: var(--space-lg);
-}
-
-.password-creation-page .btn-primary {
-  width: 100%;
-  background: var(--primary);
-  color: white;
-  padding: 13px;
-  border: none;
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.password-creation-page .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
-
-.password-creation-page .btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.password-creation-page .btn-secondary {
-  width: 100%;
-  background: transparent;
-  color: var(--text-secondary);
-  text-transform: none;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.password-creation-page .btn-secondary:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: var(--border-strong);
-}
-
-.password-creation-page .error {
-  background: var(--danger-light);
-  color: var(--danger);
-  padding: var(--space-md);
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  text-align: center;
-  margin-bottom: var(--space-md);
+  border: 1px solid rgba(248, 113, 113, 0.35);
 }

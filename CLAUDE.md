@@ -243,14 +243,15 @@ Migrations are in `supabase/migrations/` — apply via Supabase CLI (`npx supaba
 
 ## Design system — Forge shell + light documents
 
-**App shell (Forge):** Dark iron surfaces (`--iron-*`), spark orange accent (`--spark`), mobile-first. Signed-in users get a **bottom nav** (Home, Work Orders, center create FAB → new work order draft, Profile). The work-order **draft flow** keeps the shell **`tab-nav`** for **Edit Work Order / Preview** (not replaced by bottom nav). Optional subtle grain on `body`. Shell chrome uses **`--shell-radius-*`** where larger radii are intentional (e.g. FAB); keep components simple—no animation libraries.
+**App shell (Forge):** Dark iron surfaces (`--iron-*`), spark orange accent (`--spark`), mobile-first. Signed-in users get a **bottom nav** (Home, Work Orders, center create FAB → new work order draft, Profile). The work-order **draft flow** keeps the shell **`tab-nav`** for **Edit Work Order / Preview** (not replaced by bottom nav). Optional subtle grain on `body`. Shell chrome uses **`--shell-radius-*`** where larger radii are intentional (e.g. FAB); keep components simple—no animation libraries. Shared **shell form panels** (`.form-section`, `.form-group` in the main flow) use **`--form-panel-*` / `--form-control-*`** in `App.css`; primary actions use **spark** (`.btn-primary`), not legacy navy, except where a **light** surface still applies (see below).
 
-**Light documents (agreements, invoices, PDFs):** Preview sheets and generated PDFs stay **light**. Legacy light tokens in `App.css :root` (`--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-*`, etc.) remain for form cards and document markup. **`buildPdfHtml`** inlines raw `App.css`—do not redefine those semantics to dark values without pinning light values in the PDF HTML wrapper. On-screen document roots use **`font-family: var(--font-document)`** (Barlow stack) so preview matches PDF while **`body`** uses Outfit.
+**Light documents (agreements, invoices, PDFs):** Preview sheets and generated PDFs stay **light**. Legacy light tokens in `App.css :root` (`--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-*`, etc.) remain for **light UI surfaces** (e.g. agreement preview sheet, e-sign timeline card, capture **modal** fields, invoice wizard summary box, payment-method document copy) and document markup. **`buildPdfHtml`** inlines raw `App.css`—do not redefine those semantics to dark values without pinning light values in the PDF HTML wrapper. On-screen document roots use **`font-family: var(--font-document)`** (Barlow stack) so preview matches PDF while **`body`** uses Outfit.
 
 **Practical tone:** Readable, contractor-facing, not corporate SaaS chrome.
 
 **CSS variables** (see `App.css :root`):
 - **Forge:** `--iron-*`, `--spark`, `--nav-height`, `--header-height`, `--font-app`, `--shell-radius-*`
+- **Shell forms (shared):** `--form-panel-bg`, `--form-panel-border`, `--form-control-bg`, `--form-control-border`, `--form-control-text`, `--form-label`, `--form-placeholder`, `--focus-ring-spark`
 - **Light / document:** `--primary`, `--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-section-blue`, `--radius`, `--radius-lg`, `--font-document`
 
 **CSS co-location (mandatory — keep in sync with [AGENTS.md](./AGENTS.md) and [.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)):**

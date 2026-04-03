@@ -36,7 +36,7 @@ The following are **living documents**, not one-time setup notes:
 
 6. **Global exceptions:** Shared badge/section labels, header chrome, and other **reused** primitives may stay in `App.css` when they are intentionally global—match existing patterns (see CLAUDE.md structure tree comments).
 
-**Forge shell:** The interactive app uses a **dark** Forge shell (iron palette, spark accent, Outfit + Chakra Petch). **PDFs and on-screen agreement/invoice preview sheets** stay **light** with **Barlow** on scoped document containers so preview matches PDF—see **CLAUDE.md → Design system**.
+**Forge shell:** The interactive app uses a **dark** Forge shell (iron palette, spark accent, Outfit + Chakra Petch). Shared **shell** form panels and primary actions use dark surfaces and **spark** CTAs (`App.css`); **PDFs and on-screen agreement/invoice preview sheets** stay **light** with **Barlow** on scoped document containers so preview matches PDF—see **CLAUDE.md → Design system**.
 
 ---
 

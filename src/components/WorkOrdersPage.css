@@ -61,20 +61,21 @@
   padding: 6px var(--space-md);
   min-height: 32px;
   border: none;
-  border-radius: var(--radius);
-  background: var(--primary);
-  color: #fff;
+  border-radius: var(--shell-radius-sm);
+  background: linear-gradient(135deg, var(--spark) 0%, #cc7000 100%);
+  color: var(--iron-900);
   font-family: inherit;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: filter 0.15s;
+  box-shadow: 0 2px 12px rgba(255, 140, 0, 0.22);
 }
 
 .work-orders-create-btn:hover {
-  background: var(--primary-hover);
+  filter: brightness(1.06);
 }
 
 .work-orders-profile-nudge {
