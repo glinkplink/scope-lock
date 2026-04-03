@@ -219,8 +219,22 @@ async function handleConnectStart(req, res, sendJson) {
   }
 
   let stripeAccountId = profile.stripe_account_id ?? null;
+  if (stripeAccountId) {
+    const { profile: reconciledProfile, error } = await reconcileStripeOnboardingStatus(
+      supabase,
+      profile
+    );
+    if (error || !reconciledProfile?.stripe_account_id) {
+      sendJson(res, isStripeConfigErrorMessage(error) ? 503 : 502, {
+        error: error || 'Could not load Stripe account status.',
+      });
+      return;
+    }
+    stripeAccountId = reconciledProfile.stripe_account_id;
+  }
+
   if (!stripeAccountId) {
-    const { data, error } = await createConnectedAccount(profile.email ?? null);
+    const { data, error } = await createConnectedAccount(profile);
     if (error || !data?.id) {
       sendJson(res, isStripeConfigErrorMessage(error) ? 503 : 502, {
         error: error || 'Could not create Stripe account.',

@@ -203,10 +203,10 @@ export function EditProfilePage({
         : 'Not connected';
   const stripeStatusDescription =
     stripeStatus === 'connected'
-      ? 'Stripe onboarding is complete and this account is ready for invoice payment links.'
+      ? 'Stripe is connected and ready for invoice payment links. You can reopen Stripe setup to review or update account details.'
       : stripeStatus === 'incomplete'
-        ? 'Stripe setup has started, but onboarding is not finished yet.'
-        : 'Connect Stripe so customers can pay invoice links directly to your account.';
+        ? 'Stripe setup has started but is not finished yet. Continue setup to finish connecting your account and enable invoice payments.'
+        : 'Connect Stripe to accept invoice payments. If you already use Stripe, Stripe may let you sign in and reuse existing business details. If you do not, Stripe will guide you through setup.';
   const busy = saving || stripeLoading;
 
   return (
@@ -470,7 +470,7 @@ export function EditProfilePage({
             <section className="form-section edit-profile-stripe-section">
               <h2>Stripe Connect</h2>
               <p className="section-description">
-                Connect your Stripe account here when you are ready to accept invoice payments through IronWork.
+                Connect Stripe when you are ready to accept invoice payments through IronWork. Existing Stripe users may be able to sign in and reuse details during setup.
               </p>
 
               <div className="edit-profile-stripe-status-row">

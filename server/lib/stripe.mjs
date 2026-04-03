@@ -19,11 +19,34 @@ function getStripe() {
   return stripeSingleton;
 }
 
-export async function createConnectedAccount(email) {
+function nonEmptyString(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function parseAbsoluteHttpsUrl(value) {
+  const trimmed = nonEmptyString(value);
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== 'https:') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+export async function createConnectedAccount(profile = null) {
   const stripe = getStripe();
   if (!stripe) {
     return { data: null, error: 'Stripe not configured' };
   }
+
+  const email = nonEmptyString(profile?.email);
+  const businessName = nonEmptyString(profile?.business_name);
+  const businessProfileUrl = parseAbsoluteHttpsUrl(profile?.google_business_profile_url);
 
   try {
     const account = await stripe.accounts.create({
@@ -37,6 +60,8 @@ export async function createConnectedAccount(email) {
         // MCC 1799: Special Trade Contractors (welders, general contractors)
         // Required for card_payments capability; without it onboarding stalls.
         mcc: '1799',
+        ...(businessName ? { name: businessName } : {}),
+        ...(businessProfileUrl ? { url: businessProfileUrl } : {}),
       },
     });
     return {

@@ -15,6 +15,25 @@ The immediate priority is to finish the invoice e-sign flow and lock down the wo
 - Invoice issuance should be tied to sending the invoice to the customer, not to signature completion and not to payment completion.
 - The existing Node app server is sufficient for Stripe integration. Stripe can be added as new same-origin server routes plus a webhook endpoint.
 
+## Connect Onboarding Shape
+
+- Keep Stripe Connect on **Express** for this pass.
+- `business_profiles.stripe_account_id` remains the single Stripe account link for each IronWork profile.
+- If the profile already has `stripe_account_id`, clicking **Connect Stripe** must reuse that same connected account and open a fresh Stripe-hosted onboarding link for it.
+- If the profile has no Stripe account yet, create one Express connected account and then redirect into Stripe-hosted onboarding.
+- Existing Stripe users can sometimes sign in and reuse business information through Stripe-hosted/networked onboarding, but IronWork must not promise that branch in every case.
+- Production behavior is the target. Stripe test mode can behave differently from live mode for the quick sign-in/reuse path.
+
+## Connect Prefill Rules
+
+- Safe first-time prefill is intentionally limited to:
+  - account `email`
+  - `business_profile.name`
+  - `business_profile.url` only when the saved profile value parses as an absolute `https://` URL
+  - required `business_profile.mcc = '1799'`
+- Do **not** prefill country, address, identity/person data, phone, or bank/external-account fields from Edit Profile into Stripe.
+- Reason: heavier prefill increases the chance that Stripe skips its existing-account reuse path and forces a fuller onboarding flow.
+
 ## Recommended Lifecycle Model
 
 ### User-facing invoice badge states

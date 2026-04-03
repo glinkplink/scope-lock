@@ -124,9 +124,12 @@ describe('EditProfilePage payment validation', () => {
     );
 
     expect(
-      screen.getByText(/accept invoice payments through IronWork/i)
+      screen.getByText(/existing Stripe users may be able to sign in and reuse details during setup/i)
     ).toBeInTheDocument();
     expect(screen.getByText('Not connected')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Stripe may let you sign in and reuse existing business details/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Connect Stripe/i })).toHaveAttribute('type', 'button');
 
     rerender(
@@ -137,6 +140,9 @@ describe('EditProfilePage payment validation', () => {
       />
     );
     expect(screen.getByText('Setup in progress')).toBeInTheDocument();
+    expect(
+      screen.getByText(/continue setup to finish connecting your account and enable invoice payments/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue Stripe Setup/i })).toBeInTheDocument();
 
     rerender(
@@ -147,6 +153,9 @@ describe('EditProfilePage payment validation', () => {
       />
     );
     expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Stripe is connected and ready for invoice payment links/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Update Stripe Setup/i })).toBeInTheDocument();
   });
 

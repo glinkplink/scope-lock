@@ -77,6 +77,7 @@ function profileFixture(overrides: Record<string, unknown> = {}) {
     user_id: USER_UUID,
     business_name: 'Test Co',
     email: 'owner@example.com',
+    google_business_profile_url: 'https://example.com/profile',
     stripe_account_id: null,
     stripe_onboarding_complete: false,
     ...overrides,
@@ -320,6 +321,15 @@ describe('tryHandleStripeRoute', () => {
       data: { url: 'https://connect.stripe.test/onboarding' },
       error: null,
     });
+    getConnectedAccountMock.mockResolvedValue({
+      data: {
+        id: 'acct_existing',
+        details_submitted: false,
+        charges_enabled: false,
+        payouts_enabled: false,
+      },
+      error: null,
+    });
     const res = captureRes();
 
     await tryHandleStripeRoute(
@@ -336,6 +346,7 @@ describe('tryHandleStripeRoute', () => {
     );
 
     expect(createConnectedAccountMock).not.toHaveBeenCalled();
+    expect(getConnectedAccountMock).toHaveBeenCalledWith('acct_existing');
     expect(createAccountOnboardingLinkMock).toHaveBeenCalledWith(
       'acct_existing',
       'https://app.example.com/?stripe_connect=return',
@@ -343,6 +354,56 @@ describe('tryHandleStripeRoute', () => {
     );
     expect(JSON.parse(res.body)).toEqual({
       accountId: 'acct_existing',
+      url: 'https://connect.stripe.test/onboarding',
+    });
+  });
+
+  it('creates a first-time Stripe account with the approved profile prefill fields', async () => {
+    mockStripeSupabase({
+      profile: profileFixture({
+        business_name: 'Forge & Weld',
+        email: 'forge@example.com',
+        google_business_profile_url: 'https://maps.example.com/forge',
+      }),
+    });
+    createConnectedAccountMock.mockResolvedValue({
+      data: { id: 'acct_new' },
+      error: null,
+    });
+    createAccountOnboardingLinkMock.mockResolvedValue({
+      data: { url: 'https://connect.stripe.test/onboarding' },
+      error: null,
+    });
+    const res = captureRes();
+
+    await tryHandleStripeRoute(
+      {
+        method: 'POST',
+        url: '/api/stripe/connect/start',
+        headers: {
+          authorization: 'Bearer token',
+          host: '127.0.0.1:3000',
+        },
+      } as never,
+      res as never,
+      defaultHelpers() as never
+    );
+
+    expect(createConnectedAccountMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        business_name: 'Forge & Weld',
+        email: 'forge@example.com',
+        google_business_profile_url: 'https://maps.example.com/forge',
+      })
+    );
+    expect(getConnectedAccountMock).not.toHaveBeenCalled();
+    expect(createAccountOnboardingLinkMock).toHaveBeenCalledWith(
+      'acct_new',
+      'https://app.example.com/?stripe_connect=return',
+      'https://app.example.com/?stripe_connect=refresh'
+    );
+    expect(JSON.parse(res.body)).toEqual({
+      accountId: 'acct_new',
       url: 'https://connect.stripe.test/onboarding',
     });
   });
