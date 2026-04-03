@@ -13,6 +13,8 @@ const REASON_PRESETS = [
   'Other',
 ] as const;
 
+const CHANGE_ORDER_WIZARD_STEPS = ['What Changed', 'Cost Adjustment', 'Review & Send'] as const;
+
 type ReasonPreset = (typeof REASON_PRESETS)[number];
 
 function newLineItem(): ChangeOrderLineItem {
@@ -194,6 +196,11 @@ export function ChangeOrderWizard({
 
   const woLabel =
     job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
+  const customerTitle = job.customer_name.trim() || 'Customer';
+  const shellTitle =
+    isEdit && existingCO
+      ? `Edit Change Order #${String(existingCO.co_number).padStart(4, '0')}`
+      : 'New Change Order';
 
   const goBack = () => {
     setError('');
@@ -211,6 +218,43 @@ export function ChangeOrderWizard({
         <span className="invoice-wizard-toolbar-balance" aria-hidden="true" />
       </div>
 
+      <header className="co-wizard-intro">
+        <p className="co-wizard-kicker">Change order</p>
+        <h1 className="co-wizard-shell-title">{shellTitle}</h1>
+        <p className="co-wizard-shell-subtitle">
+          {woLabel} for {customerTitle}
+        </p>
+      </header>
+
+      <div className="invoice-wizard-stepper co-wizard-stepper" role="list" aria-label="Change order progress">
+        {CHANGE_ORDER_WIZARD_STEPS.map((label, index) => {
+          const stepNumber = (index + 1) as 1 | 2 | 3;
+          const stateClass =
+            stepNumber === step
+              ? ' invoice-wizard-stepper-item--current'
+              : stepNumber < step
+                ? ' invoice-wizard-stepper-item--complete'
+                : '';
+
+          return (
+            <div
+              key={label}
+              role="listitem"
+              aria-current={stepNumber === step ? 'step' : undefined}
+              className={`invoice-wizard-stepper-item${stateClass}`}
+            >
+              <span className="invoice-wizard-stepper-index" aria-hidden="true">
+                {stepNumber}
+              </span>
+              <span className="invoice-wizard-stepper-copy">
+                <span className="invoice-wizard-stepper-kicker">{`Step ${stepNumber}`}</span>
+                <span className="invoice-wizard-stepper-label">{label}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
       {error ? (
         <div className="error-banner" role="alert">
           {error}
@@ -220,8 +264,8 @@ export function ChangeOrderWizard({
       {step === 1 ? (
         <section className="invoice-wizard-step co-wizard-step">
           <header className="co-wizard-step-header">
-            <p className="co-wizard-step-indicator">Step 1 of 3</p>
-            <h1 className="co-wizard-title">What Changed</h1>
+            <p className="invoice-wizard-step-count">Step 1 of 3</p>
+            <h2 className="invoice-flow-section-title co-wizard-title">What Changed</h2>
           </header>
 
           <div className="co-wizard-block">
@@ -287,8 +331,8 @@ export function ChangeOrderWizard({
       {step === 2 ? (
         <section className="invoice-wizard-step co-wizard-step">
           <header className="co-wizard-step-header">
-            <p className="co-wizard-step-indicator">Step 2 of 3</p>
-            <h1 className="co-wizard-title">Cost Adjustment</h1>
+            <p className="invoice-wizard-step-count">Step 2 of 3</p>
+            <h2 className="invoice-flow-section-title co-wizard-title">Cost Adjustment</h2>
           </header>
 
           <p className="co-section-label">Line items</p>
@@ -415,8 +459,8 @@ export function ChangeOrderWizard({
       {step === 3 ? (
         <section className="invoice-wizard-step co-wizard-step">
           <header className="co-wizard-step-header">
-            <p className="co-wizard-step-indicator">Step 3 of 3</p>
-            <h1 className="co-wizard-title">Review & Save</h1>
+            <p className="invoice-wizard-step-count">Step 3 of 3</p>
+            <h2 className="invoice-flow-section-title co-wizard-title">Review & Save</h2>
           </header>
 
           <div className="co-review-card">

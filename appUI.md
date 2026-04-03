@@ -309,18 +309,18 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~2 hours
 
 ### Changes
-- [ ] Refresh wizard step visuals
-- [ ] Apply shared dark form treatment
-- [ ] Match detail-shell pattern used by work-order detail
-- [ ] Restyle status badges and actions
+- [x] Refresh wizard step visuals
+- [x] Apply shared dark form treatment
+- [x] Match detail-shell pattern used by work-order detail
+- [x] Restyle status badges and actions
 
 ### Status model
-- [ ] Preserve actual change-order states
+- [x] Preserve actual change-order states
   - `draft`
   - `pending_approval`
   - `approved`
   - `rejected`
-- [ ] Do not remap `rejected` to a generic overdue color/state without a deliberate product decision
+- [x] Do not remap `rejected` to a generic overdue color/state without a deliberate product decision
 
 ---
 
@@ -330,9 +330,9 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~30 min
 
 ### Changes
-- [ ] Dark full-screen modal shell
-- [ ] Restyled close control
-- [ ] Light document preview card inside
+- [x] Dark full-screen modal shell
+- [x] Restyled close control
+- [x] Light document preview card inside
 
 ---
 
@@ -342,10 +342,10 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~1 hour
 
 ### Changes
-- [ ] Restyle page header
-- [ ] Apply shared form treatment
-- [ ] Refresh Stripe Connect status block
-- [ ] Keep all existing behavior and validation
+- [x] Restyle page header
+- [x] Apply shared form treatment
+- [x] Refresh Stripe Connect status block
+- [x] Keep all existing behavior and validation
 
 ---
 
@@ -355,8 +355,8 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~45 min
 
 ### Changes
-- [ ] Align with Edit Profile visual system
-- [ ] Apply shared form/button primitives
+- [x] Align with Edit Profile visual system
+- [x] Apply shared form/button primitives
 
 ---
 

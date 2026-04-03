@@ -14,7 +14,7 @@ import {
 } from '../lib/docuseal-change-order-html';
 import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import '../lib/change-order-document.css';
-import { deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
+import { computeCOTotal, deleteChangeOrder, getChangeOrderById } from '../lib/db/change-orders';
 import { jobRowToWelderJob } from '../lib/job-to-welder-job';
 import { formatEsignTimestamp } from '../lib/esign-live';
 import { getEsignProgressModel } from '../lib/esign-progress';
@@ -26,6 +26,32 @@ import {
   downloadSignedDocumentFile,
 } from '../lib/esign-api';
 import './ChangeOrderDetailPage.css';
+
+const CHANGE_ORDER_STATUS_META: Record<
+  ChangeOrder['status'],
+  { label: string; description: string; tone: 'draft' | 'pending' | 'approved' | 'rejected' }
+> = {
+  draft: {
+    label: 'Draft',
+    description: 'Saved but not yet sent for approval.',
+    tone: 'draft',
+  },
+  pending_approval: {
+    label: 'Pending Approval',
+    description: 'Awaiting customer review and signature.',
+    tone: 'pending',
+  },
+  approved: {
+    label: 'Approved',
+    description: 'Customer approved and signed this change order.',
+    tone: 'approved',
+  },
+  rejected: {
+    label: 'Rejected',
+    description: 'Customer declined this change order.',
+    tone: 'rejected',
+  },
+};
 
 interface ChangeOrderDetailPageProps {
   userId: string;
@@ -53,6 +79,17 @@ export function ChangeOrderDetailPage({
 
   const coLabel = `CO #${String(co.co_number).padStart(4, '0')}`;
   const customerTitle = job.customer_name.trim() || 'Customer';
+  const workOrderLabel =
+    job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'Work order';
+  const statusMeta = CHANGE_ORDER_STATUS_META[co.status];
+  const coTotal = useMemo(() => computeCOTotal(co.line_items), [co.line_items]);
+  const scheduleUnitLabel = co.time_amount === 1 ? co.time_unit.slice(0, -1) : co.time_unit;
+  const scheduleImpact =
+    co.time_amount > 0
+      ? `+${co.time_amount} ${scheduleUnitLabel}${
+          co.time_note.trim() ? ` - ${co.time_note.trim()}` : ''
+        }`
+      : 'No schedule change';
 
   const welderJob = useMemo(() => jobRowToWelderJob(job, profile), [job, profile]);
   const footerMeta = useMemo(() => ({
@@ -249,16 +286,40 @@ export function ChangeOrderDetailPage({
   const innerHtml = generateChangeOrderHtml(co, job, profile);
 
   return (
-    <div className="work-order-detail-page">
+    <div className="work-order-detail-page co-detail-page">
       <div className="invoice-final-nav">
         <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
           Go Back
         </button>
       </div>
-      <hgroup>
-        <h1 className="invoice-final-heading">{customerTitle}</h1>
-        <p className="invoice-final-heading-sub">{coLabel}</p>
-      </hgroup>
+      <header className="co-detail-header">
+        <div className="co-detail-heading-copy">
+          <p className="co-detail-kicker">Change order</p>
+          <h1 className="invoice-final-heading">{customerTitle}</h1>
+          <div className="co-detail-heading-row">
+            <p className="invoice-final-heading-sub">{coLabel}</p>
+            <span className={`co-detail-status-badge co-detail-status-badge--${statusMeta.tone}`}>
+              {statusMeta.label}
+            </span>
+          </div>
+          <p className="co-detail-status-description">{statusMeta.description}</p>
+        </div>
+
+        <div className="co-detail-summary-card" aria-label="Change order summary">
+          <div className="co-detail-summary-row">
+            <span className="co-detail-summary-label">Work order</span>
+            <span className="co-detail-summary-value">{workOrderLabel}</span>
+          </div>
+          <div className="co-detail-summary-row">
+            <span className="co-detail-summary-label">Cost adjustment</span>
+            <span className="co-detail-summary-value">${coTotal.toFixed(2)}</span>
+          </div>
+          <div className="co-detail-summary-row">
+            <span className="co-detail-summary-label">Schedule</span>
+            <span className="co-detail-summary-value">{scheduleImpact}</span>
+          </div>
+        </div>
+      </header>
 
       {pdfError ? (
         <div className="error-banner" role="alert">
@@ -270,6 +331,17 @@ export function ChangeOrderDetailPage({
           Change order signature request was resent. The customer should receive a new email shortly.
         </div>
       ) : null}
+
+      <section className="co-detail-meta-card" aria-label="Change order details">
+        <div className="co-detail-meta-item">
+          <span className="co-detail-meta-label">Reason</span>
+          <span className="co-detail-meta-value">{co.reason || 'Not specified'}</span>
+        </div>
+        <div className="co-detail-meta-item">
+          <span className="co-detail-meta-label">Description</span>
+          <span className="co-detail-meta-value">{co.description || 'Not specified'}</span>
+        </div>
+      </section>
 
       <section className="wo-esign-card" aria-labelledby="co-esign-heading">
         <h2 id="co-esign-heading" className="wo-esign-heading">
@@ -378,14 +450,16 @@ export function ChangeOrderDetailPage({
         </div>
       </section>
 
-      <div className="work-order-detail-scroll">
-        <div
-          className="agreement-document work-order-detail-document"
-          dangerouslySetInnerHTML={{ __html: innerHtml }}
-        />
+      <div className="work-order-detail-scroll co-detail-scroll">
+        <div className="co-detail-document-frame">
+          <div
+            className="agreement-document work-order-detail-document"
+            dangerouslySetInnerHTML={{ __html: innerHtml }}
+          />
+        </div>
       </div>
 
-      <div className="work-order-detail-footer">
+      <div className="work-order-detail-footer co-detail-footer">
         <button
           type="button"
           className="btn-secondary btn-large work-order-detail-download"
@@ -404,7 +478,7 @@ export function ChangeOrderDetailPage({
         </button>
         <button
           type="button"
-          className="btn-secondary btn-large work-order-detail-download"
+          className="btn-secondary btn-large work-order-detail-download co-detail-delete-btn"
           disabled={coEsignBusy}
           onClick={() => void handleDelete()}
         >

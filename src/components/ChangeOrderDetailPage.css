@@ -1,19 +1,199 @@
-.co-detail-meta-row {
+.co-detail-page {
+  max-width: 920px;
+}
+
+.co-detail-header {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-lg);
+}
+
+.co-detail-kicker {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--spark);
+}
+
+.co-detail-heading-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: var(--space-sm) 0 var(--space-md);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-md);
+  gap: var(--space-sm);
 }
 
-.co-detail-total {
+.co-detail-page .invoice-final-heading {
+  margin-bottom: var(--space-xs);
+}
+
+.co-detail-page .invoice-final-heading-sub {
+  margin: 0;
+}
+
+.co-detail-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.co-detail-status-badge--draft {
+  color: var(--iron-150);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.co-detail-status-badge--pending {
+  color: #ffd98b;
+  background: rgba(255, 140, 0, 0.12);
+  border-color: rgba(255, 140, 0, 0.24);
+}
+
+.co-detail-status-badge--approved {
+  color: #b7ffd7;
+  background: rgba(62, 207, 142, 0.14);
+  border-color: rgba(62, 207, 142, 0.26);
+}
+
+.co-detail-status-badge--rejected {
+  color: #ffc3ba;
+  background: rgba(255, 133, 117, 0.14);
+  border-color: rgba(255, 133, 117, 0.28);
+}
+
+.co-detail-status-description {
+  margin: var(--space-sm) 0 0;
+  color: var(--iron-250);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.co-detail-summary-card,
+.co-detail-meta-card {
+  padding: clamp(1rem, 2.5vw, 1.35rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(24, 26, 33, 0.94), rgba(13, 16, 22, 0.96)),
+    radial-gradient(circle at top, rgba(255, 140, 0, 0.08), transparent 42%);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.26);
+}
+
+.co-detail-summary-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.co-detail-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-md);
+}
+
+.co-detail-summary-label,
+.co-detail-meta-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iron-350);
+}
+
+.co-detail-summary-value,
+.co-detail-meta-value {
+  color: var(--iron-50);
+  font-size: 0.98rem;
   font-weight: 600;
-  font-size: 1rem;
-  flex: 1;
+  text-align: right;
 }
 
-.co-detail-delete {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
+.co-detail-meta-card {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-lg);
+}
+
+.co-detail-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.co-detail-meta-value {
+  font-weight: 500;
+  text-align: left;
+  line-height: 1.55;
+}
+
+.co-detail-scroll {
+  margin-bottom: var(--space-lg);
+}
+
+.co-detail-document-frame {
+  padding: clamp(0.55rem, 2vw, 1rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 27, 0.96), rgba(14, 15, 19, 0.98)),
+    radial-gradient(circle at top, rgba(255, 140, 0, 0.06), transparent 50%);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+}
+
+.co-detail-document-frame .work-order-detail-document {
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.co-detail-footer {
+  gap: var(--space-sm);
+}
+
+.co-detail-footer .work-order-detail-download {
+  flex: 1 1 200px;
+}
+
+.co-detail-delete-btn {
+  color: #ffc3ba;
+  border-color: rgba(255, 133, 117, 0.28);
+  background: rgba(255, 133, 117, 0.08);
+}
+
+.co-detail-delete-btn:hover:not(:disabled) {
+  background: rgba(255, 133, 117, 0.16);
+  border-color: rgba(255, 133, 117, 0.36);
+  color: #ffd7cf;
+}
+
+@media (min-width: 760px) {
+  .co-detail-header {
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.85fr);
+    align-items: start;
+  }
+
+  .co-detail-meta-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .co-detail-summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .co-detail-summary-value {
+    text-align: left;
+  }
 }

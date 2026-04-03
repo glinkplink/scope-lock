@@ -218,12 +218,13 @@ export function EditProfilePage({
           )}
 
           <div className="page-header">
+            <p className="edit-profile-page-kicker">Business settings</p>
             <h1>Edit Profile</h1>
             <p>Update your business details and default settings used in your work orders and invoices.</p>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <section className="form-section">
+          <form className="edit-profile-form" onSubmit={handleSubmit}>
+            <section className="form-section edit-profile-section">
               <h2>Business Information</h2>
 
               <div className="form-group">
@@ -292,7 +293,7 @@ export function EditProfilePage({
               </div>
             </section>
 
-            <section className="form-section">
+            <section className="form-section edit-profile-section">
               <h2>Work Order Defaults</h2>
 
               <div className="form-group">
@@ -417,7 +418,7 @@ export function EditProfilePage({
               </div>
             </section>
 
-            <section className="form-section">
+            <section className="form-section edit-profile-section">
               <h2>Invoice Defaults</h2>
 
               <div className="form-group">
@@ -467,7 +468,7 @@ export function EditProfilePage({
               </div>
             </section>
 
-            <section className="form-section edit-profile-stripe-section">
+            <section className="form-section edit-profile-section edit-profile-stripe-section">
               <h2>Stripe Connect</h2>
               <p className="section-description">
                 Connect Stripe when you are ready to accept invoice payments through IronWork. Existing Stripe users may be able to sign in and reuse details during setup.

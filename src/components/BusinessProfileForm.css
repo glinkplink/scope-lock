@@ -1,7 +1,44 @@
 .business-profile-form {
   max-width: 640px;
   margin: 0 auto;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+.business-profile-form-header {
+  margin-bottom: var(--space-xl);
+  padding: clamp(1rem, 3vw, 1.4rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 140, 0, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(29, 28, 26, 0.98), rgba(18, 18, 17, 0.98));
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.22);
+}
+
+.business-profile-form-kicker {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--spark);
+}
+
+.business-profile-form h1 {
+  margin: 0 0 var(--space-xs);
+  font-size: clamp(1.6rem, 5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iron-50);
+}
+
+.business-profile-form-header p:last-child {
+  margin: 0;
+  color: var(--iron-250);
+  font-size: 0.9375rem;
+  line-height: 1.55;
 }
 
 .business-profile-form .sign-in-prompt {
@@ -9,38 +46,38 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  margin-bottom: var(--space-xl);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--form-panel-bg);
-  border: 1px solid var(--form-panel-border);
-  border-radius: var(--shell-radius-md);
+  margin-bottom: var(--space-lg);
+  padding: 1rem 1.1rem;
+  background: rgba(17, 17, 16, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
   font-size: 0.875rem;
 }
 
 .business-profile-form .sign-in-prompt span {
-  color: var(--iron-300);
-  font-size: 0.8125rem;
+  color: var(--iron-250);
+  font-size: 0.875rem;
   letter-spacing: 0.02em;
 }
 
 .business-profile-form .btn-sign-in {
   background: transparent;
-  border: 1px solid var(--iron-600);
+  border: 1px solid rgba(255, 140, 0, 0.26);
   color: var(--spark);
-  padding: 5px var(--space-md);
-  border-radius: var(--shell-radius-sm);
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
   font-family: inherit;
   font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .business-profile-form .btn-sign-in:hover {
   background: rgba(255, 140, 0, 0.12);
   color: var(--spark-hot);
-  border-color: var(--spark);
+  border-color: rgba(255, 140, 0, 0.4);
 }
 
 .business-profile-form .btn-sign-in:focus-visible {
@@ -48,84 +85,45 @@
   outline-offset: 2px;
 }
 
-.business-profile-form h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--iron-50);
-  margin-bottom: var(--space-xl);
-  text-align: center;
+.business-profile-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
-.business-profile-form form {
-  background: var(--form-panel-bg);
-  border: 1px solid var(--form-panel-border);
-  border-radius: var(--shell-radius-md);
-  padding: 24px;
+.business-profile-form-section {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(24, 26, 33, 0.94), rgba(13, 16, 22, 0.96)),
+    radial-gradient(circle at top, rgba(255, 140, 0, 0.06), transparent 42%);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
 }
 
-.business-profile-form label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--form-label);
-  margin-bottom: var(--space-lg);
-}
-
-.business-profile-form input,
-.business-profile-form textarea {
-  display: block;
-  width: 100%;
-  padding: 10px var(--space-md);
-  font-size: 1rem;
-  font-family: inherit;
-  border: 1px solid var(--form-control-border);
-  border-radius: var(--shell-radius-sm);
-  background: var(--form-control-bg);
-  color: var(--form-control-text);
-  margin-top: 6px;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-  box-sizing: border-box;
-}
-
-.business-profile-form input::placeholder,
-.business-profile-form textarea::placeholder {
-  color: var(--form-placeholder);
-  opacity: 1;
-}
-
-.business-profile-form input:focus,
-.business-profile-form textarea:focus {
-  outline: none;
-}
-
-.business-profile-form input:focus-visible,
-.business-profile-form textarea:focus-visible {
-  border-color: var(--spark);
-  box-shadow: var(--focus-ring-spark);
+.business-profile-form-section > h2 {
+  margin-bottom: var(--space-md);
 }
 
 .business-profile-form textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 84px;
 }
 
-.business-profile-form .btn-primary {
-  margin-top: var(--space-lg);
+.business-profile-form-error {
+  margin: 0;
 }
 
-.business-profile-form .error {
-  background: rgba(185, 28, 28, 0.2);
-  color: #fecaca;
-  padding: var(--space-md);
-  border-radius: var(--shell-radius-sm);
-  font-size: 0.875rem;
-  margin-top: var(--space-md);
-  text-align: center;
-  border: 1px solid rgba(248, 113, 113, 0.35);
+.business-profile-form-actions .btn-primary {
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .business-profile-form .sign-in-prompt {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .business-profile-form .btn-sign-in {
+    width: 100%;
+  }
 }

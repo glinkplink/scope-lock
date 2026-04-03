@@ -79,20 +79,26 @@ export function InvoicePreviewModal({ open, onClose, htmlMarkup }: InvoicePrevie
       onKeyDown={handleDialogKeyDown}
     >
       <div className="invoice-preview-modal-toolbar">
+        <div className="invoice-preview-modal-heading">
+          <p className="invoice-preview-modal-kicker">Invoice preview</p>
+          <p className="invoice-preview-modal-subtitle">Light document preview inside the Forge shell.</p>
+        </div>
         <button
           ref={closeButtonRef}
           type="button"
-          className="home-work-orders-link"
+          className="invoice-preview-modal-close"
           onClick={onClose}
         >
-          Close
+          Close preview
         </button>
       </div>
       <div className="invoice-preview-modal-scroll">
-        <div
-          className="invoice-preview-modal-sheet"
-          dangerouslySetInnerHTML={{ __html: htmlMarkup }}
-        />
+        <div className="invoice-preview-modal-sheet-frame">
+          <div
+            className="invoice-preview-modal-sheet"
+            dangerouslySetInnerHTML={{ __html: htmlMarkup }}
+          />
+        </div>
       </div>
     </div>
   );

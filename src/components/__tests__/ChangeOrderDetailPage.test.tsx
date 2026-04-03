@@ -23,10 +23,14 @@ vi.mock('../../lib/docuseal-signature-image', () => ({
   buildDocusealProviderSignatureImage: vi.fn(() => Promise.resolve('')),
 }));
 
-vi.mock('../../lib/db/change-orders', () => ({
-  deleteChangeOrder: vi.fn(),
-  getChangeOrderById: vi.fn(() => Promise.resolve(null)),
-}));
+vi.mock('../../lib/db/change-orders', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/db/change-orders')>();
+  return {
+    ...actual,
+    deleteChangeOrder: vi.fn(),
+    getChangeOrderById: vi.fn(() => Promise.resolve(null)),
+  };
+});
 
 function minimalProfile(): BusinessProfile {
   return {
