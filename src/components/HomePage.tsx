@@ -98,7 +98,7 @@ export function HomePage({
       <div className="home-page home-page--guest">
         <div className="home-hero">
           <h1 className="home-hero-title">IronWork</h1>
-          <p className="home-hero-lead">Clear work agreements for every job.</p>
+          <p className="home-hero-lead">Stop working for free. Get it in writing.</p>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
             Create Work Order
           </button>

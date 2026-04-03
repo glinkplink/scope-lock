@@ -635,7 +635,7 @@ function App() {
 
       {!showBottomNav && (
         <footer className="app-footer">
-          <p>IronWork - Built for contractors who are tired of getting burned.</p>
+          <p>Built for contractors who are tired of getting burned.</p>
         </footer>
       )}
 

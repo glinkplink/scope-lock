@@ -93,14 +93,13 @@ describe('HomePage', () => {
     cleanup();
   });
 
-  it('guest hero shows IronWork CTA without legacy copy', () => {
+  it('guest hero shows IronWork CTA and tagline', () => {
     render(<HomePage {...guestProps()} />);
 
     expect(screen.getByRole('heading', { name: 'IronWork' })).toBeInTheDocument();
-    expect(screen.getByText(/Clear work agreements for every job/i)).toBeInTheDocument();
+    expect(screen.getByText(/Stop working for free\. Get it in writing\./i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create Work Order' })).toBeInTheDocument();
     expect(screen.queryByText(/Cover your ass/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Stop working for free/i)).not.toBeInTheDocument();
   });
 
   it('clears dashboard data when userId becomes null after signed-in load', async () => {
