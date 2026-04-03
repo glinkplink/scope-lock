@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { generateAgreement } from '../agreement-generator';
-import { buildDocusealWorkOrderHtmlDocument } from '../docuseal-agreement-html';
+import {
+  buildDocusealWorkOrderHtmlDocument,
+  buildWorkOrderEsignNotificationMessage,
+} from '../docuseal-agreement-html';
 import { esc } from '../html-escape';
 import type { WelderJob } from '../../types';
 import type { BusinessProfile } from '../../types/db';
@@ -128,5 +131,59 @@ describe('docuseal-agreement-html', () => {
     const lastEsc = esc(last);
     expect(html.indexOf(firstEsc)).toBeGreaterThanOrEqual(0);
     expect(html.indexOf(lastEsc)).toBeGreaterThan(html.indexOf(firstEsc));
+  });
+
+  it('includes work-order detail lines in the DocuSeal notification email', () => {
+    const message = buildWorkOrderEsignNotificationMessage(
+      {
+        ...welderJob,
+        target_start: '2024-06-10',
+        target_completion_date: '2024-06-11',
+      },
+      profile
+    );
+
+    expect(message.body).toContain('Reference: Work Order #0003');
+    expect(message.body).toContain('Item / Structure: Item');
+    expect(message.body).toContain('Work Requested: Fix it');
+    expect(message.body).toContain('Target Start Date: June 10, 2024');
+    expect(message.body).toContain('Target Completion Date: June 11, 2024');
+    expect(message.body.indexOf('Reference: Work Order #0003')).toBeLessThan(
+      message.body.indexOf('Item / Structure: Item')
+    );
+    expect(message.body.indexOf('Item / Structure: Item')).toBeLessThan(
+      message.body.indexOf('Please review and sign using the link below:')
+    );
+    expect(message.body.indexOf('Please review and sign using the link below:')).toBeLessThan(
+      message.body.indexOf('{{submitter.link}}')
+    );
+    expect(message.body.indexOf('{{submitter.link}}')).toBeLessThan(
+      message.body.indexOf('Target Start Date: June 10, 2024')
+    );
+  });
+
+  it('omits target date lines when the work order has no dates', () => {
+    const message = buildWorkOrderEsignNotificationMessage(welderJob, profile);
+
+    expect(message.body).toContain('Reference: Work Order #0003');
+    expect(message.body).toContain('Item / Structure: Item');
+    expect(message.body).toContain('Work Requested: Fix it');
+    expect(message.body).not.toContain('Target Start Date:');
+    expect(message.body).not.toContain('Target Completion Date:');
+    expect(message.body.indexOf('Reference: Work Order #0003')).toBeLessThan(
+      message.body.indexOf('Item / Structure: Item')
+    );
+    expect(message.body.indexOf('{{submitter.link}}')).toBeLessThan(
+      message.body.indexOf('Thank you,')
+    );
+    expect(message.body.indexOf('Work Requested: Fix it')).toBeLessThan(
+      message.body.indexOf('Please review and sign using the link below:')
+    );
+    expect(message.body.indexOf('{{submitter.link}}')).toBeGreaterThan(
+      message.body.indexOf('Please review and sign using the link below:')
+    );
+    expect(message.body.indexOf('Reference: Work Order #0003')).toBeLessThan(
+      message.body.indexOf('Please review and sign using the link below:')
+    );
   });
 });

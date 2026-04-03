@@ -10,6 +10,18 @@ export function docusealUsDateToday(): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+function formatNotificationDate(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const [year, month, day] = trimmed.split('-').map(Number);
+  if (!year || !month || !day) return trimmed;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 interface DocusealWorkOrderHtmlOptions {
   providerSignatureDataUrl?: string | null;
 }
@@ -258,9 +270,19 @@ export function buildWorkOrderEsignNotificationMessage(
     : (rawType || 'work');
   const jobTypeCap = jobTypeLabel.charAt(0).toUpperCase() + jobTypeLabel.slice(1);
   const location = jobLocationSingleLine(job.job_location);
+  const detailLines = [
+    `Reference: Work Order #${wo}`,
+    `Item / Structure: ${(job.asset_or_item_description || '').trim()}`,
+    `Work Requested: ${(job.requested_work || '').trim()}`,
+  ];
+  const targetStart = formatNotificationDate(job.target_start || '');
+  const targetCompletion = formatNotificationDate(job.target_completion_date || '');
+  const trailingLines = [];
+  if (targetStart) trailingLines.push(`Target Start Date: ${targetStart}`);
+  if (targetCompletion) trailingLines.push(`Target Completion Date: ${targetCompletion}`);
 
   return {
     subject: `${contractorName} sent you a Work Order to sign - WO #${wo}`,
-    body: `Hi ${customerFirst},\n\n${contractorName} has prepared a Work Order for your ${jobTypeCap} project${location ? ` at ${location}` : ''} and is requesting your signature.\n\nReference: Work Order #${wo}\n\nPlease review and sign using the link below:\n\n{{submitter.link}}\n\nThank you,\n${signerName}\n${contractorName}`,
+    body: `Hi ${customerFirst},\n\n${contractorName} has prepared a Work Order for your ${jobTypeCap} project${location ? ` at ${location}` : ''} and is requesting your signature.\n\n${detailLines.join('\n')}\n\nPlease review and sign using the link below:\n\n{{submitter.link}}\n\n${trailingLines.join('\n')}\n\nThank you,\n${signerName}\n${contractorName}`,
   };
 }

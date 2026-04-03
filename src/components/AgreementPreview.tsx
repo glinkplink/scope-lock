@@ -10,7 +10,10 @@ import {
   fetchAgreementPdfBlob,
   getWorkOrderHeaderLabel,
 } from '../lib/agreement-pdf';
-import { buildDocusealWorkOrderHtmlDocument } from '../lib/docuseal-agreement-html';
+import {
+  buildDocusealWorkOrderHtmlDocument,
+  buildWorkOrderEsignNotificationMessage,
+} from '../lib/docuseal-agreement-html';
 import {
   buildDocusealEsignFooterLine,
   buildDocusealHtmlFooter,
@@ -193,10 +196,7 @@ export function AgreementPreview({
           html_footer: footer,
         },
       ],
-      message: {
-        subject: `Please sign: Work Order #${wo}`,
-        body: `Please review and sign the work order.\n\n{{submitter.link}}`,
-      },
+      message: buildWorkOrderEsignNotificationMessage(welderJob, prof),
     });
   };
 
