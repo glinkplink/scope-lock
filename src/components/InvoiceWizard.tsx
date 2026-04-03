@@ -20,6 +20,8 @@ import './InvoiceWizard.css';
 
 type PricingSubStep = 'labor' | 'materials';
 
+const INVOICE_WIZARD_STEPS = ['Pricing', 'Due date', 'Payment methods'] as const;
+
 function defaultDueDateYmd(): string {
   const d = new Date();
   d.setDate(d.getDate() + 14);
@@ -98,6 +100,21 @@ function InvoicePreviewSummary({
         <span className="invoice-wizard-summary-value">${total.toFixed(2)}</span>
       </div>
     </div>
+  );
+}
+
+function InvoiceWizardStepHeader({
+  stepNumber,
+  title,
+}: {
+  stepNumber: 1 | 2 | 3;
+  title: string;
+}) {
+  return (
+    <header className="invoice-wizard-step-header">
+      <p className="invoice-wizard-step-count">{`Step ${stepNumber} of 3`}</p>
+      <h2 className="invoice-flow-section-title">{title}</h2>
+    </header>
   );
 }
 
@@ -425,10 +442,8 @@ export function InvoiceWizard({
   const coPickerSection =
     !existingInvoice && !isChangeOrderInvoice && changeOrdersOnJob.length > 0 ? (
       <div className="invoice-co-picker">
-        <h3 className="invoice-flow-section-title" style={{ fontSize: '1rem' }}>
-          Change orders on this job
-        </h3>
-        <p className="content-note" style={{ marginBottom: 12 }}>
+        <h3 className="invoice-flow-subsection-title">Change orders on this job</h3>
+        <p className="content-note invoice-wizard-note invoice-wizard-note--tight">
           Include change orders as invoice lines. Uncheck any you do not bill on this invoice.
         </p>
         <ul className="invoice-co-picker-list">
@@ -456,7 +471,7 @@ export function InvoiceWizard({
     ) : null;
 
   const editCoNote = existingInvoice ? (
-    <p className="content-note" style={{ marginBottom: 16 }}>
+    <p className="content-note invoice-wizard-note">
       Change order lines on this invoice are fixed. Edit due date, tax, or other amounts below; original and
       labor lines update from this screen.
     </p>
@@ -472,6 +487,35 @@ export function InvoiceWizard({
         <span className="invoice-wizard-toolbar-balance" aria-hidden="true" />
       </div>
 
+      <div className="invoice-wizard-stepper" role="list" aria-label="Invoice progress">
+        {INVOICE_WIZARD_STEPS.map((label, index) => {
+          const stepNumber = (index + 1) as 1 | 2 | 3;
+          const stateClass =
+            stepNumber === step
+              ? ' invoice-wizard-stepper-item--current'
+              : stepNumber < step
+                ? ' invoice-wizard-stepper-item--complete'
+                : '';
+
+          return (
+            <div
+              key={label}
+              role="listitem"
+              aria-current={stepNumber === step ? 'step' : undefined}
+              className={`invoice-wizard-stepper-item${stateClass}`}
+            >
+              <span className="invoice-wizard-stepper-index" aria-hidden="true">
+                {stepNumber}
+              </span>
+              <span className="invoice-wizard-stepper-copy">
+                <span className="invoice-wizard-stepper-kicker">{`Step ${stepNumber}`}</span>
+                <span className="invoice-wizard-stepper-label">{label}</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
       {error ? (
         <div className="error-banner" role="alert">
           {error}
@@ -480,9 +524,9 @@ export function InvoiceWizard({
 
       {step === 1 && isChangeOrderInvoice && changeOrder ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title">Pricing</h2>
+          <InvoiceWizardStepHeader stepNumber={1} title="Pricing" />
           {editCoNote}
-          <p className="content-note" style={{ marginBottom: 16 }}>
+          <p className="content-note invoice-wizard-note">
             This invoice is for CO #{String(changeOrder.co_number).padStart(4, '0')} only.
           </p>
           {selectedCOAmountFields}
@@ -514,7 +558,7 @@ export function InvoiceWizard({
 
       {step === 1 && !isChangeOrderInvoice && job.price_type === 'fixed' ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title">Pricing</h2>
+          <InvoiceWizardStepHeader stepNumber={1} title="Pricing" />
           {editCoNote}
           {coPickerSection}
           <div className="form-group">
@@ -552,7 +596,7 @@ export function InvoiceWizard({
 
       {step === 1 && !isChangeOrderInvoice && job.price_type !== 'fixed' && pricingSubStep === 'labor' ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title">Labor</h2>
+          <InvoiceWizardStepHeader stepNumber={1} title="Labor" />
           {editCoNote}
           {coPickerSection}
           {laborRows.map((row, index) => (
@@ -632,7 +676,7 @@ export function InvoiceWizard({
 
       {step === 1 && !isChangeOrderInvoice && job.price_type !== 'fixed' && pricingSubStep === 'materials' ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title">Materials</h2>
+          <InvoiceWizardStepHeader stepNumber={1} title="Materials" />
           <button
             type="button"
             className="invoice-flow-back-link"
@@ -739,7 +783,7 @@ export function InvoiceWizard({
 
       {step === 2 ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title">Due date</h2>
+          <InvoiceWizardStepHeader stepNumber={2} title="Due date" />
           <button
             type="button"
             className="invoice-flow-back-link"
@@ -772,9 +816,9 @@ export function InvoiceWizard({
 
       {step === 3 ? (
         <section className="invoice-wizard-step">
-          <h2 className="invoice-flow-section-title" id="invoice-wizard-payment-methods-heading">
-            Payment methods
-          </h2>
+          <div id="invoice-wizard-payment-methods-heading">
+            <InvoiceWizardStepHeader stepNumber={3} title="Payment methods" />
+          </div>
           <button
             type="button"
             className="invoice-flow-back-link"

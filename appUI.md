@@ -265,11 +265,11 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~45 min
 
 ### Changes
-- [ ] Dark full-page auth surface
-- [ ] Card layout
-- [ ] Logo/title treatment
-- [ ] Shared input/button primitives
-- [ ] Clear error state treatment
+- [x] Dark full-page auth surface
+- [x] Card layout
+- [x] Logo/title treatment
+- [x] Shared input/button primitives
+- [x] Clear error state treatment
 
 ---
 
@@ -279,10 +279,10 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~1 to 1.5 hours
 
 ### Changes
-- [ ] Refresh step indicator
-- [ ] Restyle line items and totals panel
-- [ ] Restyle CO picker chips
-- [ ] Apply shared form/button system
+- [x] Refresh step indicator
+- [x] Restyle line items and totals panel
+- [x] Restyle CO picker chips
+- [x] Apply shared form/button system
 
 ---
 
@@ -292,14 +292,14 @@ These need to be treated as explicit scope decisions before implementation start
 **Effort:** ~1 to 1.5 hours
 
 ### Changes
-- [ ] Keep invoice preview document light-mode
-- [ ] Dark shell around the preview
-- [ ] Restyle page controls and status badges
-- [ ] Preserve current one-time invoice refetch on mount
-- [ ] Keep payment-link and send actions behaviorally unchanged
+- [x] Keep invoice preview document light-mode
+- [x] Dark shell around the preview
+- [x] Restyle page controls and status badges
+- [x] Preserve current one-time invoice refetch on mount
+- [x] Keep payment-link and send actions behaviorally unchanged
 
 ### Constraint
-- [ ] Do not lose signature gating or webhook-driven status handling
+- [x] Do not lose signature gating or webhook-driven status handling
 
 ---
 

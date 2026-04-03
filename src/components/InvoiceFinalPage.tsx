@@ -101,6 +101,14 @@ export function InvoiceFinalPage({
       : paymentLinkLoading
         ? 'Creating...'
         : 'Create Payment Link';
+  const invoiceStatusLabel =
+    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Issued' : 'Draft';
+  const invoiceStatusClass =
+    invoiceProp.payment_status === 'paid'
+      ? ' invoice-final-status-badge--paid'
+      : isReadOnly
+        ? ' invoice-final-status-badge--issued'
+        : ' invoice-final-status-badge--draft';
 
   const flashPaymentLinkCopied = () => {
     if (paymentLinkCopiedTimeoutRef.current !== null) {
@@ -227,49 +235,73 @@ export function InvoiceFinalPage({
 
   return (
     <div className={`invoice-final-page${!isReadOnly ? ' invoice-final-page--draft' : ''}`}>
-      <div className="invoice-final-nav">
-        <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
-          Go Back
-        </button>
-      </div>
+      <section className="invoice-final-overview">
+        <div className="invoice-final-nav">
+          <button type="button" className="invoice-final-nav-plain" onClick={onBack}>
+            Go Back
+          </button>
+        </div>
 
-      <hgroup>
-        <h1 className="invoice-final-heading">{customerTitle}</h1>
-        <p className="invoice-final-heading-sub">{invoiceSubline}</p>
-      </hgroup>
+        <div className="invoice-final-hero">
+          <hgroup className="invoice-final-hero-copy">
+            <p className="invoice-final-eyebrow">Invoice</p>
+            <h1 className="invoice-final-heading">{customerTitle}</h1>
+            <p className="invoice-final-heading-sub">{invoiceSubline}</p>
+          </hgroup>
+          <div className="invoice-final-status-stack">
+            <span className={`invoice-final-status-badge${invoiceStatusClass}`}>
+              {invoiceStatusLabel}
+            </span>
+            {invoiceProp.payment_status === 'paid' && invoiceProp.paid_at ? (
+              <span className="invoice-final-status-date">
+                Paid{' '}
+                {new Date(invoiceProp.paid_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            ) : null}
+          </div>
+        </div>
 
-      {!isReadOnly ? (
-        <div className="invoice-final-notes-heading-slot">
-          {!notesOpen ? (
-            <button type="button" className="btn-text invoice-final-notes-toggle" onClick={() => setNotesOpen(true)}>
-              Add Notes
-            </button>
-          ) : (
-            <div className="invoice-final-notes-panel">
-              <div className="form-group">
-                <label htmlFor="invoice-notes">Notes</label>
-                <textarea
-                  id="invoice-notes"
-                  className="invoice-final-notes-input"
-                  rows={3}
-                  value={notesDraft}
-                  onChange={(e) => setNotesDraft(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-              {notesError ? <p className="invoice-notes-error">{notesError}</p> : null}
+        {!isReadOnly ? (
+          <div className="invoice-final-notes-heading-slot">
+            {!notesOpen ? (
               <button
                 type="button"
-                className="btn-primary btn-large invoice-final-notes-save"
-                disabled={savingNotes}
-                onClick={() => void handleSaveNotes()}
+                className="btn-text invoice-final-notes-toggle"
+                onClick={() => setNotesOpen(true)}
               >
-                {savingNotes ? 'Saving…' : 'Save Notes'}
+                Add Notes
               </button>
-            </div>
-          )}
-        </div>
-      ) : null}
+            ) : (
+              <div className="invoice-final-notes-panel">
+                <div className="form-group">
+                  <label htmlFor="invoice-notes">Notes</label>
+                  <textarea
+                    id="invoice-notes"
+                    className="invoice-final-notes-input"
+                    rows={3}
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                {notesError ? <p className="invoice-notes-error">{notesError}</p> : null}
+                <button
+                  type="button"
+                  className="btn-primary btn-large invoice-final-notes-save"
+                  disabled={savingNotes}
+                  onClick={() => void handleSaveNotes()}
+                >
+                  {savingNotes ? 'Saving…' : 'Save Notes'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       {downloadError ? (
         <div className="error-banner" role="alert">
@@ -347,48 +379,60 @@ export function InvoiceFinalPage({
         )}
       </section>
 
-      <div
-        ref={previewViewportRef}
-        className="agreement-preview-scale-viewport invoice-final-mini-viewport"
-      >
+      <section className="invoice-final-preview-card" aria-labelledby="invoice-preview-heading">
+        <div className="invoice-final-preview-header">
+          <div>
+            <p className="invoice-final-preview-kicker">Preview</p>
+            <h2 id="invoice-preview-heading" className="invoice-final-preview-title">
+              Light invoice sheet
+            </h2>
+          </div>
+          <p className="invoice-final-preview-copy">Tap the preview to open the full sheet.</p>
+        </div>
+
         <div
-          role="button"
-          tabIndex={0}
-          className="invoice-final-mini-preview-hitbox"
-          aria-label="Open full invoice preview"
-          onClick={() => setModalOpen(true)}
-          onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setModalOpen(true);
-            }
-          }}
+          ref={previewViewportRef}
+          className="agreement-preview-scale-viewport invoice-final-mini-viewport"
         >
           <div
-            className="agreement-preview-scale-spacer"
-            style={{
-              width: spacerWidth,
-              height: spacerHeight,
+            role="button"
+            tabIndex={0}
+            className="invoice-final-mini-preview-hitbox"
+            aria-label="Open full invoice preview"
+            onClick={() => setModalOpen(true)}
+            onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setModalOpen(true);
+              }
             }}
           >
             <div
-              ref={previewSheetRef}
-              className="agreement-preview-scale-sheet"
+              className="agreement-preview-scale-spacer"
               style={{
-                width: letterWidthPx,
-                transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
-                transformOrigin: 'top left',
-                willChange: previewScale !== 1 ? 'transform' : undefined,
+                width: spacerWidth,
+                height: spacerHeight,
               }}
             >
               <div
-                ref={documentRef}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+                ref={previewSheetRef}
+                className="agreement-preview-scale-sheet"
+                style={{
+                  width: letterWidthPx,
+                  transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
+                  transformOrigin: 'top left',
+                  willChange: previewScale !== 1 ? 'transform' : undefined,
+                }}
+              >
+                <div
+                  ref={documentRef}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <div className="invoice-final-actions">
         <button

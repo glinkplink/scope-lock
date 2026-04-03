@@ -193,6 +193,7 @@ describe('InvoiceWizard', () => {
     await waitFor(() => {
       expect(screen.getByText(/Change orders on this job/i)).toBeInTheDocument();
     });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
   it('shows separate original and combined change-order totals in fixed pricing step one', async () => {

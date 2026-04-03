@@ -31,36 +31,52 @@ export function AuthPage({ onSignInSuccess }: AuthPageProps) {
 
   return (
     <div className="auth-page">
-      <h1>Sign In</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="auth-page-form-group">
-          <label htmlFor="auth-email">Email</label>
-          <input
-            id="auth-email"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="auth-page-form-group">
-          <label htmlFor="auth-password">Password</label>
-          <input
-            id="auth-password"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-        </div>
-        <button type="submit" disabled={loading}>
-          {loading ? 'Loading...' : 'Sign In'}
-        </button>
-        {error && <p className="error">{error}</p>}
-      </form>
+      <section className="auth-page-card" aria-labelledby="auth-page-heading">
+        <p className="auth-page-eyebrow">IronWork</p>
+        <h1 id="auth-page-heading">Sign In</h1>
+        <p className="auth-page-copy">
+          Open your saved work orders, invoices, and profile defaults.
+        </p>
+
+        {error ? (
+          <div className="error-banner auth-page-error" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        <form className="auth-page-form" onSubmit={handleSubmit}>
+          <div className="form-group auth-page-field">
+            <label htmlFor="auth-email">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group auth-page-field">
+            <label htmlFor="auth-password">Password</label>
+            <input
+              id="auth-password"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn-primary btn-large auth-page-submit"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Sign In'}
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

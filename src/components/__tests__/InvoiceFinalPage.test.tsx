@@ -243,4 +243,14 @@ describe('InvoiceFinalPage', () => {
       );
     });
   });
+
+  it('disables issue actions and shows the gate message before the work order is signed', () => {
+    renderPage(baseInvoice(), baseJob());
+
+    expect(
+      screen.getByText(/invoice drafts can be created before signature/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Send Invoice$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /create payment link/i })).toBeDisabled();
+  });
 });

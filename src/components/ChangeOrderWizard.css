@@ -1,3 +1,42 @@
+.invoice-wizard.co-wizard {
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.invoice-wizard.co-wizard .invoice-wizard-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.invoice-wizard.co-wizard .invoice-wizard-toolbar-cancel {
+  justify-self: start;
+}
+
+.invoice-wizard.co-wizard .invoice-wizard-toolbar-title {
+  justify-self: center;
+}
+
+.invoice-wizard.co-wizard .invoice-wizard-toolbar-balance {
+  justify-self: end;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.invoice-wizard.co-wizard .invoice-wizard-step {
+  padding-top: var(--space-md);
+  border-top: none;
+}
+
+.invoice-wizard.co-wizard .co-wizard-step .form-group {
+  margin-bottom: 12px;
+}
+
 .co-wizard-step-header {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
