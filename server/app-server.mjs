@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { createReadStream, existsSync } from 'node:fs';
+import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -341,19 +341,39 @@ async function createAppServer() {
       return;
     }
 
-    if (!existsSync(filePath) || filePath.endsWith(path.sep)) {
-      filePath = path.join(distDir, 'index.html');
+    let servePath = filePath;
+    if (!existsSync(servePath) || servePath.endsWith(path.sep)) {
+      servePath = path.join(distDir, 'index.html');
+    } else {
+      try {
+        const st = statSync(servePath);
+        if (st.isDirectory()) {
+          // e.g. GET /assets → dist/assets is a folder; streaming it causes EISDIR and can crash the process
+          servePath = path.join(distDir, 'index.html');
+        }
+      } catch {
+        servePath = path.join(distDir, 'index.html');
+      }
     }
 
     try {
-      const mimeType = getMimeType(filePath);
+      const mimeType = getMimeType(servePath);
       const isHtml = mimeType.startsWith('text/html');
       res.writeHead(200, {
         ...COMMON_HEADERS,
         ...(isHtml ? { 'X-Frame-Options': 'DENY' } : {}),
         'Content-Type': mimeType,
       });
-      createReadStream(filePath).pipe(res);
+      const stream = createReadStream(servePath);
+      stream.on('error', (err) => {
+        log.error('Static file read stream error', log.errCtx(err));
+        if (!res.headersSent) {
+          sendText(res, 500, 'Failed to serve asset.');
+        } else {
+          res.destroy();
+        }
+      });
+      stream.pipe(res);
     } catch (error) {
       log.error('Static file serving failed', log.errCtx(error));
       try {

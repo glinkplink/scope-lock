@@ -6,7 +6,7 @@ alwaysApply: true
 
 ## Living documentation & cross-agent alignment
 
-These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, and **[ARCHITECTURE.md](../../ARCHITECTURE.md)** are **living documents** and should describe the same project reality with different levels of detail.
+These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, and **[ARCHITECTURE.md](../../ARCHITECTURE.md)** are **living documents** and should describe the same project reality with different levels of detail. Optional Cursor **project skill** (PR-prep, `lint`/`test`/`build`, CI + optional **`.githooks/pre-push`**): **[.cursor/skills/ironwork-workflow/SKILL.md](../skills/ironwork-workflow/SKILL.md)**—does not replace AGENTS.md or these rules. **Automation** summary: **AGENTS.md** (living-docs table).
 
 - **After each substantive code change** (new UI surfaces, routes, patterns, stack or dependency changes, security or styling conventions), **review and update** the affected doc(s) so they match the repo.
 - **When editing any agent-facing file** (`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, this file, or **high-priority.mdc**), **compare the same topic across the others** and **keep rules aligned**—especially CSS co-location, HTML/`esc()` discipline, architecture/deployment constraints, and file-creation/minimal-diff discipline. Do not let one file mandate what another omits or contradicts.

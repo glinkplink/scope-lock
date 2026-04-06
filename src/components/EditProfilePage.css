@@ -249,8 +249,7 @@
 
 @media (max-width: 720px) {
   .edit-profile-stripe-status-row,
-  .edit-profile-page .form-actions-row,
-  .edit-profile-page .list-item-row {
+  .edit-profile-page .form-actions-row {
     flex-direction: column;
     align-items: stretch;
   }

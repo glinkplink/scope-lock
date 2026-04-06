@@ -1,0 +1,7 @@
+#!/bin/sh
+# IronWork local gate before push. Enable once per clone:
+#   git config core.hooksPath .githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+npm run lint
+npm run test

@@ -15,6 +15,9 @@ The following are **living documents**, not one-time setup notes:
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System architecture, deployment, operational constraints, and longer-form implementation reference |
 | **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** | Cursor: full project + product rules (`alwaysApply`); should mirror the same global rules |
 | **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)** | Cursor: terse guardrails (`alwaysApply`); should reinforce the same highest-priority global rules |
+| **[.cursor/skills/ironwork-workflow/SKILL.md](./.cursor/skills/ironwork-workflow/SKILL.md)** | Cursor: optional **project skill**—quality gates, doc-update reminders, and repo touchpoints (use for PR-prep or unfamiliar areas) |
+
+**Automation:** GitHub Actions runs on `main` pushes and pull requests (`.github/workflows/ci.yml` — `lint`, `test`, `build`). Optional local pre-push: commit **`.githooks/pre-push`** is in-repo; enable with `git config core.hooksPath .githooks` (see the skill for detail).
 
 **After each substantive code change** (new pages/components, new routes, new patterns, dependency or stack changes, security or styling conventions), **review and update** whichever of these files are affected so they stay true to the codebase.
 
