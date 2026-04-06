@@ -200,6 +200,7 @@ function mapWorkOrdersDashboardSummaryRow(row: Record<string, unknown>): WorkOrd
   const jobCountRaw = row.job_count;
   const invoicedContractTotalRaw = row.invoiced_contract_total;
   const pendingContractTotalRaw = row.pending_contract_total;
+  const paidContractTotalRaw = row.paid_contract_total;
 
   return {
     jobCount:
@@ -214,6 +215,10 @@ function mapWorkOrdersDashboardSummaryRow(row: Record<string, unknown>): WorkOrd
       typeof pendingContractTotalRaw === 'number' && Number.isFinite(pendingContractTotalRaw)
         ? pendingContractTotalRaw
         : Number(pendingContractTotalRaw) || 0,
+    paidContractTotal:
+      typeof paidContractTotalRaw === 'number' && Number.isFinite(paidContractTotalRaw)
+        ? paidContractTotalRaw
+        : Number(paidContractTotalRaw) || 0,
   };
 }
 

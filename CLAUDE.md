@@ -209,6 +209,7 @@ All user- or client-supplied text interpolated into HTML string generators (`inv
 - `WorkOrdersPage` shows **Contract value** rollups from `job.price`, not invoice totals.
 - `WorkOrdersPage` keeps the toolbar **Create Work Order** button; treat it as required UI.
 - `WorkOrdersPage` loads row pages from `list_work_orders_dashboard_page` and whole-dataset summary totals from `get_work_orders_dashboard_summary`; the summary is not derived from the currently loaded rows.
+- `HomePage` uses the same dashboard summary RPC for contract-value cards and shows **Invoiced**, **Paid**, and **Pending invoice** as mutually exclusive `job.price` buckets.
 - `WorkOrdersPage` shows a **View & Create Change Orders** link under the client name when `changeOrderCount > 0`, opening work-order detail with scroll to the Change Orders section (no per-CO chips on the list).
 - The Work Orders list does not periodically refetch dashboard rows; re-open **Work Orders** or navigate away and back to pick up webhook-updated e-sign or invoice badges. The `list_work_orders_dashboard` RPC (`0014`) remains available for targeted refresh if needed.
 - Clicking a work-order row navigates immediately with `jobId`; `WorkOrderDetailPage` loads the full job row locally and shows a loading state while hydrating.

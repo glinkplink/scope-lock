@@ -167,6 +167,7 @@ export interface WorkOrdersDashboardSummary {
   jobCount: number;
   invoicedContractTotal: number;
   pendingContractTotal: number;
+  paidContractTotal: number;
 }
 
 /** Invoice fields needed for Work Orders list actions / summary (no line_items). */

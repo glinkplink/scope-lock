@@ -102,7 +102,7 @@ export function InvoiceFinalPage({
         ? 'Creating...'
         : 'Create Payment Link';
   const invoiceStatusLabel =
-    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Issued' : 'Draft';
+    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Invoiced' : 'Draft';
   const invoiceStatusClass =
     invoiceProp.payment_status === 'paid'
       ? ' invoice-final-status-badge--paid'

@@ -359,7 +359,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 
 ### Work Orders dashboard rollups (Option B)
 
-- **Invoiced** / **Pending Invoice** on **`WorkOrdersPage`** sum **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. The summary strip is labeled **Contract value** so this is explicit. Using invoice totals for rollups (**Option A**) is deferred.
+- **Invoiced** / **Paid** / **Pending Invoice** summary cards use **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. These are mutually exclusive buckets from the latest job-level invoice state: paid, issued-but-unpaid, and absent-or-unissued. Using invoice totals for rollups (**Option A**) is deferred.
 - `0014_work_orders_dashboard.sql` remains applied and available for targeted row refresh by `job_id`; the main Work Orders list no longer relies on it for initial page load.
 - **`list_work_orders_dashboard_page`** pages jobs by `(created_at DESC, id DESC)`, aggregates only the current page’s change orders and invoices, uses `DISTINCT ON (job_id)` for latest job-level invoice lookup, and returns:
   - `change_order_count`

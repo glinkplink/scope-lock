@@ -45,6 +45,7 @@ const summaryOk: WorkOrdersDashboardSummary = {
   jobCount: 2,
   invoicedContractTotal: 100,
   pendingContractTotal: 200,
+  paidContractTotal: 0,
 };
 
 const listJob: WorkOrderDashboardJob = {
@@ -200,7 +201,7 @@ describe('HomePage', () => {
       nextCursor: null,
     });
     getWorkOrdersDashboardSummary.mockResolvedValue({
-      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0 },
+      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0, paidContractTotal: 0 },
       error: null,
     });
 
@@ -278,7 +279,8 @@ describe('HomePage', () => {
     render(<HomePage {...signedInProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Paid')).toBeInTheDocument();
+      const recentRow = screen.getByRole('button', { name: /WO #0001/i });
+      expect(within(recentRow).getByText('Paid')).toBeInTheDocument();
     });
   });
 
@@ -308,7 +310,7 @@ describe('HomePage', () => {
       nextCursor: null,
     });
     getWorkOrdersDashboardSummary.mockResolvedValue({
-      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0 },
+      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0, paidContractTotal: 0 },
       error: null,
     });
 
