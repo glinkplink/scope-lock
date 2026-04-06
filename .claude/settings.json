@@ -79,18 +79,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/auto-commit.sh",
-            "timeout": 30,
-            "statusMessage": "Checking for uncommitted changes..."
-          }
-        ]
-      }
     ]
   }
 }
