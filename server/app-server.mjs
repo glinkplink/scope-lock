@@ -22,6 +22,8 @@ const distDir = path.join(rootDir, 'dist');
 const isDev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
+const localHost =
+  host === '0.0.0.0' || host === '::' || host === '[::]' ? '127.0.0.1' : host;
 const executablePath =
   process.env.PUPPETEER_EXECUTABLE_PATH ||
   process.env.CHROME_PATH ||
@@ -374,6 +376,7 @@ async function createAppServer() {
   });
 
   server.listen(port, host, () => {
+    console.log(`Local: http://${localHost}:${port}`);
     log.info('app server listening', { host, port });
     log.info('PDF rendering uses Chrome', { executablePath });
   });

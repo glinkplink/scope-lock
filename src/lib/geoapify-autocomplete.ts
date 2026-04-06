@@ -106,10 +106,6 @@ export async function fetchGeoapifyAddressSuggestions(
 
   const data = (await res.json()) as { results?: GeoapifyJsonResult[] };
 
-  if (import.meta.env.DEV) {
-    console.log('[Geoapify] autocomplete data.results', data.results);
-  }
-
   const raw = Array.isArray(data.results) ? data.results : [];
   const out: JobSiteAddressSuggestion[] = [];
   for (let i = 0; i < raw.length && out.length < 5; i++) {
