@@ -225,6 +225,11 @@ export async function tryHandleInvoiceRoute(req, res, helpers) {
     }
   }
 
+  // POST /api/invoices/:invoiceId/mark-paid-offline
+  if (req.method === 'POST' && /^\/api\/invoices\/[\w-]+\/mark-paid-offline$/.test(req.url)) {
+    return await handleMarkPaidOffline(req, res, { sendJson });
+  }
+
   return false;
 }
 
@@ -483,5 +488,71 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson }) {
     .maybeSingle();
 
   sendJson(res, 200, { invoice: freshOnly || invoice });
+  return true;
+}
+
+async function handleMarkPaidOffline(req, res, { sendJson }) {
+  const token = getBearerToken(req);
+  if (!token) {
+    sendJson(res, 401, { error: 'Missing authorization' });
+    return true;
+  }
+
+  const supabase = getServiceSupabase();
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) {
+    sendJson(res, 401, { error: 'Invalid session' });
+    return true;
+  }
+  const userId = userData.user.id;
+
+  const match = req.url.match(/\/invoices\/([0-9a-f-]+)\/mark-paid-offline/);
+  const invoiceId = match?.[1];
+  if (!invoiceId) {
+    sendJson(res, 400, { error: 'Invalid invoice ID' });
+    return true;
+  }
+
+  const { data: invoice, error: invoiceErr } = await supabase
+    .from('invoices')
+    .select('id, user_id, payment_status, issued_at')
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (invoiceErr) {
+    log.error('mark-paid-offline load error', log.errCtx(invoiceErr));
+    sendJson(res, 500, { error: 'Could not load invoice.' });
+    return true;
+  }
+  if (!invoice) {
+    sendJson(res, 404, { error: 'Invoice not found' });
+    return true;
+  }
+  if (!invoice.issued_at) {
+    sendJson(res, 409, { error: 'Cannot mark a draft invoice as paid. Send the invoice first.' });
+    return true;
+  }
+  if (invoice.payment_status === 'paid' || invoice.payment_status === 'offline') {
+    sendJson(res, 409, { error: 'Invoice is already marked as paid.' });
+    return true;
+  }
+
+  const { data: updated, error: updateErr } = await supabase
+    .from('invoices')
+    .update({ payment_status: 'offline', paid_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (updateErr) {
+    log.error('mark-paid-offline update error', log.errCtx(updateErr));
+    sendJson(res, 500, { error: 'Could not update invoice.' });
+    return true;
+  }
+
+  log.info('marked invoice paid offline', { invoiceId, userId });
+  sendJson(res, 200, { invoice: updated });
   return true;
 }

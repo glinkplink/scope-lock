@@ -487,6 +487,26 @@ export const listInvoicesWithCustomerName = async (
   return { data: mapped, error: null };
 };
 
+export const markInvoicePaidOffline = async (
+  invoiceId: string,
+  userId: string
+): Promise<{ data: Invoice | null; error: Error | null }> => {
+  const { data, error } = await supabase
+    .from('invoices')
+    .update({ payment_status: 'offline', paid_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('markInvoicePaidOffline:', error);
+    return { data: null, error: new Error(error.message) };
+  }
+
+  return { data: mapInvoiceRow(data as Record<string, unknown>), error: null };
+};
+
 export const getInvoiceByChangeOrderId = async (jobId: string, changeOrderId: string): Promise<Invoice | null> => {
   const { data, error } = await supabase
     .from('invoices')

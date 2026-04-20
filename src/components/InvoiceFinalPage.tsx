@@ -47,9 +47,11 @@ export function InvoiceFinalPage({
   const [paymentLinkLoading, setPaymentLinkLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingStripe, setSendingStripe] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
   const [sendError, setSendError] = useState('');
   const [sendWithLinkError, setSendWithLinkError] = useState('');
   const [paymentLinkError, setPaymentLinkError] = useState('');
+  const [markPaidError, setMarkPaidError] = useState('');
   const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
 
   const documentRef = useRef<HTMLDivElement | null>(null);
@@ -108,10 +110,12 @@ export function InvoiceFinalPage({
       : paymentLinkLoading
         ? 'Creating...'
         : 'Create Payment Link';
+  const isPaidOffline = invoiceProp.payment_status === 'offline';
+  const isPaid = invoiceProp.payment_status === 'paid' || isPaidOffline;
   const invoiceStatusLabel =
-    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Invoiced' : 'Draft';
+    isPaid ? 'Paid' : isReadOnly ? 'Invoiced' : 'Draft';
   const invoiceStatusClass =
-    invoiceProp.payment_status === 'paid'
+    isPaid
       ? ' invoice-final-status-badge--paid'
       : isReadOnly
         ? ' invoice-final-status-badge--issued'
@@ -246,6 +250,27 @@ export function InvoiceFinalPage({
     }
   };
 
+  const handleMarkPaidOffline = async () => {
+    setMarkPaidError('');
+    setMarkingPaid(true);
+    try {
+      const res = await fetchWithSupabaseAuth(
+        `/api/invoices/${invoiceProp.id}/mark-paid-offline`,
+        { method: 'POST' }
+      );
+      const json = (await res.json()) as { error?: string; invoice?: Invoice };
+      if (!res.ok) {
+        setMarkPaidError(json.error ?? 'Could not mark invoice as paid.');
+        return;
+      }
+      if (json.invoice) onInvoiceUpdated(json.invoice);
+    } catch (err) {
+      setMarkPaidError(err instanceof Error ? err.message : 'Could not mark invoice as paid.');
+    } finally {
+      setMarkingPaid(false);
+    }
+  };
+
   const handleSaveNotes = async () => {
     setNotesError('');
     setSavingNotes(true);
@@ -281,7 +306,7 @@ export function InvoiceFinalPage({
 
       <section className="invoice-final-payment-card" aria-labelledby="invoice-payment-heading">
         <h2 id="invoice-payment-heading">Send Invoice</h2>
-        {(invoiceProp.issued_at || invoiceProp.payment_status === 'paid') && (
+        {(invoiceProp.issued_at || isPaid) && (
           <div className="invoice-issued-metadata">
             {invoiceProp.issued_at && (
               <span>
@@ -292,7 +317,7 @@ export function InvoiceFinalPage({
                 })}
               </span>
             )}
-            {invoiceProp.payment_status === 'paid' && (
+            {isPaid && (
               <span className="invoice-paid-indicator">
                 <span className="badge-paid">Paid</span>
                 {invoiceProp.paid_at && (
@@ -308,9 +333,9 @@ export function InvoiceFinalPage({
             )}
           </div>
         )}
-        {invoiceProp.payment_status === 'paid' ? (
+        {isPaid ? (
           <p className="invoice-final-payment-text">
-            This invoice has been paid.
+            This invoice has been paid{isPaidOffline ? ' (recorded offline)' : ''}.
           </p>
         ) : (
           <>
@@ -334,6 +359,25 @@ export function InvoiceFinalPage({
                 Emails the PDF invoice to the customer.
               </p>
             </div>
+
+            {invoiceProp.issued_at && (
+              <div className="invoice-final-offline-payment">
+                {markPaidError ? (
+                  <p className="invoice-final-payment-feedback">{markPaidError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn-secondary invoice-final-mark-paid-btn"
+                  disabled={markingPaid}
+                  onClick={() => void handleMarkPaidOffline()}
+                >
+                  {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
+                </button>
+                <p className="invoice-final-payment-primary-hint">
+                  Received cash, check, or bank transfer? Record it here.
+                </p>
+              </div>
+            )}
 
             <div className="invoice-final-online-payment">
               <h3 className="invoice-final-online-heading">Online payment</h3>
@@ -403,7 +447,7 @@ export function InvoiceFinalPage({
               {invoiceStatusLabel}
             </span>
           </div>
-          {invoiceProp.payment_status === 'paid' && invoiceProp.paid_at ? (
+          {isPaid && invoiceProp.paid_at ? (
             <span className="invoice-final-status-date">
               Paid{' '}
               {new Date(invoiceProp.paid_at).toLocaleDateString('en-US', {
