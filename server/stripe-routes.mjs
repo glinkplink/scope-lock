@@ -1,12 +1,14 @@
 import {
+  assertStripeInvoicePaymentsReady,
   createAccountOnboardingLink,
   createConnectedAccount,
   createInvoicePaymentLink,
   constructWebhookEvent,
-  getConnectedAccount,
   createOrReuseInvoicePaymentLink,
+  getConnectedAccount,
 } from './lib/stripe.mjs';
 import { log } from './lib/logger.mjs';
+import { isPayloadTooLarge } from './lib/payload-error.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 let serviceSupabaseSingleton = null;
@@ -134,7 +136,8 @@ async function authenticate(req, sendJson, res) {
       errorMessage: 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for Stripe routes.',
     });
   } catch (error) {
-    sendJson(res, 503, { error: error instanceof Error ? error.message : 'Stripe is unavailable.' });
+    log.error('stripe authenticate config error', log.errCtx(error));
+    sendJson(res, 503, { error: 'Stripe is unavailable.' });
     return null;
   }
 
@@ -165,7 +168,17 @@ async function reconcileStripeOnboardingStatus(supabase, profile) {
 
   const { data: account, error } = await getConnectedAccount(profile.stripe_account_id);
   if (error || !account) {
-    return { profile: null, account: null, onboardingComplete: false, error };
+    if (!isStripeConfigErrorMessage(error)) {
+      log.error('reconcile getConnectedAccount', { message: error });
+    }
+    return {
+      profile: null,
+      account: null,
+      onboardingComplete: false,
+      error: isStripeConfigErrorMessage(error)
+        ? error
+        : 'Could not load Stripe account status.',
+    };
   }
 
   const onboardingComplete = isStripeOnboardingComplete(account);
@@ -180,11 +193,12 @@ async function reconcileStripeOnboardingStatus(supabase, profile) {
       .maybeSingle();
 
     if (updateErr) {
+      log.error('reconcile onboarding profile update', log.errCtx(updateErr));
       return {
         profile: null,
         account,
         onboardingComplete,
-        error: updateErr.message,
+        error: 'Could not save onboarding status.',
       };
     }
 
@@ -210,7 +224,8 @@ async function handleConnectStart(req, res, sendJson) {
   const { data: profile, error: profileErr } = await getProfileByUserId(supabase, userId);
 
   if (profileErr) {
-    sendJson(res, 500, { error: profileErr.message });
+    log.error('stripe connect start profile error', log.errCtx(profileErr));
+    sendJson(res, 500, { error: 'Could not load profile.' });
     return;
   }
   if (!profile) {
@@ -237,7 +252,7 @@ async function handleConnectStart(req, res, sendJson) {
     const { data, error } = await createConnectedAccount(profile);
     if (error || !data?.id) {
       sendJson(res, isStripeConfigErrorMessage(error) ? 503 : 502, {
-        error: error || 'Could not create Stripe account.',
+        error: isStripeConfigErrorMessage(error) ? error : 'Could not create Stripe account.',
       });
       return;
     }
@@ -252,7 +267,8 @@ async function handleConnectStart(req, res, sendJson) {
       .eq('user_id', userId);
 
     if (updateErr) {
-      sendJson(res, 500, { error: updateErr.message });
+      log.error('stripe connect update profile error', log.errCtx(updateErr));
+      sendJson(res, 500, { error: 'Could not update profile.' });
       return;
     }
   }
@@ -268,7 +284,7 @@ async function handleConnectStart(req, res, sendJson) {
 
   if (linkErr || !linkData?.url) {
     sendJson(res, isStripeConfigErrorMessage(linkErr) ? 503 : 502, {
-      error: linkErr || 'Could not create onboarding link.',
+      error: isStripeConfigErrorMessage(linkErr) ? linkErr : 'Could not create onboarding link.',
     });
     return;
   }
@@ -287,7 +303,8 @@ async function handleConnectStatus(req, res, sendJson) {
   const { data: profile, error: profileErr } = await getProfileByUserId(supabase, userId);
 
   if (profileErr) {
-    sendJson(res, 500, { error: profileErr.message });
+    log.error('stripe connect status profile error', log.errCtx(profileErr));
+    sendJson(res, 500, { error: 'Could not load profile.' });
     return;
   }
   if (!profile) {
@@ -326,7 +343,8 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
     .maybeSingle();
 
   if (invoiceErr) {
-    sendJson(res, 500, { error: invoiceErr.message });
+    log.error('stripe payment-link invoice error', log.errCtx(invoiceErr));
+    sendJson(res, 500, { error: 'Could not load invoice.' });
     return;
   }
   if (!invoice) {
@@ -341,7 +359,8 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
     .maybeSingle();
 
   if (profileErr) {
-    sendJson(res, 500, { error: profileErr.message });
+    log.error('stripe payment-link profile error', log.errCtx(profileErr));
+    sendJson(res, 500, { error: 'Could not load profile.' });
     return;
   }
   if (!profile?.stripe_account_id) {
@@ -351,21 +370,9 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
     return;
   }
 
-  // Guard: verify card_payments capability is active before attempting to create a payment link.
-  // Without this, Stripe returns: "You cannot create a charge on a connected account without
-  // the card_payments capability enabled."
-  const { data: connectedAccount, error: capErr } = await getConnectedAccount(profile.stripe_account_id);
-  if (capErr || !connectedAccount) {
-    sendJson(res, 502, { error: 'Could not verify Stripe account capabilities.' });
-    return;
-  }
-  if (connectedAccount.card_payments_status !== 'active') {
-    sendJson(res, 409, {
-      error:
-        connectedAccount.card_payments_status === 'pending'
-          ? 'Your Stripe account is still being verified. Complete onboarding and wait for Stripe approval before sending invoices.'
-          : 'Your Stripe account is not approved to accept payments yet. Complete Stripe onboarding to enable card payments.',
-    });
+  const cap = await assertStripeInvoicePaymentsReady(profile.stripe_account_id);
+  if (!cap.ok) {
+    sendJson(res, cap.status, { error: cap.error });
     return;
   }
 
@@ -381,15 +388,17 @@ async function handleInvoicePaymentLink(req, res, sendJson, invoiceId) {
       payment_link_id: result.payment_link_id ?? null,
     });
   } catch (err) {
-    if (err.message.includes('not signed')) {
-      sendJson(res, 409, { error: err.message });
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('not signed')) {
+      sendJson(res, 409, { error: msg });
       return;
     }
-    if (err.message.includes('greater than zero')) {
-      sendJson(res, 400, { error: err.message });
+    if (msg.includes('greater than zero')) {
+      sendJson(res, 400, { error: msg });
       return;
     }
-    sendJson(res, 502, { error: err.message || 'Could not create payment link.' });
+    log.error('stripe payment-link create error', log.errCtx(err));
+    sendJson(res, 502, { error: 'Could not create payment link.' });
   }
 }
 
@@ -440,7 +449,12 @@ async function handleWebhook(req, res, helpers) {
   let payload;
   try {
     payload = await helpers.readRawBody(req);
-  } catch {
+  } catch (e) {
+    if (isPayloadTooLarge(e)) {
+      log.warn('stripe webhook payload too large');
+      helpers.sendJson(res, 413, { error: 'Request body too large.' });
+      return;
+    }
     log.warn('invalid webhook payload');
     helpers.sendJson(res, 400, { error: 'Invalid webhook payload.' });
     return;
@@ -449,7 +463,7 @@ async function handleWebhook(req, res, helpers) {
   const { data: event, error: eventErr } = constructWebhookEvent(payload, signature, secret);
   if (eventErr || !event) {
     log.warn('stripe signature verification failed', { error: eventErr });
-    helpers.sendJson(res, 400, { error: eventErr || 'Could not verify Stripe webhook.' });
+    helpers.sendJson(res, 400, { error: 'Could not verify Stripe webhook.' });
     return;
   }
 
@@ -468,7 +482,7 @@ async function handleWebhook(req, res, helpers) {
   } catch (error) {
     log.error('supabase not configured for stripe webhook', log.errCtx(error));
     helpers.sendJson(res, 503, {
-      error: error instanceof Error ? error.message : 'Stripe is unavailable.',
+      error: 'Stripe is unavailable.',
     });
     return;
   }
@@ -511,7 +525,7 @@ async function handleWebhook(req, res, helpers) {
   } catch (error) {
     log.error('failed to mark invoice paid', { invoiceId, eventId: event.id, ...log.errCtx(error) });
     helpers.sendJson(res, 500, {
-      error: error instanceof Error ? error.message : 'Could not reconcile invoice payment.',
+      error: 'Could not reconcile invoice payment.',
     });
     return;
   }

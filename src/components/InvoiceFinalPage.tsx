@@ -21,6 +21,8 @@ interface InvoiceFinalPageProps {
   onBack: () => void;
   onEditInvoice: () => void;
   onInvoiceUpdated: (invoice: Invoice) => void;
+  /** Navigate to Edit Profile (Stripe Connect lives there). */
+  onOpenStripeSetup: () => void;
 }
 
 // NOTE: payment_status and paid_at come from Postgres (Stripe webhook updates the row).
@@ -33,6 +35,7 @@ export function InvoiceFinalPage({
   onBack,
   onEditInvoice,
   onInvoiceUpdated,
+  onOpenStripeSetup,
 }: InvoiceFinalPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -43,7 +46,9 @@ export function InvoiceFinalPage({
   const [savingNotes, setSavingNotes] = useState(false);
   const [paymentLinkLoading, setPaymentLinkLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendingStripe, setSendingStripe] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [sendWithLinkError, setSendWithLinkError] = useState('');
   const [paymentLinkError, setPaymentLinkError] = useState('');
   const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
 
@@ -63,6 +68,9 @@ export function InvoiceFinalPage({
     [job.esign_status, job.offline_signed_at]
   );
   const canIssueInvoice = signatureState.isSignatureSatisfied;
+  const stripeReady = Boolean(
+    profile.stripe_account_id && profile.stripe_onboarding_complete
+  );
   const customerTitle = job.customer_name.trim() || 'Customer';
   const invoiceSubline = `Invoice #${String(invoiceProp.invoice_number).padStart(4, '0')}`;
 
@@ -102,7 +110,7 @@ export function InvoiceFinalPage({
         ? 'Creating...'
         : 'Create Payment Link';
   const invoiceStatusLabel =
-    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Issued' : 'Draft';
+    invoiceProp.payment_status === 'paid' ? 'Paid' : isReadOnly ? 'Invoiced' : 'Draft';
   const invoiceStatusClass =
     invoiceProp.payment_status === 'paid'
       ? ' invoice-final-status-badge--paid'
@@ -176,8 +184,8 @@ export function InvoiceFinalPage({
     setSending(true);
 
     try {
-      const previewHtml = generateInvoiceHtml(invoiceProp, job, profile);
-      const { data, error } = await sendInvoice(invoiceProp.id, previewHtml);
+      const html = generateInvoiceHtml(invoiceProp, job, profile);
+      const { data, error } = await sendInvoice(invoiceProp.id, html, false);
 
       if (error) {
         setSendError(error.message);
@@ -191,6 +199,31 @@ export function InvoiceFinalPage({
       setSendError(err instanceof Error ? err.message : 'Could not send invoice');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSendWithPaymentLink = async () => {
+    setSendWithLinkError('');
+    setSendingStripe(true);
+
+    try {
+      const html = generateInvoiceHtml(invoiceProp, job, profile);
+      const { data, error } = await sendInvoice(invoiceProp.id, html, true);
+
+      if (error) {
+        setSendWithLinkError(error.message);
+        return;
+      }
+
+      if (data) {
+        onInvoiceUpdated(data);
+      }
+    } catch (err) {
+      setSendWithLinkError(
+        err instanceof Error ? err.message : 'Could not send invoice with payment link'
+      );
+    } finally {
+      setSendingStripe(false);
     }
   };
 
@@ -344,14 +377,6 @@ export function InvoiceFinalPage({
           </p>
         ) : (
           <>
-            <p className="invoice-final-payment-text">
-              {invoiceProp.issued_at
-                ? 'Resend the invoice email to the customer with the PDF attached and payment link.'
-                : 'Send the invoice email to the customer with the PDF attached and payment link.'}
-            </p>
-            {paymentLinkError ? (
-              <p className="invoice-final-payment-feedback">{paymentLinkError}</p>
-            ) : null}
             {!canIssueInvoice && (
               <p className="invoice-gate-message">
                 Invoice drafts can be created before signature. To issue an invoice, the work order
@@ -359,21 +384,68 @@ export function InvoiceFinalPage({
               </p>
             )}
             {sendError ? <p className="invoice-final-payment-feedback">{sendError}</p> : null}
-            <div className="invoice-final-payment-actions">
+            <div className="invoice-final-payment-primary">
               <button
-                className="btn-secondary btn-action"
-                disabled={sending || paymentLinkLoading || !canIssueInvoice}
+                type="button"
+                className="btn-primary btn-large invoice-final-send-primary"
+                disabled={sending || !canIssueInvoice}
                 onClick={() => void handleSendInvoice()}
               >
                 {sending ? 'Sending...' : invoiceProp.issued_at ? 'Resend Invoice' : 'Send Invoice'}
               </button>
-              <button
-                className="btn-primary btn-action"
-                disabled={paymentLinkLoading || !canIssueInvoice}
-                onClick={() => void handleCopyPaymentLink()}
-              >
-                {paymentLinkButtonLabel}
-              </button>
+              <p className="invoice-final-payment-primary-hint">
+                Emails the PDF invoice to the customer.
+              </p>
+            </div>
+
+            <div className="invoice-final-online-payment">
+              <h3 className="invoice-final-online-heading">Online payment</h3>
+              {stripeReady ? (
+                <>
+                  {sendWithLinkError ? (
+                    <p className="invoice-final-payment-feedback">{sendWithLinkError}</p>
+                  ) : null}
+                  {paymentLinkError ? (
+                    <p className="invoice-final-payment-feedback">{paymentLinkError}</p>
+                  ) : null}
+                  <div className="invoice-final-online-actions">
+                    <button
+                      type="button"
+                      className="btn-primary invoice-final-online-btn"
+                      disabled={sendingStripe || paymentLinkLoading || !canIssueInvoice}
+                      onClick={() => void handleSendWithPaymentLink()}
+                    >
+                      {sendingStripe
+                        ? 'Sending...'
+                        : invoiceProp.issued_at
+                          ? 'Resend with payment link'
+                          : 'Send with payment link'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary invoice-final-online-btn"
+                      disabled={sendingStripe || paymentLinkLoading || !canIssueInvoice}
+                      onClick={() => void handleCopyPaymentLink()}
+                    >
+                      {paymentLinkButtonLabel}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="invoice-final-connect-block">
+                  <p className="invoice-final-connect-prompt">
+                    Want to accept online payments? Connect Stripe to send invoices with payment
+                    links.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-action invoice-final-connect-cta"
+                    onClick={onOpenStripeSetup}
+                  >
+                    Connect Stripe Account
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -381,12 +453,9 @@ export function InvoiceFinalPage({
 
       <section className="invoice-final-preview-card" aria-labelledby="invoice-preview-heading">
         <div className="invoice-final-preview-header">
-          <div>
-            <p className="invoice-final-preview-kicker">Preview</p>
-            <h2 id="invoice-preview-heading" className="invoice-final-preview-title">
-              Light invoice sheet
-            </h2>
-          </div>
+          <h2 id="invoice-preview-heading" className="invoice-final-preview-title">
+            Preview
+          </h2>
           <p className="invoice-final-preview-copy">Tap the preview to open the full sheet.</p>
         </div>
 

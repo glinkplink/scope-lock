@@ -6,11 +6,11 @@ alwaysApply: true
 
 ## Living documentation & cross-agent alignment
 
-These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CLAUDE.md)**, and **[ARCHITECTURE.md](../../ARCHITECTURE.md)** are **living documents** and should describe the same project reality with different levels of detail. Optional Cursor **project skill** (PR-prep, `lint`/`test`/`build`, CI + optional **`.githooks/pre-push`**): **[.cursor/skills/ironwork-workflow/SKILL.md](../skills/ironwork-workflow/SKILL.md)**—does not replace AGENTS.md or these rules. **Automation** summary: **AGENTS.md** (living-docs table).
+**[AGENTS.md](../../AGENTS.md)** is the canonical cross-agent rules file; this file mirrors it for Cursor `alwaysApply` loading. Deep system/flow/schema/deployment detail lives in **[ARCHITECTURE.md](../../ARCHITECTURE.md)** — load on demand, not by default. Optional Cursor **project skill** (PR-prep, `lint`/`test`/`build`, CI + optional **`.githooks/pre-push`**): **[.cursor/skills/ironwork-workflow/SKILL.md](../skills/ironwork-workflow/SKILL.md)**.
 
-- **After each substantive code change** (new UI surfaces, routes, patterns, stack or dependency changes, security or styling conventions), **review and update** the affected doc(s) so they match the repo.
-- **When editing any agent-facing file** (`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, this file, or **high-priority.mdc**), **compare the same topic across the others** and **keep rules aligned**—especially CSS co-location, HTML/`esc()` discipline, architecture/deployment constraints, and file-creation/minimal-diff discipline. Do not let one file mandate what another omits or contradicts.
-- If a rule is intended to be global, mirror it across every global-rules file or replace repetition with a single explicit pointer.
+- **After each substantive code change** (new UI surfaces, routes, patterns, stack or dependency changes, security or styling conventions), **review and update** the affected doc(s) so they match the repo. File-map, flow, schema, and deployment detail belongs in **ARCHITECTURE.md**.
+- **When editing any agent-facing file** (`AGENTS.md`, `ARCHITECTURE.md`, this file, or **high-priority.mdc**), **compare the same topic across the others** and **keep rules aligned**—especially CSS co-location, HTML/`esc()` discipline, architecture/deployment constraints, and file-creation/minimal-diff discipline. Do not let one file mandate what another omits or contradicts.
+- If a rule is intended to be global, mirror it across AGENTS.md and the Cursor rule files, or replace repetition with a single explicit pointer.
 - **Public branding:** Use **IronWork** in user-facing copy and product prose. Legacy internal identifiers, repo paths, storage keys, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may remain when renaming would risk breakage or make the reference inaccurate.
 
 ## Core principles
@@ -56,7 +56,7 @@ These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CL
 - Keep UI components simple, readable, and easy to edit.
 - Do not add visual complexity, animation libraries, or design systems unless explicitly requested.
 - Prioritize function over polish.
-- **Forge shell:** The app shell is **dark** (iron palette, spark accent, Outfit + Chakra Petch). Shared shell form panels and spark CTAs live in **`App.css`**; **PDFs and light document previews** stay light; scoped **Barlow** on document sheets matches PDF—see **CLAUDE.md → Design system**.
+- **Forge shell:** The app shell is **dark** (iron palette, spark accent, Outfit + Chakra Petch). Shared shell form panels and spark CTAs live in **`App.css`**; **PDFs and light document previews** stay light; scoped **Barlow** on document sheets matches PDF—see **ARCHITECTURE.md → Design system tokens**.
 
 ### CSS co-location (mandatory)
 - **Own your styles:** Co-locate with the owning page or component (same directory); `ComponentName.tsx` imports `./ComponentName.css` (or the repo’s established pairing).
@@ -64,7 +64,7 @@ These instructions plus **[AGENTS.md](../../AGENTS.md)**, **[CLAUDE.md](../../CL
 - **No new feature CSS in `App.css`:** Do not add page-specific or feature-specific styles there; put them in the owner’s co-located CSS file.
 - **New UI surfaces:** New pages and major components **must** include a paired CSS file (e.g. `FooPage.tsx` + `FooPage.css`).
 - **Single owner:** Styles used by only one page or component live in **that** file’s CSS, not `App.css` and not a sibling’s CSS.
-- **Global exceptions:** Intentionally shared primitives (e.g. reused badges, header chrome) may remain in `App.css`; follow existing patterns and CLAUDE.md structure notes.
+- **Global exceptions:** Intentionally shared primitives (e.g. reused badges, header chrome) may remain in `App.css`; follow existing patterns.
 
 ## Type safety and consistency
 - Do not invent fields not present in the canonical schema.
@@ -123,6 +123,6 @@ Before concluding any task, verify:
   - completion and liability transfer
   - workmanship warranty
 - **DocuSeal / e-sign:** Local dev works when server env is complete; **end-to-end** checks (webhook URL, notification emails, signed output) follow the **deployed** host and runtime env — see **ARCHITECTURE.md** → *E-sign (DocuSeal)* and **AGENTS.md** (DocuSeal localhost vs hosted).
-- **Invoice lifecycle:** Invoice business state: no row → `Invoice`, `issued_at = null` → `Draft`, `issued_at != null` → `Invoiced` (payment-link creation sets `issued_at`). `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook; no invoice e-sign tracking. **`InvoiceFinalPage`** refetches the invoice once on mount for webhook-updated payment state.
+- **Invoice lifecycle:** Invoice business state: no row → `Invoice`, `issued_at = null` → `Draft`, `issued_at != null` → `Invoiced` (**first successful** `POST /api/invoices/:id/send` sets `issued_at`; payment-link-only does not). `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook; no invoice e-sign tracking. **`InvoiceFinalPage`** refetches the invoice once on mount for webhook-updated payment state.
 - **E-sign UI:** No client interval polling; work-order and change-order detail call authenticated status once when the screen opens (send/resend paths still refresh).
-- **Invoice issuance gate:** Invoice issuance (payment-link creation and send) is blocked until the parent work order is signature-satisfied (DocuSeal `completed` or `jobs.offline_signed_at` set). Invoice drafts can be created regardless of signature state.
+- **Invoice issuance gate:** Invoice email send (with or without payment link) and payment-link creation are blocked until the parent work order is signature-satisfied (DocuSeal `completed` or `jobs.offline_signed_at` set); server enforces on `/send`. Invoice drafts can be created regardless of signature state.

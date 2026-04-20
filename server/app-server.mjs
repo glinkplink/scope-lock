@@ -12,6 +12,17 @@ import { tryHandleInvoiceRoute } from './invoice-routes.mjs';
 import { checkRateLimit, getClientIp } from './lib/rate-limit.mjs';
 import { log } from './lib/logger.mjs';
 import { initSentry, captureException, Sentry } from './lib/sentry.mjs';
+import { readRawBody as readRawBodyLib, readJsonBody as readJsonBodyLib } from './lib/body.mjs';
+import {
+  MAX_JSON_BODY_DEFAULT,
+  MAX_WEBHOOK_RAW_BODY,
+  WEBHOOK_BODY_WARN_BYTES,
+} from './lib/body-limits.mjs';
+import { sanitizePdfContentDispositionFilename } from './lib/pdf-security.mjs';
+import { runPostPdfApi } from './lib/post-pdf-api.mjs';
+import { preparePdfPageForRendering } from './lib/pdf-puppeteer.mjs';
+import { isPayloadTooLarge } from './lib/payload-error.mjs';
+import { logEnvPreflight } from './lib/env-preflight.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,17 +74,20 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-async function readJsonBody(req) {
-  const raw = await readRawBody(req);
-  return raw ? JSON.parse(raw) : {};
+async function readJsonBodyDefault(req) {
+  return readJsonBodyLib(req, { maxBytes: MAX_JSON_BODY_DEFAULT });
 }
 
-async function readRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
+async function readRawBodyStripeWebhook(req) {
+  const raw = await readRawBodyLib(req, { maxBytes: MAX_WEBHOOK_RAW_BODY });
+  const bytes = Buffer.byteLength(raw, 'utf8');
+  if (bytes > WEBHOOK_BODY_WARN_BYTES) {
+    log.warn('stripe webhook body exceeds warn threshold', {
+      bytes,
+      threshold: WEBHOOK_BODY_WARN_BYTES,
+    });
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return raw;
 }
 
 function getMimeType(filePath) {
@@ -158,12 +172,15 @@ function buildFooterTemplate(providerName, providerPhone) {
   `;
 }
 
-async function handlePdfRequest(req, res) {
+/**
+ * @param {import('node:http').ServerResponse} res
+ * @param {Record<string, unknown>} body
+ */
+async function handlePdfRequest(res, body) {
   let page;
 
   try {
-    const { html, filename, workOrderNumber, marginHeaderLeft, providerName, providerPhone } =
-      await readJsonBody(req);
+    const { html, filename, workOrderNumber, marginHeaderLeft, providerName, providerPhone } = body;
 
     if (typeof html !== 'string' || !html.trim()) {
       sendText(res, 400, 'Missing HTML payload.');
@@ -172,11 +189,12 @@ async function handlePdfRequest(req, res) {
 
     const browser = await getBrowser();
     page = await browser.newPage();
+    await preparePdfPageForRendering(page);
     /* Letter width at 96dpi — layout matches desktop PDF regardless of client screen */
     await page.setViewport({ width: 816, height: 1056 });
     await page.setDefaultNavigationTimeout(20_000);
     await page.setDefaultTimeout(20_000);
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20_000 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 20_000 });
     await page.emulateMediaType('screen');
     await page.evaluate(async () => {
       if (!('fonts' in document) || !document.fonts) return;
@@ -206,18 +224,21 @@ async function handlePdfRequest(req, res) {
       timeout: 30_000,
     });
 
+    const safeName = sanitizePdfContentDispositionFilename(
+      typeof filename === 'string' ? filename : 'work-order.pdf'
+    );
+
     res.writeHead(200, {
       ...COMMON_HEADERS,
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename || 'work-order.pdf'}"`,
+      'Content-Disposition': `attachment; filename="${safeName}"`,
       'Content-Length': pdf.length,
     });
     res.end(pdf);
     return true;
   } catch (error) {
     log.error('PDF generation failed', log.errCtx(error));
-    const message = error instanceof Error ? error.message : 'Failed to generate PDF.';
-    sendText(res, 500, message);
+    sendText(res, 500, 'Could not generate PDF.');
     return true;
   } finally {
     if (page) {
@@ -228,6 +249,7 @@ async function handlePdfRequest(req, res) {
 
 async function createAppServer() {
   initSentry();
+  logEnvPreflight();
   let vite;
 
   if (isDev) {
@@ -253,8 +275,22 @@ async function createAppServer() {
       return;
     }
 
+    const pathOnly = String(req.url || '').split('?')[0] || '/';
+
+    // Rate limit: 5 req/min per IP for esign send/resend (before handler)
+    if (
+      req.method === 'POST' &&
+      /^\/api\/esign\/(work-orders|change-orders)\/[\w-]+\/(send|resend)$/.test(pathOnly)
+    ) {
+      const clientIp = getClientIp(req);
+      if (!checkRateLimit(`esign:${clientIp}`, 5, 60 * 1000)) {
+        sendJson(res, 429, { error: 'Too many requests.' });
+        return;
+      }
+    }
+
     const handledEsign = await tryHandleEsignRoute(req, res, {
-      readJsonBody,
+      readJsonBody: readJsonBodyDefault,
       sendJson,
       sendText,
     });
@@ -263,7 +299,7 @@ async function createAppServer() {
     }
 
     // Rate limit: 5 req/min per IP for Stripe Connect start
-    if (req.method === 'POST' && req.url === '/api/stripe/connect/start') {
+    if (req.method === 'POST' && pathOnly === '/api/stripe/connect/start') {
       const clientIp = getClientIp(req);
       if (!checkRateLimit(`stripe-connect:${clientIp}`, 5, 60 * 1000)) {
         sendJson(res, 429, { error: 'Too many requests.' });
@@ -271,17 +307,8 @@ async function createAppServer() {
       }
     }
 
-    // Rate limit: 5 req/min per IP for esign send/resend
-    if (req.method === 'POST' && /^\/api\/esign\/(work-orders|change-orders)\/[\w-]+\/(send|resend)$/.test(req.url)) {
-      const clientIp = getClientIp(req);
-      if (!checkRateLimit(`esign:${clientIp}`, 5, 60 * 1000)) {
-        sendJson(res, 429, { error: 'Too many requests.' });
-        return;
-      }
-    }
-
     // Rate limit: 5 req/min per IP for invoice send
-    if (req.method === 'POST' && /^\/api\/invoices\/[\w-]+\/send$/.test(req.url)) {
+    if (req.method === 'POST' && /^\/api\/invoices\/[\w-]+\/send$/.test(pathOnly)) {
       const clientIp = getClientIp(req);
       if (!checkRateLimit(`invoice:${clientIp}`, 5, 60 * 1000)) {
         sendJson(res, 429, { error: 'Too many requests.' });
@@ -289,16 +316,25 @@ async function createAppServer() {
       }
     }
 
+    // Rate limit: payment-link creation only (not webhook)
+    if (req.method === 'POST' && /^\/api\/stripe\/invoices\/[0-9a-fA-F-]{36}\/payment-link$/.test(pathOnly)) {
+      const clientIp = getClientIp(req);
+      if (!checkRateLimit(`stripe-payment-link:${clientIp}`, 5, 60 * 1000)) {
+        sendJson(res, 429, { error: 'Too many requests.' });
+        return;
+      }
+    }
+
     const handledInvoice = await tryHandleInvoiceRoute(req, res, {
-      readJsonBody,
+      readJsonBody: readJsonBodyDefault,
       sendJson,
       sendText,
     });
     if (handledInvoice) return;
 
     const handledStripe = await tryHandleStripeRoute(req, res, {
-      readJsonBody,
-      readRawBody,
+      readJsonBody: readJsonBodyDefault,
+      readRawBody: readRawBodyStripeWebhook,
       sendJson,
       sendText,
     });
@@ -306,14 +342,8 @@ async function createAppServer() {
       return;
     }
 
-    if (req.method === 'POST' && req.url === '/api/pdf') {
-      // Rate limit: 10 req/min per IP
-      const clientIp = getClientIp(req);
-      if (!checkRateLimit(`pdf:${clientIp}`, 10, 60 * 1000)) {
-        sendJson(res, 429, { error: 'Too many requests.' });
-        return;
-      }
-      await handlePdfRequest(req, res);
+    if (req.method === 'POST' && pathOnly === '/api/pdf') {
+      await runPostPdfApi(req, res, handlePdfRequest);
       return;
     }
 
@@ -322,26 +352,40 @@ async function createAppServer() {
         if (err) {
           vite.ssrFixStacktrace(err);
           log.error('Vite SSR error', log.errCtx(err));
-          sendText(res, 500, err.message);
+          sendText(res, 500, 'Internal server error.');
         }
       });
       return;
     }
 
-    const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-    const normalizedPath = path.normalize(requestPath).replace(/^(\.\.[/\\])+/, '');
-    // Strip leading slash so path.join works correctly
-    const safePath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
-    let filePath = path.join(distDir, safePath);
-
-    // Containment check to prevent path traversal
     const resolvedDistDir = path.resolve(distDir);
-    if (!filePath.startsWith(resolvedDistDir + path.sep) && filePath !== resolvedDistDir) {
-      sendText(res, 403, 'Forbidden');
+    let servePath;
+    try {
+      const u = new URL(req.url === '/' ? '/' : req.url || '/', 'http://local');
+      let decoded = u.pathname;
+      try {
+        decoded = decodeURIComponent(u.pathname);
+      } catch {
+        sendText(res, 400, 'Bad request.');
+        return;
+      }
+      if (/[\u0000-\u001F\u007F]/.test(decoded)) {
+        sendText(res, 400, 'Bad request.');
+        return;
+      }
+      const normalized = path.posix.normalize(decoded === '' ? '/' : decoded);
+      const relative = normalized.replace(/^\/+/, '') || 'index.html';
+      const resolvedFile = path.resolve(distDir, relative);
+      if (resolvedFile !== resolvedDistDir && !resolvedFile.startsWith(resolvedDistDir + path.sep)) {
+        sendText(res, 403, 'Forbidden');
+        return;
+      }
+      servePath = resolvedFile;
+    } catch {
+      sendText(res, 400, 'Bad request.');
       return;
     }
 
-    let servePath = filePath;
     if (!existsSync(servePath) || servePath.endsWith(path.sep)) {
       servePath = path.join(distDir, 'index.html');
     } else {
@@ -389,6 +433,12 @@ async function createAppServer() {
       }
     }
     } catch (err) {
+      if (isPayloadTooLarge(err)) {
+        if (!res.headersSent) {
+          sendJson(res, 413, { error: 'Request body too large.' });
+        }
+        return;
+      }
       captureException(err, { url: req.url, method: req.method });
       log.error('Unhandled request error', log.errCtx(err));
       if (!res.headersSent) sendText(res, 500, 'Internal server error.');

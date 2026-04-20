@@ -161,6 +161,10 @@
   background: var(--status-sent);
 }
 
+.home-stat-card--paid::before {
+  background: var(--status-paid);
+}
+
 .home-stat-card--green::before {
   background: var(--status-signed);
 }

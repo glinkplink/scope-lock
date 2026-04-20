@@ -1,6 +1,11 @@
-import { createOrReuseInvoicePaymentLink } from './lib/stripe.mjs';
+import {
+  assertStripeInvoicePaymentsReady,
+  createOrReuseInvoicePaymentLink,
+} from './lib/stripe.mjs';
 import { esc } from './lib/html-escape.mjs';
 import { log } from './lib/logger.mjs';
+import { preparePdfPageForRendering } from './lib/pdf-puppeteer.mjs';
+import { isPayloadTooLarge } from './lib/payload-error.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -81,19 +86,27 @@ function buildInvoiceEmailBody({ invoice, job, profile, paymentUrl }) {
   const safeCustomerName = esc(job.customer_name || 'there');
   const safeBusinessName = esc(profile.business_name);
   const safeOwnerName = esc(profile.owner_name || profile.business_name);
-  const safePaymentUrl = esc(paymentUrl);
+
+  const payBlock =
+    typeof paymentUrl === 'string' && paymentUrl.trim()
+      ? `<p>You can pay securely online using the link below:</p>
+    <p><a href="${esc(paymentUrl)}">Pay Invoice #${invoiceNumber}</a></p>`
+      : `<p>Payment details are on the attached invoice.</p>`;
 
   return `
     <p>Hi ${safeCustomerName},</p>
     <p>Please find attached Invoice #${invoiceNumber} from ${safeBusinessName}.</p>
     <p><strong>Amount due:</strong> $${Number(invoice.total).toFixed(2)}</p>
     <p><strong>Due date:</strong> ${dueDate}</p>
-    <p>You can pay securely online using the link below:</p>
-    <p><a href="${safePaymentUrl}">Pay Invoice #${invoiceNumber}</a></p>
+    ${payBlock}
     <p>If you have any questions, please reply to this email.</p>
     <p>Thank you for your business!</p>
     <p>— ${safeOwnerName}</p>
   `;
+}
+
+function workOrderSignatureSatisfied(job) {
+  return job.esign_status === 'completed' || job.offline_signed_at != null;
 }
 
 function getServiceSupabase() {
@@ -128,9 +141,10 @@ async function renderInvoicePdf({ invoice, html, profile }) {
   try {
     // Wrap HTML with CSS document structure
     const fullHtml = buildPdfHtml(html);
-    
+
+    await preparePdfPageForRendering(page);
     await page.setViewport({ width: 816, height: 1056 });
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 20_000 });
+    await page.setContent(fullHtml, { waitUntil: 'load', timeout: 20_000 });
     await page.emulateMediaType('screen');
 
     await page.evaluate(async () => {
@@ -180,11 +194,14 @@ export async function tryHandleInvoiceRoute(req, res, helpers) {
   // POST /api/invoices/:invoiceId/send
   if (req.method === 'POST' && /^\/api\/invoices\/[\w-]+\/send$/.test(req.url)) {
     try {
-      return await handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText });
+      return await handleInvoiceSend(req, res, { readJsonBody, sendJson });
     } catch (err) {
+      if (isPayloadTooLarge(err)) {
+        sendJson(res, 413, { error: 'Request body too large.' });
+        return true;
+      }
       log.error('Invoice send error', log.errCtx(err));
-      const msg = err instanceof Error ? err.message : 'Internal server error';
-      sendJson(res, 500, { error: msg });
+      sendJson(res, 500, { error: 'Could not send invoice.' });
       return true;
     }
   }
@@ -192,8 +209,7 @@ export async function tryHandleInvoiceRoute(req, res, helpers) {
   return false;
 }
 
-async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText }) {
-  // 1. Authenticate
+async function handleInvoiceSend(req, res, { readJsonBody, sendJson }) {
   const token = getBearerToken(req);
   if (!token) {
     sendJson(res, 401, { error: 'Missing authorization' });
@@ -208,7 +224,6 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
   }
   const userId = userData.user.id;
 
-  // 2. Extract invoice ID from URL
   const match = req.url.match(/\/invoices\/([0-9a-f-]+)\/send/);
   const invoiceId = match?.[1];
   if (!invoiceId) {
@@ -216,7 +231,6 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 3. Load invoice
   const { data: invoice, error: invoiceErr } = await supabase
     .from('invoices')
     .select('*')
@@ -225,7 +239,8 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     .maybeSingle();
 
   if (invoiceErr) {
-    sendJson(res, 500, { error: invoiceErr.message });
+    log.error('invoice load error', log.errCtx(invoiceErr));
+    sendJson(res, 500, { error: 'Could not load invoice.' });
     return true;
   }
   if (!invoice) {
@@ -233,16 +248,16 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 4. Load job for customer email
   const { data: job, error: jobErr } = await supabase
     .from('jobs')
-    .select('customer_email, customer_name')
+    .select('customer_email, customer_name, esign_status, offline_signed_at')
     .eq('id', invoice.job_id)
     .eq('user_id', userId)
     .maybeSingle();
 
   if (jobErr) {
-    sendJson(res, 500, { error: jobErr.message });
+    log.error('invoice send job load error', log.errCtx(jobErr));
+    sendJson(res, 500, { error: 'Could not load work order.' });
     return true;
   }
   if (!job) {
@@ -250,7 +265,6 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 5. Load profile
   const { data: profile, error: profileErr } = await supabase
     .from('business_profiles')
     .select('*')
@@ -258,7 +272,8 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     .maybeSingle();
 
   if (profileErr) {
-    sendJson(res, 500, { error: profileErr.message });
+    log.error('invoice send profile load error', log.errCtx(profileErr));
+    sendJson(res, 500, { error: 'Could not load profile.' });
     return true;
   }
   if (!profile) {
@@ -266,14 +281,29 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 6. Validate customer email
   const customerEmail = job.customer_email?.trim();
   if (!customerEmail) {
     sendJson(res, 400, { error: 'Customer email is required. Add it to the work order first.' });
     return true;
   }
 
-  // 7. Check Resend config
+  const body = await readJsonBody(req);
+  const html = body?.html;
+  const includePaymentLink = body?.include_payment_link === true;
+
+  if (typeof html !== 'string' || !html.trim()) {
+    sendJson(res, 400, { error: 'Missing HTML payload' });
+    return true;
+  }
+
+  if (!workOrderSignatureSatisfied(job)) {
+    sendJson(res, 409, {
+      error:
+        'Cannot send invoice: the work order must be signed via DocuSeal or marked as signed offline first.',
+    });
+    return true;
+  }
+
   const resendApiKey = env('RESEND_API_KEY');
   const resendFromEmail = env('RESEND_FROM_EMAIL');
   if (!resendApiKey || !resendFromEmail) {
@@ -281,57 +311,60 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 8. Check Stripe config
-  const stripeSecretKey = env('STRIPE_SECRET_KEY');
-  if (!stripeSecretKey) {
-    sendJson(res, 503, { error: 'Stripe is not configured.' });
-    return true;
-  }
+  let paymentUrl = null;
+  let paymentLinkId = null;
 
-  // 9. Check Stripe account ready
-  if (!profile.stripe_account_id) {
-    sendJson(res, 409, {
-      error: 'Stripe payouts are not set up yet. Start Connect onboarding first.',
-    });
-    return true;
-  }
-
-  // 10. Create or reuse payment link
-  let paymentUrl, paymentLinkId;
-  try {
-    const result = await createOrReuseInvoicePaymentLink({
-      invoice,
-      userId,
-      supabase,
-      stripeAccountId: profile.stripe_account_id,
-    });
-    paymentUrl = result.url;
-    paymentLinkId = result.payment_link_id;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Could not create payment link';
-    if (msg.includes('not signed')) {
-      sendJson(res, 409, { error: msg });
+  if (includePaymentLink) {
+    const stripeSecretKey = env('STRIPE_SECRET_KEY');
+    if (!stripeSecretKey) {
+      sendJson(res, 503, { error: 'Stripe is not configured.' });
       return true;
     }
-    if (msg.includes('greater than zero')) {
-      sendJson(res, 400, { error: msg });
+    if (!profile.stripe_account_id) {
+      sendJson(res, 409, {
+        error: 'Stripe payouts are not set up yet. Start Connect onboarding first.',
+      });
       return true;
     }
-    sendJson(res, msg.includes('not configured') ? 503 : 502, { error: msg });
-    return true;
-  }
 
-  if (!paymentUrl) {
-    sendJson(res, 502, { error: 'Could not create payment link.' });
-    return true;
-  }
+    const cap = await assertStripeInvoicePaymentsReady(profile.stripe_account_id);
+    if (!cap.ok) {
+      sendJson(res, cap.status, { error: cap.error });
+      return true;
+    }
 
-  // 11. Read HTML from request body and generate PDF
-  const body = await readJsonBody(req);
-  const html = body?.html;
-  if (typeof html !== 'string' || !html.trim()) {
-    sendJson(res, 400, { error: 'Missing HTML payload' });
-    return true;
+    try {
+      const result = await createOrReuseInvoicePaymentLink({
+        invoice,
+        userId,
+        supabase,
+        stripeAccountId: profile.stripe_account_id,
+      });
+      paymentUrl = result.url;
+      paymentLinkId = result.payment_link_id ?? null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('not signed')) {
+        sendJson(res, 409, { error: msg });
+        return true;
+      }
+      if (msg.includes('greater than zero')) {
+        sendJson(res, 400, { error: msg });
+        return true;
+      }
+      if (msg.includes('not configured')) {
+        sendJson(res, 503, { error: 'Stripe is not configured.' });
+        return true;
+      }
+      log.error('invoice send payment link error', log.errCtx(err));
+      sendJson(res, 502, { error: 'Could not create payment link.' });
+      return true;
+    }
+
+    if (!paymentUrl) {
+      sendJson(res, 502, { error: 'Could not create payment link.' });
+      return true;
+    }
   }
 
   let pdfBuffer;
@@ -343,7 +376,6 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 12. Send email via Resend
   const resendPayload = {
     from: resendFromEmail,
     to: customerEmail,
@@ -352,7 +384,7 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
       invoice,
       job,
       profile,
-      paymentUrl,
+      paymentUrl: paymentUrl ?? undefined,
     }),
     reply_to: profile.email || undefined,
     attachments: [
@@ -379,29 +411,48 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson, sendText })
     return true;
   }
 
-  // 13. Set issued_at on first send
-  const updatePayload = {
-    stripe_payment_link_id: paymentLinkId,
-    stripe_payment_url: paymentUrl,
-  };
+  const patch = {};
+
+  if (includePaymentLink && paymentUrl) {
+    patch.stripe_payment_link_id = paymentLinkId;
+    patch.stripe_payment_url = paymentUrl;
+  }
 
   if (!invoice.issued_at) {
-    updatePayload.issued_at = new Date().toISOString();
+    patch.issued_at = new Date().toISOString();
   }
 
-  const { data: updatedInvoice, error: updateErr } = await supabase
+  if (Object.keys(patch).length > 0) {
+    const { data: updatedInvoice, error: updateErr } = await supabase
+      .from('invoices')
+      .update(patch)
+      .eq('id', invoice.id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateErr) {
+      log.error('Failed to update invoice after send', log.errCtx(updateErr));
+    }
+
+    const { data: fresh } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoice.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    sendJson(res, 200, { invoice: fresh || updatedInvoice || invoice });
+    return true;
+  }
+
+  const { data: freshOnly } = await supabase
     .from('invoices')
-    .update(updatePayload)
+    .select('*')
     .eq('id', invoice.id)
     .eq('user_id', userId)
-    .select()
-    .single();
+    .maybeSingle();
 
-  if (updateErr) {
-    log.error('Failed to update invoice after send', log.errCtx(updateErr));
-    // Email was sent, so return success but log the DB error
-  }
-
-  sendJson(res, 200, { invoice: updatedInvoice || invoice });
+  sendJson(res, 200, { invoice: freshOnly || invoice });
   return true;
 }

@@ -11,8 +11,7 @@ description: >-
 ## First reads
 
 - **Canonical rules:** [AGENTS.md](../../../AGENTS.md) at repo root.
-- **Product + file map:** [CLAUDE.md](../../../CLAUDE.md).
-- **Server, deploy, DocuSeal/Stripe:** [ARCHITECTURE.md](../../../ARCHITECTURE.md).
+- **System/flow/schema/deployment + DocuSeal/Stripe:** [ARCHITECTURE.md](../../../ARCHITECTURE.md).
 
 Cursor also applies [.cursor/rules/ScopeLock-Project-Rules.mdc](../../rules/ScopeLock-Project-Rules.mdc) and [high-priority.mdc](../../rules/high-priority.mdc); this skill is a **checklist**, not a replacement.
 
@@ -28,7 +27,7 @@ npm run build   # when TS, Vite, or build graph changed
 
 ## After substantive code changes
 
-Update the **living docs** that are now wrong or incomplete (same session as the code change when possible): `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, and Cursor rule files if global guidance changed—keep them **aligned** on the same topics (CSS co-location, `esc()`, deployment, invoice/e-sign rules).
+Update the **living docs** that are now wrong or incomplete (same session as the code change when possible): `AGENTS.md`, `ARCHITECTURE.md`, and Cursor rule files if global guidance changed—keep them **aligned** on the same topics (CSS co-location, `esc()`, deployment, invoice/e-sign rules). File-map, flow, schema, and deployment detail belongs in `ARCHITECTURE.md`.
 
 ## High-impact invariants
 
@@ -41,7 +40,7 @@ Update the **living docs** that are now wrong or incomplete (same session as the
 ## Server / e-sign / payments touchpoints
 
 - App server entry: `server/app-server.mjs`; e-sign routes `server/esign-routes.mjs`; Stripe `server/stripe-routes.mjs`.
-- If behavior or env vars change, update **ARCHITECTURE.md** (and CLAUDE.md if operator-facing).
+- If behavior or env vars change, update **ARCHITECTURE.md** (and AGENTS.md if a repo-wide rule shifted).
 
 ## Optional git hook (team choice)
 

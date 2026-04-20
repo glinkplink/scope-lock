@@ -100,7 +100,7 @@ function baseJob(): Job {
   };
 }
 
-function baseProfile(): BusinessProfile {
+function baseProfile(overrides: Partial<BusinessProfile> = {}): BusinessProfile {
   return {
     id: 'p-1',
     user_id: 'u1',
@@ -126,6 +126,7 @@ function baseProfile(): BusinessProfile {
     stripe_onboarding_complete: false,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
+    ...overrides,
   };
 }
 
@@ -165,16 +166,22 @@ describe('InvoiceFinalPage', () => {
   const onBack = vi.fn();
   const onEditInvoice = vi.fn();
   const onInvoiceUpdated = vi.fn();
+  const onOpenStripeSetup = vi.fn();
 
-  function renderPage(invoice = baseInvoice(), job = baseJob()) {
+  function renderPage(
+    invoice = baseInvoice(),
+    job = baseJob(),
+    profile: BusinessProfile = baseProfile()
+  ) {
     return render(
       <InvoiceFinalPage
         invoice={invoice}
         job={job}
-        profile={baseProfile()}
+        profile={profile}
         onBack={onBack}
         onEditInvoice={onEditInvoice}
         onInvoiceUpdated={onInvoiceUpdated}
+        onOpenStripeSetup={onOpenStripeSetup}
       />
     );
   }
@@ -191,16 +198,42 @@ describe('InvoiceFinalPage', () => {
     cleanup();
   });
 
-  it('renders payment card with enabled send button for draft invoice', () => {
+  it('renders primary send, PDF hint, online payment connect prompt when Stripe is not ready', () => {
     const signedJob = { ...baseJob(), esign_status: 'completed' as const };
     renderPage(baseInvoice(), signedJob);
 
     expect(screen.getByRole('heading', { name: 'Send Invoice' })).toBeInTheDocument();
-    expect(screen.getByText('Send the invoice email to the customer with the PDF attached and payment link.')).toBeInTheDocument();
+    expect(screen.getByText('Emails the PDF invoice to the customer.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Online payment' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Want to accept online payments\? Connect Stripe/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Send Invoice$/i })).not.toBeDisabled();
-    expect(screen.getByRole('button', { name: /create payment link/i })).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: /create payment link/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /download invoice/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /edit invoice/i })).toBeInTheDocument();
+  });
+
+  it('calls onOpenStripeSetup when Connect Stripe Account is clicked', async () => {
+    const user = userEvent.setup();
+    const signedJob = { ...baseJob(), esign_status: 'completed' as const };
+    renderPage(baseInvoice(), signedJob);
+
+    await user.click(screen.getByRole('button', { name: /connect stripe account/i }));
+    expect(onOpenStripeSetup).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Send with payment link and Create payment link when Stripe is ready', () => {
+    const signedJob = { ...baseJob(), esign_status: 'completed' as const };
+    const profile = baseProfile({
+      stripe_account_id: 'acct_123',
+      stripe_onboarding_complete: true,
+    });
+    renderPage(baseInvoice(), signedJob, profile);
+
+    expect(screen.getByRole('button', { name: /^Send with payment link$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create payment link/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect stripe account/i })).not.toBeInTheDocument();
   });
 
   it('downloads the invoice PDF without navigating away', async () => {
@@ -244,13 +277,24 @@ describe('InvoiceFinalPage', () => {
     });
   });
 
-  it('disables issue actions and shows the gate message before the work order is signed', () => {
-    renderPage(baseInvoice(), baseJob());
+  it('disables send and payment-link actions before the work order is signed', () => {
+    const profile = baseProfile({
+      stripe_account_id: 'acct_123',
+      stripe_onboarding_complete: true,
+    });
+    renderPage(baseInvoice(), baseJob(), profile);
 
     expect(
       screen.getByText(/invoice drafts can be created before signature/i)
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Send Invoice$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Send with payment link$/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /create payment link/i })).toBeDisabled();
+  });
+
+  it('uses Preview as the preview section heading', () => {
+    const signedJob = { ...baseJob(), esign_status: 'completed' as const };
+    renderPage(baseInvoice(), signedJob);
+    expect(screen.getByRole('heading', { name: /^Preview$/i })).toBeInTheDocument();
   });
 });

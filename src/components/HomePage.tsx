@@ -152,6 +152,10 @@ export function HomePage({
               <div className="home-stat-num">{formatUsd(summary?.invoicedContractTotal)}</div>
               <div className="home-stat-label">Invoiced</div>
             </div>
+            <div className="home-stat-card home-stat-card--paid">
+              <div className="home-stat-num">{formatUsd(summary?.paidContractTotal)}</div>
+              <div className="home-stat-label">Paid</div>
+            </div>
             <div className="home-stat-card home-stat-card--green">
               <div className="home-stat-num">{formatUsd(summary?.pendingContractTotal)}</div>
               <div className="home-stat-label">Pending invoice</div>

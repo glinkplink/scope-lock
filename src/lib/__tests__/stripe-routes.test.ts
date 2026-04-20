@@ -10,16 +10,43 @@ const createAccountOnboardingLinkMock = vi.fn();
 const createInvoicePaymentLinkMock = vi.fn();
 const constructWebhookEventMock = vi.fn();
 const getConnectedAccountMock = vi.fn();
+const createOrReuseInvoicePaymentLinkMock = vi.fn();
+
+async function assertStripeInvoicePaymentsReadyForTest(accountId: string) {
+  const { data: connectedAccount, error: capErr } = await getConnectedAccountMock(accountId);
+  if (capErr || !connectedAccount) {
+    return { ok: false, status: 502, error: 'Could not verify Stripe account capabilities.' };
+  }
+  const cardStatus =
+    'card_payments_status' in connectedAccount && connectedAccount.card_payments_status != null
+      ? connectedAccount.card_payments_status
+      : 'inactive';
+  if (cardStatus !== 'active') {
+    return {
+      ok: false,
+      status: 409,
+      error:
+        cardStatus === 'pending'
+          ? 'Your Stripe account is still being verified. Complete onboarding and wait for Stripe approval before sending invoices.'
+          : 'Your Stripe account is not approved to accept payments yet. Complete Stripe onboarding to enable card payments.',
+    };
+  }
+  return { ok: true as const };
+}
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 
 vi.mock('@scope-server/lib/stripe.mjs', () => ({
+  assertStripeInvoicePaymentsReady: (...args: unknown[]) =>
+    assertStripeInvoicePaymentsReadyForTest(args[0] as string),
   createConnectedAccount: (...args: unknown[]) => createConnectedAccountMock(...args),
   createAccountOnboardingLink: (...args: unknown[]) => createAccountOnboardingLinkMock(...args),
   createInvoicePaymentLink: (...args: unknown[]) => createInvoicePaymentLinkMock(...args),
   constructWebhookEvent: (...args: unknown[]) => constructWebhookEventMock(...args),
+  createOrReuseInvoicePaymentLink: (...args: unknown[]) =>
+    createOrReuseInvoicePaymentLinkMock(...args),
   getConnectedAccount: (...args: unknown[]) => getConnectedAccountMock(...args),
 }));
 
@@ -184,6 +211,7 @@ describe('tryHandleStripeRoute', () => {
     createInvoicePaymentLinkMock.mockReset();
     constructWebhookEventMock.mockReset();
     getConnectedAccountMock.mockReset();
+    createOrReuseInvoicePaymentLinkMock.mockReset();
     resetStripeServiceSupabaseSingleton();
   });
 

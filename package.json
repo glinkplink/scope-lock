@@ -8,7 +8,8 @@
     "dev:kill": "lsof -ti:3000 | xargs kill -9 2>/dev/null || true; node server/app-server.mjs",
     "build": "tsc -b && vite build",
     "test": "vitest run",
-    "lint": "eslint .",
+    "lint": "eslint . && node scripts/check-vite-public-env.mjs",
+    "check:vite-env": "node scripts/check-vite-public-env.mjs",
     "preview": "NODE_ENV=production node server/app-server.mjs",
     "start": "NODE_ENV=production node server/app-server.mjs"
   },

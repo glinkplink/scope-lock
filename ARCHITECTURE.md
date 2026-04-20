@@ -2,17 +2,15 @@
 
 ## Agent documentation & living documents
 
-**Canonical short rules for all agents:** **[AGENTS.md](./AGENTS.md)**.
+**Canonical short rules for all agents:** **[AGENTS.md](./AGENTS.md)**. `CLAUDE.md` is a pointer to AGENTS.md for Claude Code auto-loading.
 
-**Detailed project context:** **[CLAUDE.md](./CLAUDE.md)**.
+**Cursor enforcement:** **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** and **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)** — aligned with AGENTS.md.
 
-**Cursor enforcement:** **[.cursor/rules/ScopeLock-Project-Rules.mdc](./.cursor/rules/ScopeLock-Project-Rules.mdc)** and **[.cursor/rules/high-priority.mdc](./.cursor/rules/high-priority.mdc)**.
-
-`AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE.md`, and those Cursor rule files are **living documents** and should stay aligned.
+`AGENTS.md`, `ARCHITECTURE.md`, and the Cursor rule files are **living documents** and should stay aligned.
 
 - **After each substantive code change** that affects architecture, deployment, system boundaries, routes, patterns, stack/dependencies, or cross-cutting implementation conventions, update whichever of these files are affected.
 - **When editing any of these agent-facing files**, compare the same topic across the others and keep them aligned, especially for architecture/deployment constraints, CSS co-location, HTML/`esc()` rules, and minimal-diff/file-discipline guidance.
-- `AGENTS.md` remains the first-stop rules file; this document is the deeper system and deployment reference.
+- `AGENTS.md` is the first-stop rules file; this document is the deeper system and deployment reference and should only be loaded by agents as needed.
 - **Public branding:** Use **IronWork** in product prose and user-facing copy. Legacy internal identifiers, repo paths, storage keys, and factual filenames such as **`ScopeLock-Project-Rules.mdc`** may remain where renaming would be risky or inaccurate.
 
 ## Product Purpose
@@ -27,7 +25,7 @@ The generated document is a concise 1–3 page agreement, not a long legal contr
 - Mobile welders doing repair or fabrication jobs
 
 ### Primary Workflow
-A contractor can **start a work order without signing in**. They fill the job form and preview the agreement; on first **Download & Save** they create an account (business name, email, password) and the work order is persisted. Returning users sign in from the header, then use **Work Orders**, **Invoices**, and **Edit profile** as needed. Profile defaults (exclusions, warranty, payment methods, etc.) apply to **new** drafts after they exist in `business_profiles`.
+A contractor can **start a work order without signing in**. They fill the job form and preview the agreement; on first **Download & Save** or anonymous **Save & Send for Signature** they create an account (business name, email, password). If Supabase email confirmation is enabled, IronWork stores the pending work order locally, waits for confirmation, then restores the draft and creates `business_profiles` once a confirmed session exists. The user then reviews and clicks the save/send action again to persist the work order. If confirmation is disabled and Supabase returns a session immediately, the legacy same-screen capture path creates the profile, persists the work order, and continues the requested action. Returning users sign in from the header, then use **Work Orders**, **Invoices**, and **Edit profile** as needed. Profile defaults (exclusions, warranty, payment methods, etc.) apply to **new** drafts after they exist in `business_profiles`.
 
 ## Tech Stack
 
@@ -46,8 +44,13 @@ A contractor can **start a work order without signing in**. They fill the job fo
 
 ### Known Trade-offs
 - **Puppeteer requires an app server** instead of pure static hosting for PDF generation.
-  The frontend sends the rendered agreement HTML to the app's `/api/pdf` route so Chrome can
-  render the file with much closer parity to the on-screen preview.
+  The frontend sends the rendered agreement HTML to the app's **`POST /api/pdf`** route so Chrome can
+  render the file with much closer parity to the on-screen preview. **`POST /api/pdf` requires**
+  **`Authorization: Bearer <Supabase access_token>`**; the Node process must define **`SUPABASE_URL`**
+  and **`SUPABASE_SERVICE_ROLE_KEY`** at **runtime** (same as invoice/e-sign) so the server can verify
+  the JWT. **`GET /api/pdf/health`** remains unauthenticated for uptime checks. Puppeteer uses
+  **`setRequestInterception`** with an allowlist (**`data:`**, **`about:`**, **`fonts.googleapis.com`**,
+  **`fonts.gstatic.com`**) and **`setJavaScriptEnabled(false)`** to reduce SSRF risk from untrusted HTML.
 - **PWA install support is metadata-first:** the app includes a manifest, platform icons, and a
   minimal service worker for installability and shell caching, but it is **not** an offline-first
   product. Auth, PDFs, Stripe, DocuSeal, and data mutations still require network access.
@@ -65,12 +68,12 @@ A contractor can **start a work order without signing in**. They fill the job fo
 
 ### Stripe Connect / payments
 
-- **Routes (same app server as PDFs):** `POST /api/stripe/connect/start`, `GET /api/stripe/connect/status`, `POST /api/stripe/invoices/:invoiceId/payment-link`, and `POST /api/stripe/webhook`.
+- **Routes (same app server as PDFs):** `POST /api/stripe/connect/start`, `GET /api/stripe/connect/status`, `POST /api/stripe/invoices/:invoiceId/payment-link`, and `POST /api/stripe/webhook`. Invoice email + optional payment link: **`POST /api/invoices/:invoiceId/send`** (see **`invoice-routes.mjs`**).
 - **Auth:** Connect start/status and invoice payment-link routes require `Authorization: Bearer <Supabase access_token>`; the server verifies the JWT and loads the caller’s `business_profiles` row via the Supabase service role. The webhook does **not** use Supabase auth; it verifies the Stripe signature with `STRIPE_WEBHOOK_SECRET`.
-- **Invoice issuance gate:** New invoice issuance is blocked until the parent work order is signature-satisfied. `createOrReuseInvoicePaymentLink` allows issuance only when `jobs.esign_status = 'completed'` or `jobs.offline_signed_at` is set; already-issued invoices with an existing `stripe_payment_url` still reuse that legacy link.
+- **Invoice issuance gate:** Payment-link creation and Stripe-backed invoice email are blocked until the parent work order is signature-satisfied (`jobs.esign_status = 'completed'` or `jobs.offline_signed_at` set). **`POST /api/invoices/:id/send`** enforces the same gate for **email-only** sends (no Stripe) so the work order cannot be bypassed. `createOrReuseInvoicePaymentLink` throws when unsigned; already-issued invoices with an existing `stripe_payment_url` still reuse that link.
 - **Account creation:** `createConnectedAccount` keeps **Express** and always requests `card_payments` and `transfers` capabilities and sets `business_profile.mcc = '1799'` (Special Trade Contractors). First-time prefill is intentionally limited to `email`, `business_profile.name`, and an optional absolute-HTTPS `business_profile.url`. Do **not** prefill country, address, identity/person, phone, or bank fields; that would reduce Stripe-hosted/networked onboarding reuse options for existing Stripe users. Omitting capabilities or MCC causes `card_payments` to stay `inactive` even after onboarding completes; omitting MCC puts all required fields in `past_due`.
 - **Onboarding complete signal:** `isStripeOnboardingComplete` uses `account.charges_enabled` (not `details_submitted`). Stripe sets `details_submitted = true` prematurely even when required fields are still `past_due`; `charges_enabled` is the reliable gate.
-- **Payment link capability guard:** Before creating a payment link, the server calls `getConnectedAccount` and checks `capabilities.card_payments === 'active'`. Returns 409 with a user-facing message if `pending` (onboarding incomplete/under review) or `inactive` (never completed).
+- **Payment link capability guard:** Before creating a payment link or sending an invoice **with** a payment link, the server uses **`assertStripeInvoicePaymentsReady`** in **`server/lib/stripe.mjs`** (via `getConnectedAccount`, `card_payments === 'active'`). Returns 409 with a user-facing message if `pending` (onboarding incomplete/under review) or `inactive` (never completed).
 - **Profile integration:** `business_profiles.stripe_account_id` stores the connected account id. `business_profiles.stripe_onboarding_complete` is reconciled from Stripe account state by `GET /api/stripe/connect/status` when the user returns from onboarding, and the same reconciliation runs before `POST /api/stripe/connect/start` issues a fresh onboarding link for an existing connected account.
 - **Return flow:** Stripe onboarding returns to `/?stripe_connect=return` and refresh uses `/?stripe_connect=refresh`. The client moves the user to **Edit Profile**, clears the query param from the URL, reloads profile state, and surfaces a status banner there.
 - **Repeat connect behavior:** Clicking **Connect Stripe** for a profile that already has `stripe_account_id` must reuse that same connected account. IronWork should never create a second connected account for the same business profile just because the user re-opened onboarding.
@@ -81,8 +84,15 @@ A contractor can **start a work order without signing in**. They fill the job fo
 - **Optional `SENTRY_DSN`:** **Production stance:** external error tracking is **intentionally omitted**—leave `SENTRY_DSN` unset unless you explicitly adopt Sentry later. When set, `@sentry/node` is initialized in `server/app-server.mjs` after dotenv loads. Uncaught exceptions flush the Sentry client then exit the process; unhandled promise rejections are reported without exiting. The main HTTP listener callback is wrapped in try/catch so unexpected errors still log and can be sent to Sentry before a generic **500** response (when headers are not yet sent).
 - **Uptime:** External monitors should probe **`GET /api/pdf/health`** (returns **`{ "ok": true }`**) on the public origin; the app does not ship a separate heartbeat endpoint. **Runbook** (Better Stack MCP verification, optional Render logs/metrics): **[PRODUCTION.md](./PRODUCTION.md)** → *Human Intervention* → **Better Stack** / **Render**.
 
+### Design system tokens (`src/App.css :root`)
+
+- **Forge shell (dark app UI):** `--iron-*` (iron palette), `--spark` (orange accent), `--nav-height`, `--header-height`, `--shell-radius-*`, `--font-app` (Outfit stack).
+- **Shared shell form panels:** `--form-panel-bg`, `--form-panel-border`, `--form-control-bg`, `--form-control-border`, `--form-control-text`, `--form-label`, `--form-placeholder`, `--focus-ring-spark`. Primary CTAs use `.btn-primary` (spark), not legacy navy.
+- **Light document tokens:** `--primary`, `--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-section-blue`, `--radius`, `--radius-lg`, `--font-document` (Barlow stack). These remain the semantics for light UI surfaces (agreement preview sheet, e-sign timeline card, CaptureModal fields, invoice wizard summary box, payment-method document copy) and for document markup. **`buildPdfHtml`** inlines raw `App.css`; do not redefine these to dark semantics without pinning light values in the PDF HTML wrapper.
+- **`body` font** is Outfit; on-screen agreement/invoice preview sheets set `font-family: var(--font-document)` on scoped document containers so preview matches PDF.
+
 ### PDF vs preview (`server/app-server.mjs` + `AgreementPreview.tsx`)
-- **Web fonts**: **`index.html`** loads Outfit, Chakra Petch, Barlow, and Dancing Script (Forge shell + document faces). **`buildPdfHtml`** (`agreement-pdf.ts`) embeds its **own** Google Fonts `<link>` for **Barlow + Dancing Script** and sets PDF `body` to Barlow; it does **not** depend on the SPA font link. The server waits for `document.fonts.ready`, loads Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders. **On-screen** agreement/invoice preview sheets use **`--font-document`** (Barlow stack) on scoped containers so typography matches PDF while the app `body` uses Outfit.
+- **Web fonts**: **`index.html`** loads Outfit, Chakra Petch, Barlow, and Dancing Script (Forge shell + document faces). **`buildPdfHtml`** (`agreement-pdf.ts`) embeds its **own** Google Fonts `<link>` for **Barlow + Dancing Script** and sets PDF `body` to Barlow; it does **not** depend on the SPA font link. The server uses **`waitUntil: 'load'`** (bounded by aborted non-allowlisted requests), then waits for `document.fonts.ready`, loads Dancing Script explicitly, then a short delay before `page.pdf()` so the script face renders. **On-screen** agreement/invoice preview sheets use **`--font-document`** (Barlow stack) on scoped containers so typography matches PDF while the app `body` uses Outfit.
 - **Raw `App.css` in PDF HTML:** The client inlines raw `App.css` into PDF HTML. **Light document tokens** in `:root` (`--text-primary`, `--agreement-*`, etc.) must stay valid for markup; Forge shell tokens are additive. If legacy document variables are ever switched to dark semantics, **pin light values** in `buildPdfHtml` after the inlined CSS.
 - **Viewport**: PDF generation uses **`page.setViewport({ width: 816, height: 1056 })`** (Letter at
   96dpi) so layout is consistent regardless of client screen size.
@@ -217,7 +227,7 @@ scope-lock/
 ├── server/
 │   ├── app-server.mjs               # App server + /api/pdf + e-sign + Stripe + invoice routes
 │   ├── stripe-routes.mjs            # Stripe Connect start/status, payment-link, Stripe webhook
-│   ├── invoice-routes.mjs           # POST /api/invoices/:id/send — invoice email delivery via Resend
+│   ├── invoice-routes.mjs           # POST /api/invoices/:id/send — Resend email + PDF; body `include_payment_link` (email-only vs Stripe link); WO signature gate; `issued_at` on first send
 │   ├── esign-routes.mjs             # JWT send/resend; webhook + service-role e-sign updates
 │   ├── docuseal-esign-state.mjs     # DocuSeal submission → shared esign_* patch fields
 │   └── lib/
@@ -333,7 +343,7 @@ Five tables in Supabase Postgres, all with row-level security:
 | `clients` | user_id, name, **name_normalized** (dedup key), phone, email, address, notes |
 | `jobs` | user_id, client_id, all WelderJob fields, status, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_submission_state, esign_submitter_state, esign_sent/opened/completed/declined_at, esign_decline_reason, esign_signed_document_url, **offline_signed_at** |
 | `change_orders` | user_id, job_id, **co_number** (per-job sequence, UNIQUE with job_id), description, reason, status (`draft` \| `pending_approval` \| `approved` \| `rejected`), **line_items** (jsonb), time_amount / time_unit / time_note, requires_approval, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_* timestamp/state columns — legacy `price_delta` / `time_delta` / `approved` were migrated in **0005** |
-| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, legacy `status` (`draft` \| `downloaded`), **issued_at** (business issuance marker; set when first payment link is created), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes, **stripe_payment_link_id**, **stripe_payment_url**, **payment_status** (`unpaid` \| `paid` \| `offline`; CHECK constraint), **paid_at** (set by Stripe webhook on payment completion) |
+| `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, legacy `status` (`draft` \| `downloaded`), **issued_at** (business issuance marker; set on **first successful** `POST /api/invoices/:id/send`, email-only or with payment link), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes, **stripe_payment_link_id**, **stripe_payment_url**, **payment_status** (`unpaid` \| `paid` \| `offline`; CHECK constraint), **paid_at** (set by Stripe webhook on payment completion) |
 
 **Invoice numbering:** `public.next_invoice_number(uuid)` updates `business_profiles` in one statement and returns the allocated number (pre-increment value). No separate `updateNextInvoiceNumber` in app code.
 
@@ -359,7 +369,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 
 ### Work Orders dashboard rollups (Option B)
 
-- **Invoiced** / **Pending Invoice** on **`WorkOrdersPage`** sum **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. The summary strip is labeled **Contract value** so this is explicit. Using invoice totals for rollups (**Option A**) is deferred.
+- **Invoiced** / **Paid** / **Pending Invoice** summary cards use **`job.price`** only (original contract on the saved work order). They **do not** include change-order deltas or invoice totals. These are mutually exclusive buckets from the latest job-level invoice state: paid, issued-but-unpaid, and absent-or-unissued. Using invoice totals for rollups (**Option A**) is deferred.
 - `0014_work_orders_dashboard.sql` remains applied and available for targeted row refresh by `job_id`; the main Work Orders list no longer relies on it for initial page load.
 - **`list_work_orders_dashboard_page`** pages jobs by `(created_at DESC, id DESC)`, aggregates only the current page’s change orders and invoices, uses `DISTINCT ON (job_id)` for latest job-level invoice lookup, and returns:
   - `change_order_count`
@@ -378,7 +388,7 @@ All tables use `auth.uid()` RLS policies: users can only read/write their own ro
 | Default exclusions/assumptions | Yes | Supabase DB, pre-populate new agreements |
 | Auth session | Yes | Supabase session (survives refresh) |
 | Work Agreement (current job) | In-memory while editing | **Download & Save** persists via `saveWorkOrder` |
-| Invoices | Yes | Created at wizard step 3. Business state is **Draft** until `issued_at` is set (Stripe payment-link creation sets this), then **Invoiced**. `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook. **`InvoiceFinalPage`** refetches the invoice row once on mount so **Paid** reflects webhook updates when the user opens that screen; `WorkOrdersPage` and `WorkOrderDetailPage` use list/detail loads (no interval polling). Downloading the PDF does **not** transition invoice lifecycle. |
+| Invoices | Yes | Created at wizard step 3. Business state is **Draft** until **`issued_at`** is set by the **first successful invoice email send** (`POST /api/invoices/:id/send`), then **Invoiced**. Creating a payment link alone (`POST /api/stripe/invoices/:id/payment-link`) does **not** set `issued_at`. `payment_status` (`unpaid`/`paid`/`offline`) and `paid_at` are set by the Stripe webhook. **`InvoiceFinalPage`** refetches the invoice row once on mount so **Paid** reflects webhook updates when the user opens that screen; `WorkOrdersPage` and `WorkOrderDetailPage` use list/detail loads (no interval polling). Downloading the PDF does **not** transition invoice lifecycle. |
 | Clients | Yes (rows) | Upsert on **Download & Save**; **JobForm** customer-name combobox searches when authenticated; **ClientsPage** edits saved `phone` / `email` / `address` only and does **not** rewrite historical jobs |
 | Change orders | Yes | **ChangeOrderWizard** + detail page; **`create_change_order`** RPC allocates `co_number` under an advisory lock (see **0006**); no client-side retry loop |
 | Completion signoffs | No | Schema only |

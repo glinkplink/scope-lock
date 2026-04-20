@@ -1,7 +1,11 @@
 import { fetchWithSupabaseAuth } from './fetch-with-supabase-auth';
 import type { Invoice } from '../types/db';
 
-export async function sendInvoice(invoiceId: string, html: string): Promise<{
+export async function sendInvoice(
+  invoiceId: string,
+  html: string,
+  includePaymentLink: boolean
+): Promise<{
   data: Invoice | null;
   error: Error | null;
 }> {
@@ -9,10 +13,13 @@ export async function sendInvoice(invoiceId: string, html: string): Promise<{
     const res = await fetchWithSupabaseAuth(`/api/invoices/${invoiceId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html }),
+      body: JSON.stringify({
+        html,
+        include_payment_link: includePaymentLink,
+      }),
     });
 
-    const json = await res.json() as { invoice?: Invoice; error?: string };
+    const json = (await res.json()) as { invoice?: Invoice; error?: string };
 
     if (!res.ok) {
       return {

@@ -28,6 +28,8 @@ future/
 # Editor directories and files
 .vscode/
 .idea
+.obsidian/
+*.base
 .DS_Store
 *.suo
 *.ntvs*

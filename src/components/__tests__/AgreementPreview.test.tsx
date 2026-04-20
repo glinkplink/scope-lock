@@ -159,4 +159,42 @@ describe('AgreementPreview', () => {
       })
     );
   });
+
+  it('waits for email confirmation instead of saving when signup returns no session', async () => {
+    const job = baseJob();
+    const user = userEvent.setup();
+    const onCaptureAndSave = vi.fn().mockResolvedValue({
+      status: 'confirmation_required',
+      email: 'tester@example.com',
+    });
+
+    render(
+      <AgreementPreview
+        job={job}
+        profile={null}
+        hasSession={false}
+        onSaveSuccess={vi.fn()}
+        onCaptureAndSave={onCaptureAndSave}
+      />
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Download & Save' })[0]);
+    await user.type(screen.getByLabelText(/business name/i), 'Acme Welding');
+    await user.type(screen.getByLabelText(/^email$/i), 'tester@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'hunter2');
+    await user.click(screen.getByRole('button', { name: /create account & download/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/check tester@example\.com to confirm your email/i)).toBeInTheDocument();
+    });
+
+    expect(onCaptureAndSave).toHaveBeenCalledWith({
+      businessName: 'Acme Welding',
+      email: 'tester@example.com',
+      password: 'hunter2',
+      saveAsDefaults: true,
+      intent: 'pdf',
+    });
+    expect(saveWorkOrder).not.toHaveBeenCalled();
+  });
 });

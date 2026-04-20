@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { buildEsignRowFromSubmission, pickCustomerSubmitter, DOCUSEAL_CUSTOMER_ROLE } from './docuseal-esign-state.mjs';
 import { log } from './lib/logger.mjs';
+import { isPayloadTooLarge } from './lib/payload-error.mjs';
 
 /** Max UTF-8 bytes for all HTML fields forwarded to DocuSeal on send (abuse / accident guard). */
 const ESIGN_MAX_HTML_BYTES = 2 * 1024 * 1024;
@@ -505,7 +506,8 @@ async function handleSend(req, res, readJsonBody, sendJson, sendText, jobId) {
     .maybeSingle();
 
   if (jobErr) {
-    sendJson(res, 500, { error: jobErr.message });
+    log.error('esign job query error', log.errCtx(jobErr));
+    sendJson(res, 500, { error: 'Could not load work order.' });
     return;
   }
   if (!job) {
@@ -559,8 +561,9 @@ async function handleSend(req, res, readJsonBody, sendJson, sendText, jobId) {
       body: JSON.stringify(payload),
     });
   } catch (e) {
+    log.error('docuseal submissions/html', log.errCtx(e));
     const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-    sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal request failed.' });
+    sendJson(res, status, { error: 'DocuSeal request failed.' });
     return;
   }
 
@@ -579,7 +582,8 @@ async function handleSend(req, res, readJsonBody, sendJson, sendText, jobId) {
     .single();
 
   if (upErr || !updated) {
-    sendJson(res, 500, { error: upErr?.message || 'Failed to update work order after DocuSeal send.' });
+    log.error('esign job patch after send', log.errCtx(upErr));
+    sendJson(res, 500, { error: 'Failed to update work order after DocuSeal send.' });
     return;
   }
 
@@ -616,7 +620,8 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
     .maybeSingle();
 
   if (jobErr) {
-    sendJson(res, 500, { error: jobErr.message });
+    log.error('esign job query error', log.errCtx(jobErr));
+    sendJson(res, 500, { error: 'Could not load work order.' });
     return;
   }
   if (!job) {
@@ -645,8 +650,9 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
     if (e?.status === 422 && job.esign_submission_id) {
       reconcileFromSubmission = true;
     } else {
+      log.error('docuseal submitters put (resend)', log.errCtx(e));
       const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-      sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal resend failed.' });
+      sendJson(res, status, { error: 'DocuSeal resend failed.' });
       return;
     }
   }
@@ -681,11 +687,9 @@ async function handleResend(req, res, readJsonBody, sendJson, jobId) {
           submissionErr?.status && submissionErr.status >= 400 && submissionErr.status < 600
             ? submissionErr.status
             : 502;
+        log.error('docuseal submission refresh after resend', log.errCtx(submissionErr));
         sendJson(res, status, {
-          error:
-            submissionErr instanceof Error
-              ? submissionErr.message
-              : 'DocuSeal refresh after resend failed.',
+          error: 'DocuSeal refresh after resend failed.',
         });
         return;
       }
@@ -755,7 +759,8 @@ async function handlePollStatus(req, res, sendJson, jobId) {
     .maybeSingle();
 
   if (jobErr) {
-    sendJson(res, 500, { error: jobErr.message });
+    log.error('esign job query error', log.errCtx(jobErr));
+    sendJson(res, 500, { error: 'Could not load work order.' });
     return;
   }
   if (!job) {
@@ -776,9 +781,10 @@ async function handlePollStatus(req, res, sendJson, jobId) {
       method: 'GET',
     });
   } catch (e) {
+    log.error('docuseal submissions get (wo status)', log.errCtx(e));
     const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
     sendJson(res, status, {
-      error: e instanceof Error ? e.message : 'Failed to fetch status from DocuSeal.',
+      error: 'Failed to fetch status from DocuSeal.',
     });
     return;
   }
@@ -802,7 +808,8 @@ async function handlePollStatus(req, res, sendJson, jobId) {
     .single();
 
   if (upErr) {
-    sendJson(res, 500, { error: upErr.message });
+    log.error('esign job status patch', log.errCtx(upErr));
+    sendJson(res, 500, { error: 'Could not update work order.' });
     return;
   }
 
@@ -832,7 +839,8 @@ async function handleCoStatus(req, res, sendJson, coId) {
     .maybeSingle();
 
   if (coErr) {
-    sendJson(res, 500, { error: coErr.message });
+    log.error('esign change order query error', log.errCtx(coErr));
+    sendJson(res, 500, { error: 'Could not load change order.' });
     return;
   }
   if (!co) {
@@ -853,9 +861,10 @@ async function handleCoStatus(req, res, sendJson, coId) {
       method: 'GET',
     });
   } catch (e) {
+    log.error('docuseal submissions get (co status)', log.errCtx(e));
     const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
     sendJson(res, status, {
-      error: e instanceof Error ? e.message : 'Failed to fetch status from DocuSeal.',
+      error: 'Failed to fetch status from DocuSeal.',
     });
     return;
   }
@@ -879,7 +888,8 @@ async function handleCoStatus(req, res, sendJson, coId) {
     .single();
 
   if (upErr) {
-    sendJson(res, 500, { error: upErr.message });
+    log.error('esign change order status patch', log.errCtx(upErr));
+    sendJson(res, 500, { error: 'Could not update change order.' });
     return;
   }
 
@@ -969,7 +979,8 @@ async function handleCoSend(req, res, readJsonBody, sendJson, sendText, coId) {
     .maybeSingle();
 
   if (coErr) {
-    sendJson(res, 500, { error: coErr.message });
+    log.error('esign change order query error', log.errCtx(coErr));
+    sendJson(res, 500, { error: 'Could not load change order.' });
     return;
   }
   if (!co) {
@@ -1030,8 +1041,9 @@ async function handleCoSend(req, res, readJsonBody, sendJson, sendText, coId) {
       body: JSON.stringify(payload),
     });
   } catch (e) {
+    log.error('docuseal submissions/html (change order)', log.errCtx(e));
     const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-    sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal request failed.' });
+    sendJson(res, status, { error: 'DocuSeal request failed.' });
     return;
   }
 
@@ -1050,7 +1062,8 @@ async function handleCoSend(req, res, readJsonBody, sendJson, sendText, coId) {
     .single();
 
   if (upErr || !updated) {
-    sendJson(res, 500, { error: upErr?.message || 'Failed to update change order after DocuSeal send.' });
+    log.error('esign change order patch after send', log.errCtx(upErr));
+    sendJson(res, 500, { error: 'Failed to update change order after DocuSeal send.' });
     return;
   }
 
@@ -1088,7 +1101,8 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
     .maybeSingle();
 
   if (coErr) {
-    sendJson(res, 500, { error: coErr.message });
+    log.error('esign change order query error', log.errCtx(coErr));
+    sendJson(res, 500, { error: 'Could not load change order.' });
     return;
   }
   if (!co) {
@@ -1119,8 +1133,9 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
     if ((e?.status === 404 || e?.status === 422) && co.esign_submission_id) {
       reconcileFromSubmission = true;
     } else {
+      log.error('docuseal submitters put (co resend)', log.errCtx(e));
       const status = e.status && e.status >= 400 && e.status < 600 ? e.status : 502;
-      sendJson(res, status, { error: e instanceof Error ? e.message : 'DocuSeal resend failed.' });
+      sendJson(res, status, { error: 'DocuSeal resend failed.' });
       return;
     }
   }
@@ -1153,11 +1168,9 @@ async function handleCoResend(req, res, readJsonBody, sendJson, coId) {
           submissionErr?.status && submissionErr.status >= 400 && submissionErr.status < 600
             ? submissionErr.status
             : 502;
+        log.error('docuseal submission refresh after resend', log.errCtx(submissionErr));
         sendJson(res, status, {
-          error:
-            submissionErr instanceof Error
-              ? submissionErr.message
-              : 'DocuSeal refresh after resend failed.',
+          error: 'DocuSeal refresh after resend failed.',
         });
         return;
       }
@@ -1475,7 +1488,6 @@ async function handleWebhook(req, res, readJsonBody, sendJson, sendText) {
       submissionId: String(verified.id),
       jobId: String(job.id),
       esign_status: patch.esign_status,
-      error: upErr.message,
     });
     sendJson(res, 500, { error: 'Database update failed.' });
     return;
@@ -1552,7 +1564,6 @@ async function handleChangeOrderWebhookUpdate(supabase, co, verifiedInfo, resolv
     log.info('[webhook] CO update failed', {
       coId: co.id,
       esign_status: patch.esign_status,
-      error: upErr.message,
     });
     sendJson(res, 500, { error: 'Database update failed.' });
     return;
@@ -1617,6 +1628,10 @@ export async function tryHandleEsignRoute(req, res, helpers) {
       return true;
     }
   } catch (e) {
+    if (isPayloadTooLarge(e)) {
+      sendJson(res, 413, { error: 'Request body too large.' });
+      return true;
+    }
     log.error('E-sign route error', log.errCtx(e));
     const code = e && typeof e === 'object' && 'code' in e ? e.code : undefined;
     if (code === 'ESIGN_CONFIG') {

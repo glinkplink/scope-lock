@@ -36,6 +36,7 @@ const summaryResult: WorkOrdersDashboardSummary = {
   jobCount: 2,
   invoicedContractTotal: 125,
   pendingContractTotal: 275,
+  paidContractTotal: 0,
 };
 
 const listJobA: WorkOrderDashboardJob = {
@@ -322,6 +323,7 @@ describe('WorkOrdersPage', () => {
         jobCount: 2,
         invoicedContractTotal: 150,
         pendingContractTotal: 250,
+        paidContractTotal: 0,
       },
       error: null,
     });

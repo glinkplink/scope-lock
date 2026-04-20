@@ -151,6 +151,22 @@ export function useWorkOrderDraft(
     closeUnsavedModal();
   }, [navigateTo, closeUnsavedModal]);
 
+  const restorePendingAgreement = useCallback(
+    (job: WelderJob) => {
+      onNewDraft?.();
+      setDraft((d) => ({
+        ...d,
+        job,
+        draftBaseline: job,
+        currentJobId: null,
+        woIsOpen: true,
+        showUnsavedModal: false,
+        woCounterPersistError: null,
+      }));
+    },
+    [onNewDraft]
+  );
+
   const handleSaveSuccess = useCallback(
     async (savedJobId: string, isNewSave: boolean) => {
       setDraft((d) => ({
@@ -196,6 +212,7 @@ export function useWorkOrderDraft(
       createNewAgreement,
       closeUnsavedModal,
       continueEditingWorkOrder,
+      restorePendingAgreement,
       handleSaveSuccess,
       dismissWoCounterError,
     },

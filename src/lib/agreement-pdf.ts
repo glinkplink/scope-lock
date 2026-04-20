@@ -1,5 +1,6 @@
 import type { WelderJob } from '../types';
 import type { BusinessProfile, Invoice, Job } from '../types/db';
+import { fetchWithSupabaseAuth } from './fetch-with-supabase-auth';
 import appCss from '../App.css?raw';
 import changeOrderDocumentCss from './change-order-document.css?raw';
 
@@ -127,11 +128,8 @@ export async function fetchAgreementPdfBlob(
   profile: BusinessProfile | null,
   previewElement: HTMLElement
 ): Promise<Blob> {
-  const response = await fetch('/api/pdf', {
+  const response = await fetchWithSupabaseAuth('/api/pdf', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({
       filename: getPdfFilename(job.wo_number, job.customer_name),
       html: buildPdfHtml(previewElement.outerHTML),
@@ -194,11 +192,8 @@ export async function fetchHtmlPdfBlob(options: {
   providerName: string;
   providerPhone: string;
 }): Promise<Blob> {
-  const response = await fetch('/api/pdf', {
+  const response = await fetchWithSupabaseAuth('/api/pdf', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify({
       filename: options.filename,
       html: buildPdfHtml(options.innerMarkup),

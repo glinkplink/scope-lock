@@ -16,6 +16,7 @@ import { useInvoiceFlow } from './hooks/useInvoiceFlow';
 import { useChangeOrderFlow } from './hooks/useChangeOrderFlow';
 import { useWorkOrderDraft } from './hooks/useWorkOrderDraft';
 import { normalizeOwnerFullName } from './lib/owner-name';
+import { clearPendingCapture, readPendingCapture, savePendingCapture } from './lib/pending-capture';
 import './App.css';
 
 const loadAgreementPreview = () =>
@@ -134,6 +135,9 @@ function App() {
   const [ownerFirstName, setOwnerFirstName] = useState('');
   const [ownerLastName, setOwnerLastName] = useState('');
   const [ownerBusinessPhone, setOwnerBusinessPhone] = useState('');
+  const [pendingCaptureRestoring, setPendingCaptureRestoring] = useState(false);
+  const [pendingCaptureRestoreError, setPendingCaptureRestoreError] = useState<string | null>(null);
+  const [pendingCaptureNotice, setPendingCaptureNotice] = useState<string | null>(null);
 
   const clearGuestInformationFields = useCallback(() => {
     setOwnerFirstName('');
@@ -162,12 +166,30 @@ function App() {
     email: string;
     password: string;
     saveAsDefaults: boolean;
+    intent: 'pdf' | 'esign';
   }) => {
     const ownerName = normalizeOwnerFullName(ownerFirstName, ownerLastName);
     const profilePhone = ownerBusinessPhone.trim() || null;
     const { data: authData, error: authError } = await signUp(capture.email, capture.password);
     if (authError || !authData.user) {
       throw new Error(authError?.message || 'Failed to create account');
+    }
+
+    if (!authData.session) {
+      savePendingCapture({
+        userId: authData.user.id,
+        intent: capture.intent,
+        businessName: capture.businessName,
+        email: capture.email,
+        phone: profilePhone,
+        ownerName: ownerName || null,
+        saveAsDefaults: capture.saveAsDefaults,
+        job: draft.job,
+      });
+      return {
+        status: 'confirmation_required' as const,
+        email: capture.email,
+      };
     }
 
     const { data: createdProfile, error: profileError } = await upsertProfile({
@@ -186,6 +208,7 @@ function App() {
     setProfile(createdProfile);
 
     return {
+      status: 'ready' as const,
       userId: authData.user.id,
       businessName: capture.businessName,
       email: capture.email,
@@ -211,6 +234,71 @@ function App() {
       void loadClientsPage();
     });
   }, [user]);
+
+  const restorePendingAgreement = draftFlow.restorePendingAgreement;
+
+  useEffect(() => {
+    if (!user || profileLoading || pendingCaptureRestoring || pendingCaptureRestoreError) return;
+
+    const pending = readPendingCapture();
+    if (!pending || pending.userId !== user.id) return;
+
+    let active = true;
+    const restore = async () => {
+      setPendingCaptureRestoring(true);
+      setPendingCaptureRestoreError(null);
+
+      try {
+        if (!profile) {
+          const { data, error } = await upsertProfile({
+            user_id: user.id,
+            business_name: pending.businessName,
+            email: pending.email,
+            phone: pending.phone,
+            owner_name: pending.ownerName,
+            ...buildInitialProfileDefaults(pending.job, pending.saveAsDefaults),
+          });
+
+          if (error || !data) {
+            throw new Error(error?.message || 'Failed to finish creating your profile.');
+          }
+
+          if (!active) return;
+          setProfile(data);
+        }
+
+        restorePendingAgreement(pending.job);
+        clearPendingCapture(user.id);
+        setPendingCaptureNotice(
+          pending.intent === 'esign'
+            ? 'Email confirmed. Your work order is restored. Review it, then send it for signature.'
+            : 'Email confirmed. Your work order is restored. Review it, then download and save it.'
+        );
+        replaceView('preview');
+      } catch (error) {
+        if (!active) return;
+        setPendingCaptureRestoreError(
+          error instanceof Error ? error.message : 'Could not restore your pending work order.'
+        );
+      } finally {
+        if (active) setPendingCaptureRestoring(false);
+      }
+    };
+
+    void restore();
+    return () => {
+      active = false;
+    };
+  }, [
+    pendingCaptureRestoring,
+    pendingCaptureRestoreError,
+    profile,
+    profileLoading,
+    replaceView,
+    restorePendingAgreement,
+    setProfile,
+    user,
+  ]);
 
   const openWorkOrders = () => {
     setProfileEntrySource(null);
@@ -257,6 +345,20 @@ function App() {
   }
 
   const inWorkOrderFlow = view === 'form' || view === 'preview';
+  const pendingCaptureForCurrentUser = user
+    ? !pendingCaptureRestoreError && readPendingCapture()?.userId === user.id
+    : false;
+
+  if (
+    pendingCaptureRestoring ||
+    (user && !profile && !profileLoading && pendingCaptureForCurrentUser)
+  ) {
+    return (
+      <div className="app-loading">
+        Restoring your work order...
+      </div>
+    );
+  }
 
   if (user && !profile && profileLoading && !inWorkOrderFlow) {
     return (
@@ -432,6 +534,7 @@ function App() {
           onBack={invoiceFlow.handleInvoiceFinalBack}
           onEditInvoice={invoiceFlow.handleEditInvoice}
           onInvoiceUpdated={invoiceFlow.handleInvoiceUpdated}
+          onOpenStripeSetup={() => navigateTo('profile')}
         />
       );
     }
@@ -482,6 +585,7 @@ function App() {
         onSaveSuccess={draftFlow.handleSaveSuccess}
         onCaptureAndSave={!user ? handleCaptureAndSave : undefined}
         onCaptureFlowFinished={handleCaptureFlowFinished}
+        noticeMessage={pendingCaptureNotice}
       />
     );
   }

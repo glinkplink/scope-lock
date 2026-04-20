@@ -73,7 +73,7 @@ export async function createConnectedAccount(profile = null) {
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'Could not create Stripe account.',
+      error: 'Could not create Stripe account.',
     };
   }
 }
@@ -100,7 +100,7 @@ export async function createAccountOnboardingLink(accountId, returnUrl, refreshU
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'Could not create onboarding link.',
+      error: 'Could not create onboarding link.',
     };
   }
 }
@@ -127,9 +127,31 @@ export async function getConnectedAccount(accountId) {
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'Could not load Stripe account.',
+      error: 'Could not load Stripe account.',
     };
   }
+}
+
+/**
+ * Verify the connected account can accept card payments (invoice links).
+ * @returns {{ ok: true } | { ok: false, status: number, error: string }}
+ */
+export async function assertStripeInvoicePaymentsReady(accountId) {
+  const { data: connectedAccount, error: capErr } = await getConnectedAccount(accountId);
+  if (capErr || !connectedAccount) {
+    return { ok: false, status: 502, error: 'Could not verify Stripe account capabilities.' };
+  }
+  if (connectedAccount.card_payments_status !== 'active') {
+    return {
+      ok: false,
+      status: 409,
+      error:
+        connectedAccount.card_payments_status === 'pending'
+          ? 'Your Stripe account is still being verified. Complete onboarding and wait for Stripe approval before sending invoices.'
+          : 'Your Stripe account is not approved to accept payments yet. Complete Stripe onboarding to enable card payments.',
+    };
+  }
+  return { ok: true };
 }
 
 export async function createInvoicePaymentLink(input) {
@@ -176,7 +198,7 @@ export async function createInvoicePaymentLink(input) {
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'Could not create payment link.',
+      error: 'Could not create payment link.',
     };
   }
 }
@@ -262,7 +284,7 @@ export function constructWebhookEvent(payload, signature, secret) {
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'Could not verify Stripe webhook.',
+      error: 'Could not verify Stripe webhook.',
     };
   }
 }
