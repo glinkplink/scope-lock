@@ -416,7 +416,7 @@ export function EditProfilePage({
                   </div>
                 )}
                 <div className="form-group">
-                  <label htmlFor="defaultLateFeeRate">Late Fee (%/month)</label>
+                  <label htmlFor="defaultLateFeeRate">Late Fee (%/mo)</label>
                   <input
                     id="defaultLateFeeRate"
                     type="number"
