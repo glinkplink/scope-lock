@@ -55,4 +55,18 @@ describe('CaptureModal', () => {
       false
     );
   });
+
+  it('supports an alternate submit label', () => {
+    render(
+      <CaptureModal
+        onSubmit={vi.fn()}
+        onClose={() => {}}
+        error=""
+        submitting={false}
+        submitLabel="Create Account & Send"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /create account & send/i })).toBeInTheDocument();
+  });
 });

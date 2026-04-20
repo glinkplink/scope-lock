@@ -11,9 +11,18 @@ interface CaptureModalProps {
   onClose: () => void;
   error: string;
   submitting: boolean;
+  submitLabel?: string;
+  submittingLabel?: string;
 }
 
-export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureModalProps) {
+export function CaptureModal({
+  onSubmit,
+  onClose,
+  error,
+  submitting,
+  submitLabel = 'Create Account & Download',
+  submittingLabel = 'Creating Account...',
+}: CaptureModalProps) {
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -111,7 +120,7 @@ export function CaptureModal({ onSubmit, onClose, error, submitting }: CaptureMo
               Cancel
             </button>
             <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? 'Creating Account...' : 'Create Account & Download'}
+              {submitting ? submittingLabel : submitLabel}
             </button>
           </div>
         </form>

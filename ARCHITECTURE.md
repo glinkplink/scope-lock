@@ -25,7 +25,7 @@ The generated document is a concise 1–3 page agreement, not a long legal contr
 - Mobile welders doing repair or fabrication jobs
 
 ### Primary Workflow
-A contractor can **start a work order without signing in**. They fill the job form and preview the agreement; on first **Download & Save** they create an account (business name, email, password) and the work order is persisted. Returning users sign in from the header, then use **Work Orders**, **Invoices**, and **Edit profile** as needed. Profile defaults (exclusions, warranty, payment methods, etc.) apply to **new** drafts after they exist in `business_profiles`.
+A contractor can **start a work order without signing in**. They fill the job form and preview the agreement; on first **Download & Save** or anonymous **Save & Send for Signature** they create an account (business name, email, password). If Supabase email confirmation is enabled, IronWork stores the pending work order locally, waits for confirmation, then restores the draft and creates `business_profiles` once a confirmed session exists. The user then reviews and clicks the save/send action again to persist the work order. If confirmation is disabled and Supabase returns a session immediately, the legacy same-screen capture path creates the profile, persists the work order, and continues the requested action. Returning users sign in from the header, then use **Work Orders**, **Invoices**, and **Edit profile** as needed. Profile defaults (exclusions, warranty, payment methods, etc.) apply to **new** drafts after they exist in `business_profiles`.
 
 ## Tech Stack
 

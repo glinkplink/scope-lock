@@ -32,6 +32,20 @@ const VALID_PRICE_TYPES: readonly PriceType[] = ['fixed', 'estimate', 'time_and_
 
 type CaptureAfterIntent = 'pdf' | 'esign';
 
+type CaptureAndSaveResult =
+  | {
+      status: 'ready';
+      userId: string;
+      businessName: string;
+      email: string;
+      phone: string | null;
+      ownerName: string;
+    }
+  | {
+      status: 'confirmation_required';
+      email: string;
+    };
+
 /** Labels for missing/invalid fields — used only in Download & Save gate. */
 function getRequiredFieldIssues(job: WelderJob): string[] {
   const issues: string[] = [];
@@ -103,15 +117,11 @@ interface AgreementPreviewProps {
     email: string;
     password: string;
     saveAsDefaults: boolean;
-  }) => Promise<{
-    userId: string;
-    businessName: string;
-    email: string;
-    phone: string | null;
-    ownerName: string;
-  }>;
+    intent: CaptureAfterIntent;
+  }) => Promise<CaptureAndSaveResult>;
   /** Called after PDF or e-sign attempt (account + save already done). Parent may redirect. */
   onCaptureFlowFinished?: (opts: CaptureFlowFinishedPayload) => void;
+  noticeMessage?: string | null;
 }
 
 export function AgreementPreview({
@@ -125,6 +135,7 @@ export function AgreementPreview({
   onSaveSuccess,
   onCaptureAndSave,
   onCaptureFlowFinished,
+  noticeMessage,
 }: AgreementPreviewProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -212,7 +223,26 @@ export function AgreementPreview({
     setCaptureError('');
 
     try {
-      const result = await onCaptureAndSave({ businessName, email, password, saveAsDefaults });
+      const intent = captureAfterIntentRef.current;
+      const result = await onCaptureAndSave({
+        businessName,
+        email,
+        password,
+        saveAsDefaults,
+        intent,
+      });
+      if (result.status === 'confirmation_required') {
+        setConfirmationMessage(
+          intent === 'esign'
+            ? `Check ${result.email} to confirm your email. After confirmation, IronWork will restore this work order so you can send it for signature.`
+            : `Check ${result.email} to confirm your email. After confirmation, IronWork will restore this work order so you can save and download it.`
+        );
+        setShowCaptureModal(false);
+        setCaptureSubmitting(false);
+        captureAfterIntentRef.current = 'pdf';
+        return;
+      }
+
       const capturedProfile = buildCapturedProfileStub(result);
 
       flushSync(() => setPostCaptureProfile(capturedProfile));
@@ -226,8 +256,6 @@ export function AgreementPreview({
 
       setHasPersistedViaDownloadOnce(true);
       await Promise.resolve(onSaveSuccess(data.id, true));
-
-      const intent = captureAfterIntentRef.current;
 
       if (intent === 'esign') {
         setEsignError('');
@@ -463,12 +491,15 @@ export function AgreementPreview({
     saving ||
     !canOfferEsign ||
     !job.customer_email?.trim();
+  const displayConfirmationMessage = confirmationMessage || noticeMessage;
+  const captureSubmitLabel =
+    captureAfterIntentRef.current === 'esign' ? 'Create Account & Send' : 'Create Account & Download';
 
   return (
     <div className="agreement-preview">
       <div className="preview-actions">
-        {confirmationMessage && (
-          <div className="success-banner">{confirmationMessage}</div>
+        {displayConfirmationMessage && (
+          <div className="success-banner">{displayConfirmationMessage}</div>
         )}
         {saveError && <div className="error-banner">{saveError}</div>}
         {esignError && <div className="error-banner">{esignError}</div>}
@@ -552,6 +583,7 @@ export function AgreementPreview({
           }}
           error={captureError}
           submitting={captureSubmitting}
+          submitLabel={captureSubmitLabel}
         />
       )}
     </div>
