@@ -774,7 +774,7 @@ function App() {
         </nav>
       )}
 
-      {!showBottomNav && (
+      {!showBottomNav && view !== 'home' && (
         <footer className="app-footer">
           <p>Built for contractors who are tired of getting burned.</p>
         </footer>

@@ -99,7 +99,8 @@ describe('HomePage', () => {
 
     expect(screen.getByRole('heading', { name: 'IronWork' })).toBeInTheDocument();
     expect(screen.getByText(/Stop working for free\. Get it in writing\./i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create Work Order' })).toBeInTheDocument();
+    const tryFree = screen.getAllByRole('button', { name: 'Try it free' });
+    expect(tryFree).toHaveLength(2);
     expect(screen.queryByText(/Cover your ass/i)).not.toBeInTheDocument();
   });
 

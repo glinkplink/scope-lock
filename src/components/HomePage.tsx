@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { BusinessProfile, WorkOrderDashboardJob, WorkOrdersDashboardSummary } from '../types/db';
 import { getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
 import { splitFullNameForForm } from '../lib/owner-name';
@@ -8,9 +8,42 @@ import {
   formatWorkOrderDashboardRowDate,
   formatWorkOrderDashboardWoLabel,
 } from '../lib/work-order-dashboard-display';
+import { supabase } from '../lib/supabase';
+import { LandingPreviewModal } from './LandingPreviewModal';
 import './HomePage.css';
 
 const HOME_RECENT_LIMIT = 5;
+
+/** Placeholder until real agreement HTML is embedded from a sample PDF. */
+const LANDING_WO_PREVIEW_PLACEHOLDER_HTML = `
+<div class="agreement-document" style="padding:2rem;font-family:Barlow,system-ui,sans-serif;color:#1a1a1a;">
+  <p style="margin:0 0 1rem;font-size:1rem;line-height:1.5;">
+    Full work order preview with scope, exclusions, and payment terms will appear here. Swap in real markup from a sample job when ready.
+  </p>
+  <p style="margin:0;font-size:0.9rem;color:#444;">
+    Tap <strong>Try it free</strong> above to build a real agreement in about two minutes.
+  </p>
+</div>
+`;
+
+const LANDING_INVOICE_PREVIEW_PLACEHOLDER_HTML = `
+<div class="agreement-document" style="padding:2rem;font-family:Barlow,system-ui,sans-serif;color:#1a1a1a;">
+  <p style="margin:0 0 1rem;font-size:1rem;line-height:1.5;">
+    Full invoice preview will appear here. Swap in real markup from a sample invoice when ready.
+  </p>
+  <p style="margin:0;font-size:0.9rem;color:#444;">
+    Invoices are included with every job in IronWork.
+  </p>
+</div>
+`;
+
+type LandingPreviewKind = 'work-order' | 'invoice';
+
+function isValidSignupEmail(value: string): boolean {
+  const v = value.trim();
+  if (!v || v.length > 320) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
 
 function greetingTimePhrase(): string {
   const h = new Date().getHours();
@@ -46,11 +79,9 @@ export function HomePage({
 
     if (!uid || !prof) {
       loadSeq.current += 1;
-      /* eslint-disable react-hooks/set-state-in-effect -- clear dashboard on sign-out or missing profile */
       setSummary(null);
       setRecentJobs([]);
       setDashboardError(null);
-      /* eslint-enable react-hooks/set-state-in-effect */
       retryLoadRef.current = () => {};
       return;
     }
@@ -92,19 +123,58 @@ export function HomePage({
 
   const signedIn = Boolean(userId && profile);
 
+  const [landingPreview, setLandingPreview] = useState<LandingPreviewKind | null>(null);
+  const [updatesEmail, setUpdatesEmail] = useState('');
+  const [updatesSubmitting, setUpdatesSubmitting] = useState(false);
+  const [updatesFeedback, setUpdatesFeedback] = useState<{ tone: 'ok' | 'err'; text: string } | null>(
+    null
+  );
+
+  async function handleUpdatesSubmit(e: FormEvent) {
+    e.preventDefault();
+    setUpdatesFeedback(null);
+    const email = updatesEmail.trim();
+    if (!isValidSignupEmail(email)) {
+      setUpdatesFeedback({ tone: 'err', text: 'Enter a valid email address.' });
+      return;
+    }
+    setUpdatesSubmitting(true);
+    try {
+      const { error } = await supabase.from('landing_email_captures').insert({
+        email,
+        source: 'landing_page',
+      });
+      if (error) {
+        setUpdatesFeedback({
+          tone: 'err',
+          text: error.message || 'Something went wrong. Try again in a moment.',
+        });
+        return;
+      }
+      setUpdatesEmail('');
+      setUpdatesFeedback({ tone: 'ok', text: "Thanks, we'll keep you posted." });
+    } finally {
+      setUpdatesSubmitting(false);
+    }
+  }
+
   if (!signedIn) {
     return (
       <div className="home-page home-page--guest">
         <section className="home-hero">
           <h1 className="home-hero-title">IronWork</h1>
           <p className="home-hero-lead">Stop working for free. Get it in writing.</p>
-          <p className="home-hero-sub">
-            Work orders, change orders, and invoices for solo welders. Ready in 2 minutes.
-          </p>
+          <div className="home-hero-sub-block">
+            <p className="home-hero-sub">Work orders, change orders, and invoices for solo welders.</p>
+            <p className="home-hero-sub home-hero-sub--timing">Ready in 2 minutes.</p>
+          </div>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
             Try it free
           </button>
+          <p className="home-hero-trust">Free to try. No credit card required.</p>
         </section>
+
+        <p className="home-identity">Built for welders, not corporations.</p>
 
         <section className="home-pain" aria-labelledby="home-pain-heading">
           <h2 id="home-pain-heading" className="home-section-heading">Sound familiar?</h2>
@@ -118,14 +188,27 @@ export function HomePage({
         <section className="home-shots" aria-labelledby="home-shots-heading">
           <h2 id="home-shots-heading" className="home-section-heading">What you get</h2>
           <div className="home-shots-grid">
-            <div className="home-shot-placeholder" aria-label="Work order PDF preview (coming soon)">
-              <span>Work Order PDF</span>
+            <div className="home-shot-tile">
+              <button
+                type="button"
+                className="home-shot-placeholder"
+                aria-label="Open full work order preview"
+                onClick={() => setLandingPreview('work-order')}
+              >
+                <span>Work Order PDF</span>
+              </button>
+              <p className="home-shot-hint">Click to preview full agreement</p>
             </div>
-            <div className="home-shot-placeholder" aria-label="Invoice PDF preview (coming soon)">
-              <span>Invoice PDF</span>
-            </div>
-            <div className="home-shot-placeholder home-shot-placeholder--phone" aria-label="Mobile app preview (coming soon)">
-              <span>On your phone</span>
+            <div className="home-shot-tile">
+              <button
+                type="button"
+                className="home-shot-placeholder"
+                aria-label="Open full invoice preview"
+                onClick={() => setLandingPreview('invoice')}
+              >
+                <span>Invoice PDF</span>
+              </button>
+              <p className="home-shot-hint">Click for full invoice preview</p>
             </div>
           </div>
         </section>
@@ -148,12 +231,75 @@ export function HomePage({
           </ol>
         </section>
 
+        <section className="home-updates" aria-labelledby="home-updates-heading">
+          <h2 id="home-updates-heading" className="home-section-heading">
+            Not ready? Get updates
+          </h2>
+          <form className="home-updates-form" onSubmit={handleUpdatesSubmit}>
+            <label className="home-updates-label" htmlFor="landing-updates-email">
+              Email
+            </label>
+            <div className="home-updates-row">
+              <input
+                id="landing-updates-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                className="home-updates-input"
+                placeholder="you@example.com"
+                value={updatesEmail}
+                onChange={(ev) => setUpdatesEmail(ev.target.value)}
+                disabled={updatesSubmitting}
+              />
+              <button type="submit" className="btn-secondary home-updates-submit" disabled={updatesSubmitting}>
+                {updatesSubmitting ? 'Sending…' : 'Get updates'}
+              </button>
+            </div>
+            {updatesFeedback ? (
+              <p
+                className={
+                  updatesFeedback.tone === 'ok' ? 'home-updates-msg home-updates-msg--ok' : 'home-updates-msg home-updates-msg--err'
+                }
+                role={updatesFeedback.tone === 'err' ? 'alert' : 'status'}
+              >
+                {updatesFeedback.text}
+              </p>
+            ) : null}
+          </form>
+        </section>
+
         <section className="home-cta-footer">
           <h2 className="home-section-heading">Ready to get paid for the work you actually did?</h2>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
             Try it free
           </button>
         </section>
+
+        <footer className="home-landing-footer">
+          <p className="home-landing-tagline">Built for contractors who are tired of getting burned.</p>
+          <nav className="home-landing-footer-nav" aria-label="Legal and contact">
+            <a className="home-landing-footer-link" href="mailto:hello@ironwork.app">
+              Contact
+            </a>
+            <a className="home-landing-footer-link" href="#">
+              Terms
+            </a>
+            <a className="home-landing-footer-link" href="#">
+              Privacy
+            </a>
+          </nav>
+        </footer>
+
+        <LandingPreviewModal
+          open={landingPreview !== null}
+          onClose={() => setLandingPreview(null)}
+          title={landingPreview === 'invoice' ? 'Invoice preview' : 'Work order preview'}
+          htmlMarkup={
+            landingPreview === 'invoice'
+              ? LANDING_INVOICE_PREVIEW_PLACEHOLDER_HTML
+              : LANDING_WO_PREVIEW_PLACEHOLDER_HTML
+          }
+        />
       </div>
     );
   }

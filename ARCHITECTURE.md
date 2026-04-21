@@ -157,7 +157,8 @@ scope-lock/
 │   │   ├── CaptureModal.tsx          # Anonymous first Download & Save / Send: account + optional defaults opt-in
 │   │   ├── ClientsPage.tsx           # Saved clients list with inline contact editing + work-order activity context
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
-│   │   ├── HomePage.tsx              # Guest hero + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page` for recent rows)
+│   │   ├── HomePage.tsx              # Guest marketing landing + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page` for recent rows)
+│   │   ├── LandingPreviewModal.tsx   # Full-document lightbox for landing PDF placeholders (WO / invoice)
 │   │   ├── WorkOrdersPage.tsx        # List jobs + invoice actions; row opens detail
 │   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement + change orders + PDFs + e-sign / offline-sign actions
 │   │   ├── ChangeOrderWizard.tsx     # Create/edit change order (3 steps; saves + sends to DocuSeal on finish)
@@ -258,7 +259,9 @@ scope-lock/
 │       ├── 0019_work_orders_dashboard_invoice_payment_status.sql # latest_invoice JSON includes payment_status for dashboard actions
 │       ├── 0020_esign_resent_at.sql            # esign_resent_at on jobs and change_orders for durable resend state
 │       ├── 0021_jobs_offline_signed_at.sql     # offline_signed_at on jobs for manual paper signatures
-│       └── 0022_update_work_orders_rpcs_offline_signed.sql # dashboard RPCs expose offline_signed_at for list + row refresh
+│       ├── 0022_update_work_orders_rpcs_offline_signed.sql # dashboard RPCs expose offline_signed_at for list + row refresh
+│       ├── 0023_dashboard_payment_status.sql
+│       └── 0024_landing_email_captures.sql     # marketing email capture; RLS: anon + authenticated INSERT only (no public SELECT)
 ├── public/
 ├── index.html
 ├── package.json
@@ -335,7 +338,7 @@ Edit profile (gear) → EditProfilePage
 
 ## Database Schema
 
-Five tables in Supabase Postgres, all with row-level security:
+Six tables in Supabase Postgres, all with row-level security:
 
 | Table | Key Columns |
 |---|---|
@@ -344,10 +347,11 @@ Five tables in Supabase Postgres, all with row-level security:
 | `jobs` | user_id, client_id, all WelderJob fields, status, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_submission_state, esign_submitter_state, esign_sent/opened/completed/declined_at, esign_decline_reason, esign_signed_document_url, **offline_signed_at** |
 | `change_orders` | user_id, job_id, **co_number** (per-job sequence, UNIQUE with job_id), description, reason, status (`draft` \| `pending_approval` \| `approved` \| `rejected`), **line_items** (jsonb), time_amount / time_unit / time_note, requires_approval, **esign_submission_id**, **esign_submitter_id**, **esign_embed_src**, **esign_status** (`not_sent`\|`sent`\|`opened`\|`completed`\|`declined`\|`expired`), esign_* timestamp/state columns — legacy `price_delta` / `time_delta` / `approved` were migrated in **0005** |
 | `invoices` | user_id, job_id, invoice_number, invoice_date, due_date, legacy `status` (`draft` \| `downloaded`), **issued_at** (business issuance marker; set on **first successful** `POST /api/invoices/:id/send`, email-only or with payment link), **line_items** (jsonb; each row may include **`source`**: `original_scope` \| `change_order` \| `labor` \| `material` \| `manual` \| `legacy`), tax fields, payment_methods (jsonb snapshot), notes, **stripe_payment_link_id**, **stripe_payment_url**, **payment_status** (`unpaid` \| `paid` \| `offline`; CHECK constraint), **paid_at** (set by Stripe webhook on payment completion) |
+| `landing_email_captures` | email, source (default `landing_page`), created_at — **INSERT** allowed for `anon` and `authenticated`; no client **SELECT** (marketing list only via service role / dashboard) |
 
 **Invoice numbering:** `public.next_invoice_number(uuid)` updates `business_profiles` in one statement and returns the allocated number (pre-increment value). No separate `updateNextInvoiceNumber` in app code.
 
-All tables use `auth.uid()` RLS policies: users can only read/write their own rows.
+Core domain tables use `auth.uid()` RLS policies: users can only read/write their own rows. **`landing_email_captures`** is the exception (anonymous landing-page signups only insert).
 
 ### Change orders (`0005_change_orders.sql`)
 
@@ -498,6 +502,7 @@ The checkbox sections below track shipped work and the longer backlog; the three
 VITE_SUPABASE_URL=      # Supabase project URL
 VITE_SUPABASE_ANON_KEY= # Supabase anon (public) key
 VITE_GEOAPIFY_API_KEY=  # optional — job site autocomplete
+VITE_UMAMI_WEBSITE_ID=  # optional — Umami analytics (`index.html` script tag)
 ```
 
 Copy `.env.example` to `.env.local` and fill in values from the Supabase dashboard (Project Settings → API).
