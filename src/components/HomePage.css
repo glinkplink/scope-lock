@@ -12,8 +12,17 @@
 /* Guest / landing page */
 .home-page--guest {
   align-items: center;
-  padding: clamp(1.5rem, 5vh, 4rem) var(--space-md) var(--space-xl);
-  gap: clamp(2.5rem, 7vh, 5rem);
+  padding: clamp(1.25rem, 4vh, 2.5rem) var(--space-md) var(--space-xl);
+  gap: clamp(2.25rem, 6.5vh, 4.5rem);
+}
+
+@media (min-width: 900px) {
+  .home-page--guest {
+    padding: clamp(1.75rem, 5vh, 4rem) var(--space-lg) var(--space-xl);
+    background:
+      radial-gradient(ellipse 75% 55% at 50% 0%, rgba(255, 140, 0, 0.06), transparent 58%),
+      var(--iron-900);
+  }
 }
 
 .home-page--guest > section {
@@ -24,16 +33,21 @@
 
 .home-hero {
   text-align: center;
-  max-width: min(40rem, 100%);
-  padding-top: clamp(1rem, 4vh, 3rem);
+  max-width: min(42rem, 100%);
+  padding-top: clamp(0.5rem, 2.5vh, 2rem);
+  padding-bottom: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
 }
 
 .home-hero-sub-block {
-  margin: 0.25rem auto var(--space-lg);
+  margin: 0 auto;
   max-width: 30em;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .home-hero-sub {
@@ -50,22 +64,11 @@
 }
 
 .home-hero-trust {
-  margin: var(--space-md) 0 0;
-  font-size: 0.82rem;
-  color: var(--iron-400);
-  line-height: 1.4;
-}
-
-.home-identity {
   margin: 0;
-  padding: 0 var(--space-md);
-  width: 100%;
-  max-width: 60rem;
-  text-align: center;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--iron-300);
-  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+  color: var(--iron-400);
+  line-height: 1.45;
+  max-width: 26em;
 }
 
 /* Shared section heading */
@@ -79,7 +82,7 @@
   letter-spacing: 0.01em;
 }
 
-/* Pain bullets */
+/* Pain + solution pairs */
 .home-pain-list {
   list-style: none;
   margin: 0;
@@ -93,14 +96,54 @@
 }
 
 .home-pain-list li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   background: var(--iron-750);
   border: 1px solid var(--iron-600);
-  border-left: 3px solid var(--spark);
+  border-left: none;
   border-radius: var(--shell-radius-sm);
-  padding: var(--space-md);
-  color: var(--iron-100);
-  font-size: 0.95rem;
+  padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) + 4px);
   line-height: 1.4;
+  overflow: hidden;
+}
+
+.home-pain-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--spark);
+}
+
+@media (min-width: 900px) {
+  .home-pain-list li {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) + 6px);
+  }
+
+  .home-pain-answer {
+    text-align: right;
+    flex-shrink: 0;
+    max-width: 48%;
+  }
+}
+
+.home-pain-problem {
+  color: var(--iron-300);
+  font-size: 0.95rem;
+}
+
+.home-pain-answer {
+  color: var(--spark);
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 /* Screenshot placeholders */
@@ -121,7 +164,7 @@
 .home-shot-placeholder {
   width: 100%;
   margin: 0;
-  padding: 0;
+  padding: var(--space-md);
   cursor: pointer;
   appearance: none;
   font: inherit;
@@ -130,8 +173,10 @@
   border: 1px dashed var(--iron-500);
   border-radius: var(--shell-radius-sm);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-sm);
   color: var(--iron-400);
   font-family: 'Chakra Petch', var(--font-app);
   font-size: 0.85rem;
@@ -140,6 +185,11 @@
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
+}
+
+.home-shot-doc-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .home-shot-placeholder:hover {
@@ -165,7 +215,7 @@
   max-width: 18rem;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 900px) {
   .home-shots-grid {
     grid-template-columns: repeat(2, 1fr);
     align-items: start;
@@ -199,7 +249,8 @@
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: var(--spark);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--spark) 88%, white), var(--spark));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: var(--iron-900);
   display: flex;
   align-items: center;
@@ -220,6 +271,7 @@
   width: 100%;
   max-width: 32rem;
   margin: 0 auto;
+  padding: 0 var(--space-sm) var(--space-md);
 }
 
 .home-updates-form {
@@ -353,23 +405,16 @@
   padding: var(--space-lg) 0 0;
 }
 
-.home-hero-title {
+/* Guest hero headline (single h1; nav carries brand wordmark) */
+.home-hero-lead {
   font-family: 'Chakra Petch', var(--font-app);
   font-weight: 700;
-  font-size: calc(1.75rem + 4px);
-  color: var(--iron-50);
-  margin: 0 0 0.5rem;
-  line-height: 1.2;
+  font-size: clamp(1.35rem, 5vw, 1.85rem);
+  line-height: 1.22;
   letter-spacing: 0.02em;
-}
-
-.home-hero-lead {
-  font-size: 1rem;
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--iron-300);
-  margin: 0 auto var(--space-lg);
-  max-width: 22em;
+  color: var(--iron-50);
+  margin: 0 auto;
+  max-width: 20em;
 }
 
 .home-hero-cta {
@@ -379,17 +424,21 @@
   font-size: 0.9375rem;
 }
 
-@media (min-width: 640px) {
-  .home-page--guest {
-    padding: clamp(1.75rem, 5vh, 5rem) var(--space-lg);
-  }
-
-  .home-hero-title {
-    font-size: calc(2rem + 12px);
+@media (min-width: 900px) {
+  .home-hero {
+    max-width: min(44rem, 100%);
+    padding-top: clamp(1rem, 3.5vh, 2.75rem);
+    padding-bottom: var(--space-md);
+    gap: var(--space-lg);
   }
 
   .home-hero-lead {
-    font-size: 1.125rem;
+    font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+    max-width: 17em;
+  }
+
+  .home-hero-sub-block {
+    max-width: 34em;
   }
 
   .home-hero-cta {

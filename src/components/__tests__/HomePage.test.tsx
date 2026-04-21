@@ -94,11 +94,12 @@ describe('HomePage', () => {
     cleanup();
   });
 
-  it('guest hero shows IronWork CTA and tagline', () => {
+  it('guest hero shows headline CTA and tagline', () => {
     render(<HomePage {...guestProps()} />);
 
-    expect(screen.getByRole('heading', { name: 'IronWork' })).toBeInTheDocument();
-    expect(screen.getByText(/Stop working for free\. Get it in writing\./i)).toBeInTheDocument();
+    const heroHeading = screen.getByRole('heading', { level: 1 });
+    expect(heroHeading).toHaveTextContent(/Stop working for free/i);
+    expect(heroHeading).toHaveTextContent(/Get it in writing/i);
     const tryFree = screen.getAllByRole('button', { name: 'Try it free' });
     expect(tryFree).toHaveLength(2);
     expect(screen.queryByText(/Cover your ass/i)).not.toBeInTheDocument();
@@ -123,7 +124,8 @@ describe('HomePage', () => {
 
     expect(screen.queryByText('Customer Alpha')).not.toBeInTheDocument();
     expect(screen.queryByText(/You have \d+ work order/)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'IronWork' })).toBeInTheDocument();
+    const heroHeading = screen.getByRole('heading', { level: 1 });
+    expect(heroHeading).toHaveTextContent(/Stop working for free/i);
   });
 
   it('shows loading then dashboard when RPCs succeed', async () => {

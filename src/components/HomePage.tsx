@@ -162,8 +162,9 @@ export function HomePage({
     return (
       <div className="home-page home-page--guest">
         <section className="home-hero">
-          <h1 className="home-hero-title">IronWork</h1>
-          <p className="home-hero-lead">Stop working for free. Get it in writing.</p>
+          <h1 className="home-hero-lead">
+            Stop working for free. Get it in writing.
+          </h1>
           <div className="home-hero-sub-block">
             <p className="home-hero-sub">Work orders, change orders, and invoices for solo welders.</p>
             <p className="home-hero-sub home-hero-sub--timing">Ready in 2 minutes.</p>
@@ -174,14 +175,21 @@ export function HomePage({
           <p className="home-hero-trust">Free to try. No credit card required.</p>
         </section>
 
-        <p className="home-identity">Built for welders, not corporations.</p>
-
         <section className="home-pain" aria-labelledby="home-pain-heading">
           <h2 id="home-pain-heading" className="home-section-heading">Sound familiar?</h2>
           <ul className="home-pain-list">
-            <li>Clients change the scope mid-job.</li>
-            <li>You chase payments for weeks.</li>
-            <li>Your handwritten invoices don't look professional.</li>
+            <li>
+              <span className="home-pain-problem">Clients change the scope mid-job.</span>
+              <span className="home-pain-answer">Signed change order in 30 seconds.</span>
+            </li>
+            <li>
+              <span className="home-pain-problem">You chase payments for weeks.</span>
+              <span className="home-pain-answer">Pro invoice sent the day you finish.</span>
+            </li>
+            <li>
+              <span className="home-pain-problem">Handwritten invoices look amateur.</span>
+              <span className="home-pain-answer">Clean PDF your client takes seriously.</span>
+            </li>
           </ul>
         </section>
 
@@ -195,9 +203,21 @@ export function HomePage({
                 aria-label="Open full work order preview"
                 onClick={() => setLandingPreview('work-order')}
               >
+                <svg
+                  className="home-shot-doc-icon"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z"
+                  />
+                </svg>
                 <span>Work Order PDF</span>
               </button>
-              <p className="home-shot-hint">Click to preview full agreement</p>
+              <p className="home-shot-hint">See a real, signable agreement</p>
             </div>
             <div className="home-shot-tile">
               <button
@@ -206,9 +226,21 @@ export function HomePage({
                 aria-label="Open full invoice preview"
                 onClick={() => setLandingPreview('invoice')}
               >
+                <svg
+                  className="home-shot-doc-icon"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z"
+                  />
+                </svg>
                 <span>Invoice PDF</span>
               </button>
-              <p className="home-shot-hint">Click for full invoice preview</p>
+              <p className="home-shot-hint">See an invoice your client will actually pay</p>
             </div>
           </div>
         </section>
@@ -269,7 +301,7 @@ export function HomePage({
         </section>
 
         <section className="home-cta-footer">
-          <h2 className="home-section-heading">Ready to get paid for the work you actually did?</h2>
+          <h2 className="home-section-heading">Ready to stop working for free?</h2>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
             Try it free
           </button>

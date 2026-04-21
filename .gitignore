@@ -16,6 +16,7 @@ supabase/.branches
 
 # Scratch / roadmap notes (not part of the product tree), e.g. future/Product_Overview.md
 future/
+Distribution_Validation_Plan.md
 
 # Local agent / IDE state (do not commit)
 .sally/
