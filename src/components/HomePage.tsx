@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import type { BusinessProfile, WorkOrderDashboardJob, WorkOrdersDashboardSummary } from '../types/db';
 import { getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
 import { splitFullNameForForm } from '../lib/owner-name';
@@ -14,26 +14,296 @@ import './HomePage.css';
 
 const HOME_RECENT_LIMIT = 5;
 
-/** Placeholder until real agreement HTML is embedded from a sample PDF. */
-const LANDING_WO_PREVIEW_PLACEHOLDER_HTML = `
-<div class="agreement-document" style="padding:2rem;font-family:Barlow,system-ui,sans-serif;color:#1a1a1a;">
-  <p style="margin:0 0 1rem;font-size:1rem;line-height:1.5;">
-    Full work order preview with scope, exclusions, and payment terms will appear here. Swap in real markup from a sample job when ready.
-  </p>
-  <p style="margin:0;font-size:0.9rem;color:#444;">
-    Tap <strong>Try it free</strong> above to build a real agreement in about two minutes.
-  </p>
+const LANDING_WO_PREVIEW_HTML = `
+<div class="agreement-document">
+  <div class="agreement-section">
+    <h3 class="section-title">1. Parties &amp; Project Information</h3>
+    <div class="section-content">
+      <div class="parties-layout">
+        <div class="parties-plain">
+          <div class="parties-plain-row">
+            <span class="parties-plain-label">Agreement Date:</span>
+            <span class="parties-plain-value">April 30, 2026</span>
+          </div>
+        </div>
+        <table class="content-table parties-party-table">
+          <tbody>
+            <tr class="party-table-header-row">
+              <th class="party-header-cell party-header-spacer" scope="col" aria-hidden="true">&nbsp;</th>
+              <th scope="col" class="party-header-cell">Service Provider</th>
+              <th scope="col" class="party-header-cell">Customer</th>
+            </tr>
+            <tr>
+              <td class="table-label">Name</td>
+              <td class="table-value">Mike's Custom Fabrications</td>
+              <td class="table-value">John Smith</td>
+            </tr>
+            <tr>
+              <td class="table-label">Phone</td>
+              <td class="table-value">(484) 654-1525</td>
+              <td class="table-value">(651) 548-6548</td>
+            </tr>
+            <tr>
+              <td class="table-label">Email</td>
+              <td class="table-value">mikey@customfab.com</td>
+              <td class="table-value">johnsmith@industry.com</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="parties-plain">
+          <div class="parties-plain-row">
+            <span class="parties-plain-label">Job Site Address:</span>
+            <span class="parties-plain-value">123 Main Street, Laurel, MD 20707</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">2. Project Overview</h3>
+    <div class="section-content">
+      <table class="content-table">
+        <tbody>
+          <tr><td class="table-label">Job type</td><td class="table-value">Repair</td></tr>
+          <tr><td class="table-label">Item / Structure</td><td class="table-value">Stainless steel 304 flange-to-pipe connection (2&quot; NPT)</td></tr>
+          <tr><td class="table-label">Work Requested</td><td class="table-value">TIG weld repair on root pass. Clean and re-pass with ER308L rod.</td></tr>
+          <tr><td class="table-label">Target Start Date</td><td class="table-value">May 4, 2026</td></tr>
+          <tr><td class="table-label">Target Completion Date</td><td class="table-value">May 8, 2026</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">3. Scope of Work</h3>
+    <div class="section-content">
+      <ul class="content-bullets">
+        <li>TIG weld repair on root pass. Clean and re-pass with ER308L rod.</li>
+        <li>Installation of repaired/fabricated components</li>
+        <li>Grinding welds smooth</li>
+      </ul>
+      <p class="content-paragraph">All materials will be provided by Mike's Custom Fabrications.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">4. Exclusions</h3>
+    <div class="section-content">
+      <ul class="content-bullets">
+        <li>Painting, powder coating, or any surface finishing</li>
+        <li>Replacement of rusted sections beyond the defined repair area</li>
+        <li>Permit acquisition or code compliance inspections</li>
+        <li>Any structural engineering assessment or certification</li>
+        <li>Work not specified in Section 3 above</li>
+      </ul>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">5. Customer Obligations &amp; Site Conditions</h3>
+    <div class="section-content">
+      <ul class="content-bullets">
+        <li>Provide clear, unobstructed access to the work area at the scheduled time</li>
+        <li>Ensure weather conditions are suitable for outdoor welding (no precipitation, wind below 25 mph)</li>
+        <li>Confirm no hazardous materials (asbestos, lead paint, pressurized lines) are present in or adjacent to the work area</li>
+        <li>Designate a point of contact who is reachable during the work period</li>
+      </ul>
+      <p class="content-note">Failure to meet site conditions may result in rescheduling and/or a mobilization fee.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">6. Pricing &amp; Payment Terms</h3>
+    <div class="section-content">
+      <table class="content-table">
+        <tbody>
+          <tr><td class="table-label">Price Type</td><td class="table-value">Fixed Price</td></tr>
+          <tr><td class="table-label">Total Contract Price</td><td class="table-value">$2,500.00</td></tr>
+          <tr><td class="table-label">Deposit Required</td><td class="table-value">$250.00</td></tr>
+          <tr><td class="table-label">Balance Due</td><td class="table-value">$2,250.00</td></tr>
+        </tbody>
+      </table>
+      <p class="content-note">Note: Customers are subject to applicable state and local sales tax on labor and materials as required by law. Service Provider will include applicable taxes on the final invoice.</p>
+      <p class="content-paragraph">Payment is due within 14 days of invoice date. Overdue balances accrue a late fee of 1.5% per month.</p>
+      <p class="content-paragraph">The Service Provider may suspend work if payment is more than 14 days overdue, and is not liable for project delays caused by non-payment.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">7. Change Orders &amp; Hidden Damage</h3>
+    <div class="section-content">
+      <p class="content-paragraph">Any work outside the agreed scope requires approval from the Customer before the Service Provider proceeds. Extra work may cost more and take longer; The Service Provider will give an estimate before starting that work.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">8. Workmanship Warranty</h3>
+    <div class="section-content">
+      <p class="content-paragraph">Upon completion of the work and the Customer approval, responsibility for the repaired/fabricated item transfers back to the Customer. The Service Provider is only responsible for workmanship defects as outlined in the Workmanship Warranty section.</p>
+      <p class="content-paragraph">The Service Provider guarantees the welding workmanship for 30 days from the completion date.</p>
+      <p class="content-paragraph">Covers:</p>
+      <ul class="content-bullets">
+        <li>Defects in welding workmanship</li>
+        <li>Failure of weld joints under normal use</li>
+      </ul>
+      <p class="content-paragraph">Does NOT Cover:</p>
+      <ul class="content-bullets">
+        <li>Misuse or abuse of the repaired item</li>
+        <li>Modifications made after completion</li>
+        <li>Damage from accidents, impacts, or overloading</li>
+        <li>Normal wear and tear</li>
+        <li>Rust or corrosion (unless specifically coated)</li>
+        <li>Structural failures unrelated to the weld repair</li>
+      </ul>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">9. Liability &amp; Indemnification</h3>
+    <div class="section-content">
+      <p class="content-paragraph">The Service Provider's total liability under this agreement shall not exceed $2,500.00. The Service Provider shall not be liable for indirect, incidental, or consequential damages. The Customer agrees to indemnify and hold the Service Provider harmless from claims arising from the Customer's misuse or modification of the work after completion. Additionally, The Service Provider is not responsible for work performed by other contractors, modifications made after completion of this agreement, issues arising from prior repairs or work by others, or damage caused by misuse after work completion.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">10. Cancellation &amp; Rescheduling</h3>
+    <div class="section-content">
+      <p class="content-paragraph">Either party may cancel this Agreement before work commences with 24 hours written notice. If the Customer cancels after work has commenced, the Customer shall pay for work completed to date plus any materials purchased. The deposit is non-refundable if the Service Provider has mobilized to the job site.</p>
+    </div>
+  </div>
+  <div class="agreement-section">
+    <h3 class="section-title">11. Dispute Resolution</h3>
+    <div class="section-content">
+      <p class="content-paragraph">The parties agree to attempt to resolve any dispute arising under this Agreement through good-faith negotiation first. If negotiation fails within 10 days, the parties agree to non-binding mediation before pursuing litigation. This Agreement shall be governed by and construed under the laws of the applicable state.</p>
+    </div>
+  </div>
+  <div class="agreement-section signature-section">
+    <h3 class="section-title">Signatures &amp; Acceptance</h3>
+    <div class="section-content">
+      <p class="content-paragraph">This document constitutes the entire agreement and supersedes all prior discussions. Modifications must be in writing and signed by both parties.</p>
+      <div class="signature-blocks">
+        <div class="signature-block">
+          <div class="signature-block-identifier">Customer</div>
+          <div class="signature-field">
+            <span class="signature-field-label">Name</span>
+            <div class="signature-field-value">John Smith</div>
+          </div>
+          <div class="signature-field">
+            <span class="signature-field-label">Signature</span>
+            <div class="signature-field-value"></div>
+          </div>
+          <div class="signature-field">
+            <span class="signature-field-label">Date</span>
+            <div class="signature-field-value"></div>
+          </div>
+        </div>
+        <div class="signature-block">
+          <div class="signature-block-identifier">Service Provider</div>
+          <div class="signature-field">
+            <span class="signature-field-label">Name</span>
+            <div class="signature-field-value">Mikey Jones</div>
+          </div>
+          <div class="signature-field">
+            <span class="signature-field-label">Signature</span>
+            <div class="signature-field-value">
+              <div class="signature-autofill-name">Mikey Jones</div>
+            </div>
+          </div>
+          <div class="signature-field">
+            <span class="signature-field-label">Date</span>
+            <div class="signature-field-value">4/30/2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 `;
 
-const LANDING_INVOICE_PREVIEW_PLACEHOLDER_HTML = `
-<div class="agreement-document" style="padding:2rem;font-family:Barlow,system-ui,sans-serif;color:#1a1a1a;">
-  <p style="margin:0 0 1rem;font-size:1rem;line-height:1.5;">
-    Full invoice preview will appear here. Swap in real markup from a sample invoice when ready.
-  </p>
-  <p style="margin:0;font-size:0.9rem;color:#444;">
-    Invoices are included with every job in IronWork.
-  </p>
+const LANDING_INVOICE_PREVIEW_HTML = `
+<div class="agreement-document invoice-document">
+  <h2 class="invoice-title">INVOICE</h2>
+  <div class="parties-layout">
+    <div class="parties-plain">
+      <div class="parties-plain-row">
+        <span class="parties-plain-label">Invoice Date:</span>
+        <span class="parties-plain-value">April 21, 2026</span>
+      </div>
+    </div>
+    <table class="content-table parties-party-table">
+      <tbody>
+        <tr class="party-table-header-row">
+          <th class="party-header-cell party-header-spacer" scope="col" aria-hidden="true">&nbsp;</th>
+          <th scope="col" class="party-header-cell">Service Provider</th>
+          <th scope="col" class="party-header-cell">Customer</th>
+        </tr>
+        <tr>
+          <td class="table-label">Name</td>
+          <td class="table-value">Mike's Custom Fabrications</td>
+          <td class="table-value">John Smith</td>
+        </tr>
+        <tr>
+          <td class="table-label">Phone</td>
+          <td class="table-value">(484) 654-1525</td>
+          <td class="table-value">(651) 548-6548</td>
+        </tr>
+        <tr>
+          <td class="table-label">Email</td>
+          <td class="table-value">mikey@customfab.com</td>
+          <td class="table-value">johnsmith@industry.com</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="parties-plain">
+      <div class="parties-plain-row">
+        <span class="parties-plain-label">Job Site Address:</span>
+        <span class="parties-plain-value">123 Main Street, Laurel, MD 20707</span>
+      </div>
+    </div>
+  </div>
+  <div class="invoice-details-block">
+    <table class="content-table">
+      <tbody>
+        <tr>
+          <td class="table-label">Invoice date</td>
+          <td class="table-value">April 21, 2026</td>
+        </tr>
+        <tr>
+          <td class="table-label">Due date</td>
+          <td class="table-value invoice-due-date">May 5, 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <h3 class="section-title">Line items</h3>
+  <table class="content-table invoice-line-table">
+    <thead>
+      <tr>
+        <th class="table-label" scope="col">Description</th>
+        <th class="table-label" scope="col" style="text-align:right">Qty</th>
+        <th class="table-label" scope="col" style="text-align:right">Unit price</th>
+        <th class="table-label" scope="col" style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="table-value">Stainless steel 304 flange-to-pipe connection (2&quot; NPT) — TIG weld repair on root pass. Clean and re-pass with ER308L rod.</td>
+        <td class="table-value" style="text-align:right">1</td>
+        <td class="table-value" style="text-align:right">$2,500.00</td>
+        <td class="table-value" style="text-align:right">$2,500.00</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="invoice-totals-block">
+    <table class="invoice-totals-table">
+      <tbody>
+        <tr>
+          <td class="table-label">Subtotal</td>
+          <td class="table-value" style="text-align:right">$2,500.00</td>
+        </tr>
+        <tr>
+          <td class="table-label">Tax (6%)</td>
+          <td class="table-value" style="text-align:right">$150.00</td>
+        </tr>
+        <tr class="invoice-total-row">
+          <td class="table-label"><strong>Total</strong></td>
+          <td class="table-value" style="text-align:right"><strong>$2,650.00</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 `;
 
@@ -50,6 +320,42 @@ function greetingTimePhrase(): string {
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+const DOC_RENDER_WIDTH = 816;
+
+function DocThumbnail({ htmlMarkup, onClick, ariaLabel }: { htmlMarkup: string; onClick: () => void; ariaLabel: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setScale(w / DOC_RENDER_WIDTH);
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <button type="button" className="home-shot-doc-thumb" aria-label={ariaLabel} onClick={onClick}>
+      <div ref={containerRef} className="home-shot-doc-viewport">
+        <div
+          className="home-shot-doc-sheet"
+          style={{ transform: `scale(${scale})`, width: DOC_RENDER_WIDTH }}
+          dangerouslySetInnerHTML={{ __html: htmlMarkup }}
+        />
+      </div>
+      <div className="home-shot-doc-overlay" aria-hidden="true">
+        <span className="home-shot-doc-overlay-label">Read full document</span>
+      </div>
+    </button>
+  );
 }
 
 export interface HomePageProps {
@@ -163,10 +469,10 @@ export function HomePage({
       <div className="home-page home-page--guest">
         <section className="home-hero">
           <h1 className="home-hero-lead">
-            Stop working for free. Get it in writing.
+            Stop working on a handshake. Your job, your terms.
           </h1>
           <div className="home-hero-sub-block">
-            <p className="home-hero-sub">Work orders, change orders, and invoices for solo welders.</p>
+            <p className="home-hero-sub">Binding work orders, signed change orders, and pro invoices for independent contractors.</p>
             <p className="home-hero-sub home-hero-sub--timing">Ready in 2 minutes.</p>
           </div>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
@@ -175,90 +481,123 @@ export function HomePage({
           <p className="home-hero-trust">Free to try. No credit card required.</p>
         </section>
 
-        <section className="home-pain" aria-labelledby="home-pain-heading">
-          <h2 id="home-pain-heading" className="home-section-heading">Sound familiar?</h2>
-          <ul className="home-pain-list">
-            <li>
-              <span className="home-pain-problem">Clients change the scope mid-job.</span>
-              <span className="home-pain-answer">Signed change order in 30 seconds.</span>
-            </li>
-            <li>
-              <span className="home-pain-problem">You chase payments for weeks.</span>
-              <span className="home-pain-answer">Pro invoice sent the day you finish.</span>
-            </li>
-            <li>
-              <span className="home-pain-problem">Handwritten invoices look amateur.</span>
-              <span className="home-pain-answer">Clean PDF your client takes seriously.</span>
-            </li>
-          </ul>
+        <section className="home-journey" aria-labelledby="home-journey-heading">
+          <p className="home-journey-eyebrow">The Journey</p>
+          <h2 id="home-journey-heading" className="home-section-heading home-journey-heading">
+            From messy jobsite to paid in full.
+          </h2>
+          <p className="home-journey-sub">Three steps. Same day. No more chasing.</p>
+
+          <div className="home-journey-col-labels" aria-hidden="true">
+            <span className="home-journey-col-label home-journey-col-label--problem">
+              <span className="home-journey-col-dot" />
+              The Problem
+            </span>
+            <span className="home-journey-col-label home-journey-col-label--solution">
+              <span className="home-journey-col-dot home-journey-col-dot--solution" />
+              What IronWork Does
+            </span>
+          </div>
+
+          <div className="home-journey-rows">
+            <div className="home-journey-row">
+              <div className="home-journey-problem-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--problem">On the Job</span>
+                <p className="home-journey-card-text">Clients add to the scope mid-job and expect it free.</p>
+              </div>
+              <div className="home-journey-step">
+                <div className="home-journey-step-circle">1</div>
+                <span className="home-journey-step-label">Scope</span>
+              </div>
+              <div className="home-journey-solution-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--solution">IronWork</span>
+                <p className="home-journey-card-text home-journey-card-text--solution">Signed change order required before any extra work begins.</p>
+              </div>
+            </div>
+
+            <div className="home-journey-row">
+              <div className="home-journey-problem-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--problem">After the Job</span>
+                <p className="home-journey-card-text">Client disputes what was supposed to be done.</p>
+              </div>
+              <div className="home-journey-step">
+                <div className="home-journey-step-circle">2</div>
+                <span className="home-journey-step-label">Protect</span>
+              </div>
+              <div className="home-journey-solution-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--solution">IronWork</span>
+                <p className="home-journey-card-text home-journey-card-text--solution">Scope and exclusions locked in writing before you start.</p>
+              </div>
+            </div>
+
+            <div className="home-journey-row">
+              <div className="home-journey-problem-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--problem">Chasing Payment</span>
+                <p className="home-journey-card-text">Invoice sits unpaid for weeks and you have no leverage.</p>
+              </div>
+              <div className="home-journey-step">
+                <div className="home-journey-step-circle">3</div>
+                <span className="home-journey-step-label">Paid</span>
+              </div>
+              <div className="home-journey-solution-card">
+                <span className="home-journey-card-eyebrow home-journey-card-eyebrow--solution">IronWork</span>
+                <p className="home-journey-card-text home-journey-card-text--solution">Late fees and work-suspension rights written into every agreement.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="home-journey-terminal" aria-hidden="true">
+            <span className="home-journey-terminal-dot" />
+            Paid. Filed. Done.
+          </div>
         </section>
 
         <section className="home-shots" aria-labelledby="home-shots-heading">
           <h2 id="home-shots-heading" className="home-section-heading">What you get</h2>
           <div className="home-shots-grid">
             <div className="home-shot-tile">
-              <button
-                type="button"
-                className="home-shot-placeholder"
-                aria-label="Open full work order preview"
+              <DocThumbnail
+                htmlMarkup={LANDING_WO_PREVIEW_HTML}
+                ariaLabel="Open full work order preview"
                 onClick={() => setLandingPreview('work-order')}
-              >
-                <svg
-                  className="home-shot-doc-icon"
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z"
-                  />
-                </svg>
-                <span>Work Order PDF</span>
-              </button>
-              <p className="home-shot-hint">See a real, signable agreement</p>
+              />
+              <p className="home-shot-hint">Work Order PDF — tap to read full document</p>
             </div>
             <div className="home-shot-tile">
-              <button
-                type="button"
-                className="home-shot-placeholder"
-                aria-label="Open full invoice preview"
+              <DocThumbnail
+                htmlMarkup={LANDING_INVOICE_PREVIEW_HTML}
+                ariaLabel="Open full invoice preview"
                 onClick={() => setLandingPreview('invoice')}
-              >
-                <svg
-                  className="home-shot-doc-icon"
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z"
-                  />
-                </svg>
-                <span>Invoice PDF</span>
-              </button>
-              <p className="home-shot-hint">See an invoice your client will actually pay</p>
+              />
+              <p className="home-shot-hint">Invoice PDF — tap to read full document</p>
             </div>
           </div>
         </section>
 
         <section className="home-steps" aria-labelledby="home-steps-heading">
-          <h2 id="home-steps-heading" className="home-section-heading">How it works</h2>
+          <h2 id="home-steps-heading" className="home-section-heading">More than a quote.</h2>
+          <p className="home-steps-sub">Other apps send a price. IronWork sends protection.</p>
           <ol className="home-steps-list">
             <li>
               <span className="home-step-num">1</span>
-              <span className="home-step-text">Fill in the job details.</span>
+              <div className="home-step-body">
+                <span className="home-step-title">Build a real agreement in 2 minutes.</span>
+                <span className="home-step-detail">Scope of work, exclusions, customer obligations, and payment terms — legal language that holds up when a client pushes back. Not just a price quote.</span>
+              </div>
             </li>
             <li>
               <span className="home-step-num">2</span>
-              <span className="home-step-text">Preview the agreement.</span>
+              <div className="home-step-body">
+                <span className="home-step-title">Client signs before you touch a tool.</span>
+                <span className="home-step-detail">E-sign in seconds. Any scope change mid-job triggers a new change order — new signature required. No handshake agreements.</span>
+              </div>
             </li>
             <li>
               <span className="home-step-num">3</span>
-              <span className="home-step-text">Download it or send for e-signature.</span>
+              <div className="home-step-body">
+                <span className="home-step-title">Invoice the day you finish.</span>
+                <span className="home-step-detail">Pro PDF sent immediately. Late-fee terms and work-suspension rights are already in the contract — no extras needed.</span>
+              </div>
             </li>
           </ol>
         </section>
@@ -301,14 +640,14 @@ export function HomePage({
         </section>
 
         <section className="home-cta-footer">
-          <h2 className="home-section-heading">Ready to stop working for free?</h2>
+          <h2 className="home-section-heading">Built for contractors who are tired of getting burned.</h2>
           <button type="button" className="btn-primary btn-large home-hero-cta" onClick={onCreateAgreement}>
-            Try it free
+            Try it now
           </button>
         </section>
 
         <footer className="home-landing-footer">
-          <p className="home-landing-tagline">Built for contractors who are tired of getting burned.</p>
+          <p className="home-landing-tagline">Lock the scope. Own the change order. Get paid in full.</p>
           <nav className="home-landing-footer-nav" aria-label="Legal and contact">
             <a className="home-landing-footer-link" href="mailto:hello@ironwork.app">
               Contact
@@ -328,8 +667,8 @@ export function HomePage({
           title={landingPreview === 'invoice' ? 'Invoice preview' : 'Work order preview'}
           htmlMarkup={
             landingPreview === 'invoice'
-              ? LANDING_INVOICE_PREVIEW_PLACEHOLDER_HTML
-              : LANDING_WO_PREVIEW_PLACEHOLDER_HTML
+              ? LANDING_INVOICE_PREVIEW_HTML
+              : LANDING_WO_PREVIEW_HTML
           }
         />
       </div>

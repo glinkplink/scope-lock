@@ -98,10 +98,10 @@ describe('HomePage', () => {
     render(<HomePage {...guestProps()} />);
 
     const heroHeading = screen.getByRole('heading', { level: 1 });
-    expect(heroHeading).toHaveTextContent(/Stop working for free/i);
-    expect(heroHeading).toHaveTextContent(/Get it in writing/i);
-    const tryFree = screen.getAllByRole('button', { name: 'Try it free' });
-    expect(tryFree).toHaveLength(2);
+    expect(heroHeading).toHaveTextContent(/Stop working on a handshake/i);
+    expect(heroHeading).toHaveTextContent(/your terms/i);
+    expect(screen.getByRole('button', { name: 'Try it free' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try it now' })).toBeInTheDocument();
     expect(screen.queryByText(/Cover your ass/i)).not.toBeInTheDocument();
   });
 
@@ -125,7 +125,7 @@ describe('HomePage', () => {
     expect(screen.queryByText('Customer Alpha')).not.toBeInTheDocument();
     expect(screen.queryByText(/You have \d+ work order/)).not.toBeInTheDocument();
     const heroHeading = screen.getByRole('heading', { level: 1 });
-    expect(heroHeading).toHaveTextContent(/Stop working for free/i);
+    expect(heroHeading).toHaveTextContent(/Stop working on a handshake/i);
   });
 
   it('shows loading then dashboard when RPCs succeed', async () => {
