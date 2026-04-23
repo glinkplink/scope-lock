@@ -805,15 +805,11 @@ export function HomePage({
             </div>
             <div className="home-stat-card home-stat-card--blue">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.invoicedTotal)}</div>
-              <div className="home-stat-label">Invoiced</div>
+              <div className="home-stat-label">Outstanding</div>
             </div>
             <div className="home-stat-card home-stat-card--paid">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.paidTotal)}</div>
               <div className="home-stat-label">Paid</div>
-            </div>
-            <div className="home-stat-card home-stat-card--green">
-              <div className="home-stat-num">{formatUsd(invoiceSummary?.pendingInvoiceTotal)}</div>
-              <div className="home-stat-label">Pending invoice</div>
             </div>
           </div>
 

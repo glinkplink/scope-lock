@@ -983,7 +983,7 @@
 
 @media (min-width: 640px) {
   .home-stat-strip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

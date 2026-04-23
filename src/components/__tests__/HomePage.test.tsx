@@ -269,7 +269,6 @@ describe('HomePage', () => {
     await waitFor(() => {
       expect(screen.getByText('$100')).toBeInTheDocument();
     });
-    expect(screen.getByText('$200')).toBeInTheDocument();
     expect(screen.getByText('$300')).toBeInTheDocument();
 
     const statGroup = screen.getByRole('group', { name: /Work order count and invoice totals/i });
