@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, type Dispatch, type SetStateAction } from 'react';
 import type { Job, ChangeOrder } from '../types/db';
-import type { AppView } from './useAppNavigation';
+import type { AppRouteParams, AppView } from './useAppNavigation';
 
 export type ChangeOrderDetailBackTarget = 'work-order-detail' | 'work-orders';
 
@@ -20,7 +20,7 @@ const initialChangeOrder: ChangeOrderFlowState = {
 
 export function useChangeOrderFlow(
   workOrderDetailJob: Job | null,
-  navigateTo: (view: AppView) => void,
+  navigateTo: (view: AppView, params?: AppRouteParams) => void,
   setChangeOrderListVersion: Dispatch<SetStateAction<number>>
 ) {
   const [changeOrder, setChangeOrder] = useState<ChangeOrderFlowState>(initialChangeOrder);
@@ -46,13 +46,13 @@ export function useChangeOrderFlow(
       changeOrderFlowJob: workOrderDetailJob,
       wizardExistingCO: null,
     }));
-    navigateTo('change-order-wizard');
+    navigateTo('change-order-wizard', { jobId: workOrderDetailJob.id });
   }, [workOrderDetailJob, navigateTo]);
 
   const handleOpenCODetail = useCallback(
     (co: ChangeOrder, backTarget: ChangeOrderDetailBackTarget = 'work-order-detail') => {
       setChangeOrder((c) => ({ ...c, coDetailCO: co, coDetailBackTarget: backTarget }));
-      navigateTo('co-detail');
+      navigateTo('co-detail', { jobId: co.job_id, coId: co.id });
     },
     [navigateTo]
   );
@@ -64,7 +64,11 @@ export function useChangeOrderFlow(
       coDetailCO: null,
       coDetailBackTarget: 'work-order-detail',
     }));
-    navigateTo(backTarget);
+    if (backTarget === 'work-order-detail' && changeOrderRef.current.coDetailCO?.job_id) {
+      navigateTo('work-order-detail', { jobId: changeOrderRef.current.coDetailCO.job_id });
+    } else {
+      navigateTo(backTarget);
+    }
   }, [navigateTo]);
 
   const handleEditCOFromDetail = useCallback(
@@ -75,7 +79,7 @@ export function useChangeOrderFlow(
         changeOrderFlowJob: workOrderDetailJob,
         wizardExistingCO: co,
       }));
-      navigateTo('change-order-wizard');
+      navigateTo('change-order-wizard', { jobId: workOrderDetailJob.id, coId: co.id });
     },
     [workOrderDetailJob, navigateTo]
   );
@@ -88,7 +92,11 @@ export function useChangeOrderFlow(
       coDetailBackTarget: 'work-order-detail',
     }));
     setChangeOrderListVersion((v) => v + 1);
-    navigateTo(backTarget);
+    if (backTarget === 'work-order-detail' && changeOrderRef.current.coDetailCO?.job_id) {
+      navigateTo('work-order-detail', { jobId: changeOrderRef.current.coDetailCO.job_id });
+    } else {
+      navigateTo(backTarget);
+    }
   }, [navigateTo, setChangeOrderListVersion]);
 
   const handleChangeOrderWizardComplete = useCallback((savedCo: ChangeOrder) => {
@@ -99,7 +107,7 @@ export function useChangeOrderFlow(
       coDetailCO: savedCo,
     }));
     setChangeOrderListVersion((v) => v + 1);
-    navigateTo('co-detail');
+    navigateTo('co-detail', { jobId: savedCo.job_id, coId: savedCo.id });
   }, [navigateTo, setChangeOrderListVersion]);
 
   const handleChangeOrderWizardCancel = useCallback(() => {
@@ -112,9 +120,9 @@ export function useChangeOrderFlow(
       changeOrderFlowJob: null,
     }));
     if (wasEditing && hadDetail) {
-      navigateTo('co-detail');
+      navigateTo('co-detail', { jobId: hadDetail.job_id, coId: hadDetail.id });
     } else {
-      navigateTo('work-order-detail');
+      navigateTo('work-order-detail', { jobId: c.changeOrderFlowJob?.id ?? hadDetail?.job_id });
     }
   }, [navigateTo]);
 

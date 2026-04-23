@@ -19,6 +19,8 @@ import { upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { buildInitialProfileDefaults } from './lib/defaults';
 import { getInvoice } from './lib/db/invoices';
+import { getChangeOrderById } from './lib/db/change-orders';
+import { getJobById } from './lib/db/jobs';
 import type { BusinessProfile, ChangeOrder, Job } from './types/db';
 import { ClipboardList, FileText, Home, Plus, Settings, Users } from 'lucide-react';
 import { useInvoiceFlow } from './hooks/useInvoiceFlow';
@@ -119,9 +121,20 @@ function renderLazyPage(page: ReactNode) {
   );
 }
 
+function deriveSingleChangeOrderId(invoice: import('./types/db').Invoice): string | undefined {
+  const ids = new Set<string>();
+  for (const line of invoice.line_items) {
+    if (typeof line.change_order_id === 'string' && line.change_order_id.trim()) {
+      ids.add(line.change_order_id);
+    }
+  }
+  if (ids.size !== 1) return undefined;
+  return Array.from(ids)[0];
+}
+
 function App() {
   const [workOrdersSuccessBanner, setWorkOrdersSuccessBanner] = useState<string | null>(null);
-  const { view, navigateTo, replaceView } = useAppNavigation();
+  const { view, routeParams, navigateTo, replaceView } = useAppNavigation();
   const {
     user,
     authLoading,
@@ -139,6 +152,17 @@ function App() {
   const [workOrderDetailJobId, setWorkOrderDetailJobId] = useState<string | null>(null);
   const [workOrderDetailJob, setWorkOrderDetailJob] = useState<import('./types/db').Job | null>(null);
   const [workOrderDetailStartSection, setWorkOrderDetailStartSection] = useState<'top' | 'change-orders'>('top');
+  const [routeCoDetail, setRouteCoDetail] = useState<{ co: ChangeOrder; job: Job } | null>(null);
+  const [routeInvoiceFinal, setRouteInvoiceFinal] = useState<{ invoice: import('./types/db').Invoice; job: Job } | null>(null);
+  const [routeInvoiceWizard, setRouteInvoiceWizard] = useState<{
+    job: Job;
+    changeOrder: ChangeOrder | null;
+    existingInvoice: import('./types/db').Invoice | null;
+  } | null>(null);
+  const [routeChangeOrderWizard, setRouteChangeOrderWizard] = useState<{
+    job: Job;
+    existingCO: ChangeOrder | null;
+  } | null>(null);
   const [changeOrderListVersion, setChangeOrderListVersion] = useState(0);
   const [profileEntrySource, setProfileEntrySource] = useState<'work-orders' | null>(null);
   const [ownerFirstName, setOwnerFirstName] = useState('');
@@ -149,6 +173,10 @@ function App() {
   const [pendingCaptureNotice, setPendingCaptureNotice] = useState<string | null>(null);
   /** One-shot: scroll to Stripe section on profile when coming from invoice "Connect Stripe". */
   const profileScrollToStripeRef = useRef(false);
+  const routeJobId = routeParams.jobId ?? null;
+  const routeCoId = routeParams.coId ?? null;
+  const routeInvoiceId = routeParams.invoiceId ?? null;
+  const routeStartSection = routeParams.startSection ?? 'top';
 
   const clearProfileStripeScrollIntent = useCallback(() => {
     profileScrollToStripeRef.current = false;
@@ -315,6 +343,98 @@ function App() {
     user,
   ]);
 
+  useEffect(() => {
+    if (routeJobId) {
+      setWorkOrderDetailJobId(routeJobId);
+      setWorkOrderDetailStartSection(routeStartSection);
+    }
+  }, [routeJobId, routeStartSection]);
+
+  useEffect(() => {
+    if (view !== 'co-detail' || !routeCoId) {
+      setRouteCoDetail(null);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const co = await getChangeOrderById(routeCoId);
+      if (!active || !co) return;
+      const job = await getJobById(routeJobId ?? co.job_id);
+      if (!active || !job) return;
+      setRouteCoDetail({ co, job });
+      setWorkOrderDetailJobId(job.id);
+      setWorkOrderDetailJob(job);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [routeCoId, routeJobId, view]);
+
+  useEffect(() => {
+    if (view !== 'invoice-final' || !routeInvoiceId) {
+      setRouteInvoiceFinal(null);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const inv = await getInvoice(routeInvoiceId);
+      if (!active || !inv) return;
+      const job = await getJobById(inv.job_id);
+      if (!active || !job) return;
+      setRouteInvoiceFinal({ invoice: inv, job });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [routeInvoiceId, view]);
+
+  useEffect(() => {
+    if (view !== 'invoice-wizard' || !routeJobId) {
+      setRouteInvoiceWizard(null);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const job = await getJobById(routeJobId);
+      if (!active || !job) return;
+      const co = routeCoId ? await getChangeOrderById(routeCoId) : null;
+      if (!active) return;
+      const existingInvoice = routeInvoiceId ? await getInvoice(routeInvoiceId) : null;
+      if (!active) return;
+      setRouteInvoiceWizard({
+        job,
+        changeOrder: co && co.job_id === job.id ? co : null,
+        existingInvoice,
+      });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [routeCoId, routeInvoiceId, routeJobId, view]);
+
+  useEffect(() => {
+    if (view !== 'change-order-wizard' || !routeJobId) {
+      setRouteChangeOrderWizard(null);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const job = await getJobById(routeJobId);
+      if (!active || !job) return;
+      const existingCO = routeCoId ? await getChangeOrderById(routeCoId) : null;
+      if (!active) return;
+      setRouteChangeOrderWizard({
+        job,
+        existingCO: existingCO && existingCO.job_id === job.id ? existingCO : null,
+      });
+      setWorkOrderDetailJobId(job.id);
+      setWorkOrderDetailJob(job);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [routeCoId, routeJobId, view]);
+
   const openWorkOrders = () => {
     setProfileEntrySource(null);
     navigateTo('work-orders');
@@ -324,7 +444,7 @@ function App() {
     setWorkOrderDetailJobId(jobId);
     setWorkOrderDetailJob(null);
     setWorkOrderDetailStartSection(targetSection);
-    navigateTo('work-order-detail');
+    navigateTo('work-order-detail', { jobId, startSection: targetSection });
   };
 
   const handleBackFromWorkOrderDetail = () => {
@@ -396,6 +516,20 @@ function App() {
   const showTabs = view === 'form' || view === 'preview';
   const showBottomNav = Boolean(user && profile);
   const showHeaderNavLinks = Boolean(user && !profile);
+  const effectiveWorkOrderDetailJobId = workOrderDetailJobId ?? routeJobId;
+  const effectiveWorkOrderStartSection = routeStartSection ?? workOrderDetailStartSection;
+  const coDetailCo = changeOrder.coDetailCO ?? routeCoDetail?.co ?? null;
+  const coDetailJob = workOrderDetailJob ?? routeCoDetail?.job ?? null;
+  const changeOrderWizardJob = changeOrder.changeOrderFlowJob ?? routeChangeOrderWizard?.job ?? null;
+  const changeOrderWizardExisting = changeOrder.wizardExistingCO ?? routeChangeOrderWizard?.existingCO ?? null;
+  const invoiceWizardJob = invoice.invoiceFlowJob ?? routeInvoiceWizard?.job ?? null;
+  const invoiceWizardCO = invoice.invoiceFlowChangeOrder ?? routeInvoiceWizard?.changeOrder ?? null;
+  const invoiceWizardExisting = invoice.wizardExistingInvoice ?? routeInvoiceWizard?.existingInvoice ?? null;
+  const invoiceFinalJob = invoice.invoiceFlowJob ?? routeInvoiceFinal?.job ?? null;
+  const invoiceFinalInvoice = invoice.activeInvoice ?? routeInvoiceFinal?.invoice ?? null;
+  const invoiceFinalCoId =
+    invoice.invoiceFlowChangeOrder?.id ??
+    (invoiceFinalInvoice ? deriveSingleChangeOrderId(invoiceFinalInvoice) : undefined);
 
   const homePageEl = (
     <HomePage
@@ -464,16 +598,16 @@ function App() {
         />
       );
     }
-    if (view === 'work-order-detail' && user && profile && workOrderDetailJobId) {
+    if (view === 'work-order-detail' && user && profile && effectiveWorkOrderDetailJobId) {
       return renderLazyPage(
         <WorkOrderDetailPage
-          key={`${workOrderDetailJobId}-${changeOrderListVersion}`}
+          key={`${effectiveWorkOrderDetailJobId}-${changeOrderListVersion}-${effectiveWorkOrderStartSection}`}
           userId={user.id}
-          jobId={workOrderDetailJobId}
+          jobId={effectiveWorkOrderDetailJobId}
           job={workOrderDetailJob}
           profile={profile}
           changeOrderListVersion={changeOrderListVersion}
-          initialScrollTarget={workOrderDetailStartSection}
+          initialScrollTarget={effectiveWorkOrderStartSection}
           onJobLoaded={(job: Job) => {
             setWorkOrderDetailJobId(job.id);
             setWorkOrderDetailJob(job);
@@ -500,13 +634,13 @@ function App() {
         />
       );
     }
-    if (view === 'co-detail' && user && profile && workOrderDetailJob && changeOrder.coDetailCO) {
+    if (view === 'co-detail' && user && profile && coDetailJob && coDetailCo) {
       return renderLazyPage(
         <ChangeOrderDetailPage
-          key={changeOrder.coDetailCO.id}
+          key={coDetailCo.id}
           userId={user.id}
-          co={changeOrder.coDetailCO}
-          job={workOrderDetailJob}
+          co={coDetailCo}
+          job={coDetailJob}
           profile={profile}
           onBack={handleBackFromCODetail}
           onEdit={changeOrderFlow.handleEditCOFromDetail}
@@ -515,41 +649,51 @@ function App() {
         />
       );
     }
-    if (view === 'change-order-wizard' && user && profile && changeOrder.changeOrderFlowJob) {
+    if (view === 'change-order-wizard' && user && profile && changeOrderWizardJob) {
       return renderLazyPage(
         <ChangeOrderWizard
-          key={changeOrder.wizardExistingCO?.id ?? 'new-co'}
+          key={changeOrderWizardExisting?.id ?? `new-co-${changeOrderWizardJob.id}`}
           userId={user.id}
-          job={changeOrder.changeOrderFlowJob}
+          job={changeOrderWizardJob}
           profile={profile}
-          existingCO={changeOrder.wizardExistingCO}
+          existingCO={changeOrderWizardExisting}
           onComplete={changeOrderFlow.handleChangeOrderWizardComplete}
           onCancel={changeOrderFlow.handleChangeOrderWizardCancel}
         />
       );
     }
-    if (view === 'invoice-wizard' && user && profile && invoice.invoiceFlowJob) {
+    if (view === 'invoice-wizard' && user && profile && invoiceWizardJob) {
       return renderLazyPage(
         <InvoiceWizard
-          key={`${invoice.invoiceFlowJob.id}-${invoice.invoiceFlowChangeOrder?.id ?? 'job'}-${invoice.wizardExistingInvoice?.id ?? 'new'}`}
+          key={`${invoiceWizardJob.id}-${invoiceWizardCO?.id ?? 'job'}-${invoiceWizardExisting?.id ?? 'new'}`}
           userId={user.id}
-          job={invoice.invoiceFlowJob}
-          changeOrder={invoice.invoiceFlowTarget === 'change_order' ? invoice.invoiceFlowChangeOrder : null}
+          job={invoiceWizardJob}
+          changeOrder={invoiceWizardCO}
           profile={profile}
-          existingInvoice={invoice.wizardExistingInvoice}
+          existingInvoice={invoiceWizardExisting}
           onCancel={invoiceFlow.handleInvoiceWizardCancel}
           onSuccess={invoiceFlow.handleInvoiceWizardSuccess}
         />
       );
     }
-    if (view === 'invoice-final' && user && profile && invoice.invoiceFlowJob && invoice.activeInvoice) {
+    if (view === 'invoice-final' && user && profile && invoiceFinalJob && invoiceFinalInvoice) {
       return renderLazyPage(
         <InvoiceFinalPage
-          invoice={invoice.activeInvoice}
-          job={invoice.invoiceFlowJob}
+          invoice={invoiceFinalInvoice}
+          job={invoiceFinalJob}
           profile={profile}
           onBack={invoiceFlow.handleInvoiceFinalBack}
-          onEditInvoice={invoiceFlow.handleEditInvoice}
+          onEditInvoice={() => {
+            if (invoice.activeInvoice && invoice.invoiceFlowJob) {
+              invoiceFlow.handleEditInvoice();
+              return;
+            }
+            navigateTo('invoice-wizard', {
+              jobId: invoiceFinalJob.id,
+              invoiceId: invoiceFinalInvoice.id,
+              coId: invoiceFinalCoId,
+            });
+          }}
           onInvoiceUpdated={invoiceFlow.handleInvoiceUpdated}
           onOpenStripeSetup={() => {
             profileScrollToStripeRef.current = true;

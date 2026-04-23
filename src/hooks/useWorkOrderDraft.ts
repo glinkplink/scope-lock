@@ -9,7 +9,7 @@ import {
   DEFAULT_LATE_FEE_RATE,
   DEFAULT_PAYMENT_TERMS_DAYS,
 } from '../lib/payment-terms';
-import type { AppView } from './useAppNavigation';
+import type { AppRouteParams, AppView } from './useAppNavigation';
 
 export type LoadProfileFn = (options?: { silent?: boolean }) => void | Promise<void>;
 
@@ -72,7 +72,7 @@ function scrollWindowToTop() {
 export function useWorkOrderDraft(
   profile: BusinessProfile | null,
   userId: string | null,
-  navigateTo: (view: AppView) => void,
+  navigateTo: (view: AppView, params?: AppRouteParams) => void,
   loadProfile: LoadProfileFn,
   /** Called when a fresh work order draft is created (new agreement or after discard). */
   onNewDraft?: () => void

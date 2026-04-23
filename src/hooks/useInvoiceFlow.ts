@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ChangeOrder, Job, Invoice } from '../types/db';
-import type { AppView } from './useAppNavigation';
+import type { AppRouteParams, AppView } from './useAppNavigation';
 
 export type InvoiceFlowState = {
   invoiceFlowJob: Job | null;
@@ -25,7 +25,7 @@ const initialInvoice: InvoiceFlowState = {
 type LoadProfile = (opts?: { silent?: boolean }) => void | Promise<void>;
 
 export function useInvoiceFlow(
-  navigateTo: (view: AppView) => void,
+  navigateTo: (view: AppView, params?: AppRouteParams) => void,
   loadProfile: LoadProfile
 ) {
   const [invoice, setInvoice] = useState<InvoiceFlowState>(initialInvoice);
@@ -45,7 +45,7 @@ export function useInvoiceFlow(
         activeInvoice: null,
         invoiceFinalReturnView: 'work-orders',
       }));
-      navigateTo('invoice-wizard');
+      navigateTo('invoice-wizard', { jobId: jobRow.id });
     },
     [navigateTo]
   );
@@ -61,7 +61,7 @@ export function useInvoiceFlow(
         activeInvoice: null,
         invoiceFinalReturnView: 'work-orders',
       }));
-      navigateTo('invoice-wizard');
+      navigateTo('invoice-wizard', { jobId: jobRow.id, coId: changeOrder.id });
     },
     [navigateTo]
   );
@@ -77,7 +77,7 @@ export function useInvoiceFlow(
         activeInvoice: inv,
         invoiceFinalReturnView: returnView,
       }));
-      navigateTo('invoice-final');
+      navigateTo('invoice-final', { invoiceId: inv.id });
     },
     [navigateTo]
   );
@@ -93,7 +93,7 @@ export function useInvoiceFlow(
         activeInvoice: inv,
         invoiceFinalReturnView: returnView,
       }));
-      navigateTo('invoice-final');
+      navigateTo('invoice-final', { invoiceId: inv.id });
     },
     [navigateTo]
   );
@@ -105,7 +105,7 @@ export function useInvoiceFlow(
         activeInvoice: inv,
         wizardExistingInvoice: null,
       }));
-      navigateTo('invoice-final');
+      navigateTo('invoice-final', { invoiceId: inv.id });
       void loadProfile({ silent: true });
     },
     [navigateTo, loadProfile]
@@ -115,7 +115,11 @@ export function useInvoiceFlow(
     const i = invoiceRef.current;
     if (i.wizardExistingInvoice) {
       setInvoice((prev) => ({ ...prev, wizardExistingInvoice: null }));
-      navigateTo('invoice-final');
+      if (i.activeInvoice?.id) {
+        navigateTo('invoice-final', { invoiceId: i.activeInvoice.id });
+      } else {
+        navigateTo('work-orders');
+      }
     } else {
       setInvoice((prev) => ({
         ...prev,
@@ -145,12 +149,17 @@ export function useInvoiceFlow(
   }, [navigateTo]);
 
   const handleEditInvoice = useCallback(() => {
-    if (!invoiceRef.current.activeInvoice) return;
+    const current = invoiceRef.current;
+    if (!current.activeInvoice || !current.invoiceFlowJob) return;
     setInvoice((i) => ({
       ...i,
       wizardExistingInvoice: i.activeInvoice,
     }));
-    navigateTo('invoice-wizard');
+    navigateTo('invoice-wizard', {
+      jobId: current.invoiceFlowJob.id,
+      coId: current.invoiceFlowChangeOrder?.id ?? undefined,
+      invoiceId: current.activeInvoice.id,
+    });
   }, [navigateTo]);
 
   const handleInvoiceUpdated = useCallback((inv: Invoice) => {

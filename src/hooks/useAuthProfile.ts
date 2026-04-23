@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 import { getProfile } from '../lib/db/profile';
 import type { BusinessProfile } from '../types/db';
-import type { AppView } from './useAppNavigation';
+import type { AppRouteParams, AppView } from './useAppNavigation';
 import type { CaptureFlowFinishedPayload } from '../types/capture-flow';
 import { getStripeConnectStatus } from '../lib/stripe-connect';
 
@@ -21,7 +21,7 @@ type PostCapturePayloadV2 = {
 type PostCapturePayloadLegacy = { userId: string; ts: number; pdfOk: boolean };
 
 export type UseAuthProfileOptions = {
-  replaceView: (next: AppView) => void;
+  replaceView: (next: AppView, params?: AppRouteParams) => void;
   setWorkOrdersSuccessBanner: (msg: string | null) => void;
 };
 
@@ -254,15 +254,8 @@ export function useAuthProfile({
     if (!stripeConnectState) return;
 
     let active = true;
-    url.searchParams.delete('stripe_connect');
-    const nextUrl = `${url.pathname}${url.search.replace(/^\?$/, '')}${url.hash}`;
-    const syncProfileView = () => {
-      window.history.replaceState({ view: 'profile' }, '', nextUrl);
-      replaceView('profile');
-    };
-
     const run = async () => {
-      syncProfileView();
+      replaceView('profile');
 
       if (stripeConnectState === 'refresh') {
         try {
