@@ -368,6 +368,47 @@ function mergeEditedInvoiceLineItems(
   return assignLinePositions(merged);
 }
 
+export function computeSignedCOLines(
+  invoice: Invoice,
+  signedCOs: ChangeOrder[]
+): { lines: InvoiceLineItem[]; changed: boolean } {
+  const existing = invoice.line_items;
+  const existingCoById = new Map<string, InvoiceLineItem>();
+  for (const line of existing) {
+    if (line.source === 'change_order' && line.change_order_id) {
+      existingCoById.set(line.change_order_id, line);
+    }
+  }
+
+  const signedIds = new Set(signedCOs.map((c) => c.id));
+  const nonCoLines = existing.filter(
+    (l) => !(l.source === 'change_order' && l.change_order_id)
+  );
+
+  const newCoLines = buildChangeOrderInvoiceLines(signedCOs);
+
+  // Detect change: same set of CO ids, same amounts
+  const oldCoLines = existing.filter(
+    (l) => l.source === 'change_order' && l.change_order_id
+  );
+  const oldIds = new Set(oldCoLines.map((l) => l.change_order_id as string));
+  const sameIds =
+    oldIds.size === signedIds.size && [...signedIds].every((id) => oldIds.has(id));
+  const sameAmounts =
+    sameIds &&
+    newCoLines.every((nl) => {
+      const ol = existingCoById.get(nl.change_order_id as string);
+      return ol && ol.total === nl.total;
+    });
+
+  if (sameIds && sameAmounts) {
+    return { lines: existing, changed: false };
+  }
+
+  const merged = assignLinePositions([...nonCoLines, ...newCoLines]);
+  return { lines: merged, changed: true };
+}
+
 export function buildInvoiceLineItems(opts: BuildInvoiceLineItemsOpts): InvoiceLineItem[] {
   const includeBaseScope = opts.includeBaseScope ?? true;
   const structuredLineMetadata = opts.existingLineItems

@@ -5,6 +5,9 @@ import { getInvoice, getInvoiceBusinessStatus, updateInvoice } from '../lib/db/i
 import { fetchWithSupabaseAuth } from '../lib/fetch-with-supabase-auth';
 import { sendInvoice } from '../lib/invoice-send';
 import { getWorkOrderSignatureState } from '../lib/work-order-signature';
+import { listChangeOrders } from '../lib/db/change-orders';
+import { computeSignedCOLines } from '../lib/invoice-line-items';
+import { isChangeOrderSignatureSatisfied } from '../lib/change-order-signature';
 import { InvoicePreviewModal } from './InvoicePreviewModal';
 import { useScaledPreview } from '../hooks/useScaledPreview';
 import {
@@ -110,6 +113,26 @@ export function InvoiceFinalPage({
     void getInvoice(invoiceProp.id).then((row) => {
       if (row) onInvoiceUpdatedRef.current(row);
     });
+  }, [invoiceProp.id]);
+
+  // Recompute CO lines on open for drafts — keeps invoice current if COs were signed after draft was created.
+  useEffect(() => {
+    if (invoiceProp.issued_at) return;
+    void (async () => {
+      const allCOs = await listChangeOrders(invoiceProp.job_id);
+      const signedCOs = allCOs.filter((co) =>
+        isChangeOrderSignatureSatisfied(co.esign_status, co.offline_signed_at)
+      );
+      const { lines, changed } = computeSignedCOLines(invoiceProp, signedCOs);
+      if (!changed) return;
+      const subtotal = lines.reduce((s, l) => s + l.total, 0);
+      const tax_amount = Math.round((subtotal * invoiceProp.tax_rate + Number.EPSILON) * 100) / 100;
+      const total = Math.round((subtotal + tax_amount + Number.EPSILON) * 100) / 100;
+      const updated = { ...invoiceProp, line_items: lines, subtotal, tax_amount, total };
+      const { data } = await updateInvoice(updated);
+      if (data) onInvoiceUpdatedRef.current(data);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceProp.id]);
 
   useEffect(() => {
