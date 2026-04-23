@@ -4,6 +4,7 @@ import { createChangeOrder, updateChangeOrder, computeCOTotal } from '../lib/db/
 import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
 import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import { mergeEsignResponseIntoChangeOrder, sendChangeOrderForSignature } from '../lib/esign-api';
+import './InvoiceWizard.css';
 import './ChangeOrderWizard.css';
 
 const REASON_PRESETS = [

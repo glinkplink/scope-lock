@@ -50,7 +50,7 @@ export function docusealAgreementEmbeddedStyles(): string {
       background: #fff; font-family: Barlow, system-ui, sans-serif;
     }
     .agreement-section {
-      margin-bottom: 0; padding-bottom: 0.5rem; break-inside: avoid; page-break-inside: avoid;
+      margin-bottom: 0; padding-bottom: 0.5rem;
     }
     .agreement-section:not(:first-child) { padding-top: 24px; }
     .agreement-section:last-child { padding-bottom: 0; }

@@ -820,8 +820,6 @@ body::before {
   margin-bottom: var(--space-md);
   padding-bottom: var(--space-md);
   border-bottom: none;
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 .agreement-section:last-child {
