@@ -634,7 +634,6 @@ function App() {
           key={changeOrderWizardExisting?.id ?? `new-co-${changeOrderWizardJob.id}`}
           userId={user.id}
           job={changeOrderWizardJob}
-          profile={profile}
           existingCO={changeOrderWizardExisting}
           onComplete={changeOrderFlow.handleChangeOrderWizardComplete}
           onCancel={changeOrderFlow.handleChangeOrderWizardCancel}

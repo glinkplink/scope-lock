@@ -1,9 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { Job, BusinessProfile, ChangeOrder, ChangeOrderLineItem } from '../types/db';
+import type { Job, ChangeOrder, ChangeOrderLineItem } from '../types/db';
 import { createChangeOrder, updateChangeOrder, computeCOTotal } from '../lib/db/change-orders';
-import { buildChangeOrderEsignSendPayload } from '../lib/docuseal-change-order-html';
-import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
-import { mergeEsignResponseIntoChangeOrder, sendChangeOrderForSignature } from '../lib/esign-api';
 import './InvoiceWizard.css';
 import './ChangeOrderWizard.css';
 
@@ -14,7 +11,7 @@ const REASON_PRESETS = [
   'Other',
 ] as const;
 
-const CHANGE_ORDER_WIZARD_STEPS = ['What Changed', 'Cost Adjustment', 'Review & Send'] as const;
+const CHANGE_ORDER_WIZARD_STEPS = ['What Changed', 'Cost Adjustment', 'Review & Save'] as const;
 
 type ReasonPreset = (typeof REASON_PRESETS)[number];
 
@@ -30,7 +27,6 @@ function newLineItem(): ChangeOrderLineItem {
 export interface ChangeOrderWizardProps {
   userId: string;
   job: Job;
-  profile: BusinessProfile;
   existingCO?: ChangeOrder | null;
   onComplete: (co: ChangeOrder) => void;
   onCancel: () => void;
@@ -39,7 +35,6 @@ export interface ChangeOrderWizardProps {
 export function ChangeOrderWizard({
   userId,
   job,
-  profile,
   existingCO,
   onComplete,
   onCancel,
@@ -177,19 +172,7 @@ export function ChangeOrderWizard({
         return;
       }
 
-      if (!(job.customer_email || '').trim()) {
-        setError('Customer email is missing on this work order. Edit the job to add it.');
-        return;
-      }
-
-      const providerSignatureDataUrl = await buildDocusealProviderSignatureImage(
-        profile?.owner_name?.trim() || ''
-      );
-      const payload = buildChangeOrderEsignSendPayload(savedCo, job, profile, {
-        providerSignatureDataUrl,
-      });
-      const response = await sendChangeOrderForSignature(savedCo.id, payload);
-      onComplete(mergeEsignResponseIntoChangeOrder(savedCo, response));
+      onComplete(savedCo);
     } finally {
       setSubmitting(false);
     }
@@ -517,7 +500,7 @@ export function ChangeOrderWizard({
               disabled={submitting}
               onClick={() => void handleSave()}
             >
-              {submitting ? 'Saving and sending…' : 'Save and Send Change Order'}
+              {submitting ? 'Saving…' : 'Save Change Order'}
             </button>
           </div>
         </section>

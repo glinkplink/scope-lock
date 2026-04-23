@@ -4,12 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChangeOrderWizard } from '../ChangeOrderWizard';
-import type { BusinessProfile, ChangeOrder, Job } from '../../types/db';
+import type { ChangeOrder, Job } from '../../types/db';
 
 const createChangeOrder = vi.fn();
 const updateChangeOrder = vi.fn();
-const sendChangeOrderForSignature = vi.fn();
-const mergeEsignResponseIntoChangeOrder = vi.fn();
 
 vi.mock('../../lib/db/change-orders', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/db/change-orders')>();
@@ -19,44 +17,6 @@ vi.mock('../../lib/db/change-orders', async (importOriginal) => {
     updateChangeOrder: (...args: unknown[]) => updateChangeOrder(...args),
   };
 });
-
-vi.mock('../../lib/esign-api', () => ({
-  sendChangeOrderForSignature: (...args: unknown[]) => sendChangeOrderForSignature(...args),
-  mergeEsignResponseIntoChangeOrder: (...args: unknown[]) => mergeEsignResponseIntoChangeOrder(...args),
-}));
-
-vi.mock('../../lib/docuseal-signature-image', () => ({
-  buildDocusealProviderSignatureImage: vi.fn(() => Promise.resolve('data:image/png;base64,abc')),
-}));
-
-function profileFixture(): BusinessProfile {
-  return {
-    id: 'profile-1',
-    user_id: 'user-1',
-    business_name: 'IronWork Test',
-    owner_name: 'Owner Name',
-    phone: null,
-    email: null,
-    address: null,
-    google_business_profile_url: null,
-    default_exclusions: [],
-    default_assumptions: [],
-    next_wo_number: 1,
-    next_invoice_number: 1,
-    default_warranty_period: 30,
-    default_negotiation_period: 10,
-    default_payment_methods: [],
-    default_tax_rate: 0,
-    default_late_payment_terms: '',
-    default_payment_terms_days: 30,
-    default_late_fee_rate: 0,
-    default_card_fee_note: false,
-    stripe_account_id: null,
-    stripe_onboarding_complete: false,
-    created_at: '',
-    updated_at: '',
-  };
-}
 
 function jobFixture(): Job {
   return {
@@ -165,7 +125,6 @@ function renderWizard(existingCO?: ChangeOrder | null) {
     <ChangeOrderWizard
       userId="user-1"
       job={jobFixture()}
-      profile={profileFixture()}
       existingCO={existingCO}
       onComplete={onComplete}
       onCancel={vi.fn()}
@@ -178,12 +137,6 @@ describe('ChangeOrderWizard', () => {
   beforeEach(() => {
     createChangeOrder.mockReset();
     updateChangeOrder.mockReset();
-    sendChangeOrderForSignature.mockReset();
-    mergeEsignResponseIntoChangeOrder.mockReset();
-    mergeEsignResponseIntoChangeOrder.mockImplementation((co, response) => ({
-      ...co,
-      ...response,
-    }));
   });
 
   afterEach(() => {
@@ -214,15 +167,10 @@ describe('ChangeOrderWizard', () => {
     expect(screen.getByRole('heading', { name: /review & save/i })).toBeInTheDocument();
   });
 
-  it('saves and sends a new change order from the final step', async () => {
+  it('saves a new change order from the final step without sending', async () => {
     const user = userEvent.setup();
     const savedCo = changeOrderFixture({ id: 'co-new', description: 'Saved CO' });
-    const onCompleteResponse = {
-      esign_status: 'sent',
-      esign_submitter_id: 'submitter-1',
-    };
     createChangeOrder.mockResolvedValue({ data: savedCo, error: null });
-    sendChangeOrderForSignature.mockResolvedValue(onCompleteResponse);
 
     const { onComplete } = renderWizard();
 
@@ -231,17 +179,11 @@ describe('ChangeOrderWizard', () => {
     await user.type(screen.getByLabelText(/^Description$/i), 'Extra weld pass');
     await user.type(screen.getByLabelText(/^Rate$/i), '125');
     await user.click(screen.getByRole('button', { name: /^Next$/i }));
-    await user.click(screen.getByRole('button', { name: /save and send change order/i }));
+    await user.click(screen.getByRole('button', { name: /^Save Change Order$/i }));
 
     await waitFor(() => {
       expect(createChangeOrder).toHaveBeenCalledTimes(1);
-      expect(sendChangeOrderForSignature).toHaveBeenCalledTimes(1);
-      expect(onComplete).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'co-new',
-          esign_status: 'sent',
-        })
-      );
+      expect(onComplete).toHaveBeenCalledWith(savedCo);
     });
   });
 
