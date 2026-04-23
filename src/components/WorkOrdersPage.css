@@ -498,9 +498,9 @@
 }
 
 .work-orders-page .wo-row-invoice-btn--paid {
-  background: rgba(6, 214, 160, 0.2);
-  color: #7ee8c8;
-  border: 1px solid rgba(6, 214, 160, 0.45);
+  background: var(--iw-payment-stripe-bg);
+  color: var(--iw-payment-stripe-fg);
+  border: 1px solid var(--iw-payment-stripe-border);
 }
 
 .work-orders-page .wo-row-invoice-btn--paid:hover:not(:disabled) {
@@ -508,9 +508,9 @@
 }
 
 .work-orders-page .wo-row-invoice-btn--offline {
-  background: rgba(129, 140, 248, 0.2);
-  color: #c4b5fd;
-  border: 1px solid rgba(129, 140, 248, 0.45);
+  background: var(--iw-payment-offline-bg);
+  color: var(--iw-payment-offline-fg);
+  border: 1px solid var(--iw-payment-offline-border);
 }
 
 .work-orders-page .wo-row-invoice-btn--offline:hover:not(:disabled) {

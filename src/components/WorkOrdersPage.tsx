@@ -133,7 +133,7 @@ function getRowInvoiceLabel(job: WorkOrderDashboardJob): string | null {
   const invoice = job.latestInvoice;
   if (!invoice) return null;
   if (invoice.payment_status === 'paid') return 'Paid';
-  if (invoice.payment_status === 'offline') return 'Paid Offline';
+  if (invoice.payment_status === 'offline') return 'Paid offline';
   if (getInvoiceBusinessStatus(invoice) === 'draft') return 'Invoice draft';
   return 'Invoiced';
 }
@@ -269,7 +269,7 @@ const WorkOrderRow = memo(function WorkOrderRow({
             disabled={rowBusy}
             onClick={() => onOpenPendingInvoice(job)}
           >
-            Paid Offline
+            Paid offline
           </button>
         ) : getInvoiceBusinessStatus(invoice) === 'draft' ? (
           <button

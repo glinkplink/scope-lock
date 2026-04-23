@@ -56,26 +56,6 @@
   color: var(--iron-200);
 }
 
-.badge-paid {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #f4fffa;
-  background-color: #1f7a53;
-  border-radius: var(--radius);
-}
-
-.badge-offline {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff7e9;
-  background-color: #8a5b12;
-  border-radius: var(--radius);
-}
-
 .wo-detail-invoice-strip {
   border-bottom: none;
 }

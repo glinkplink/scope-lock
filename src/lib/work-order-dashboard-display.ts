@@ -36,14 +36,14 @@ export function formatWorkOrderDashboardWoLabel(job: WorkOrderDashboardJob): str
 }
 
 /**
- * Single badge for Home recent rows: invoice-first (matches list action column + detail “Paid Offline”),
+ * Single badge for Home recent rows: invoice-first (matches list action column + detail paid pills),
  * else primary e-sign label (matches list strip visibility and text).
  */
 export function compactWorkOrderDashboardStatusLabel(job: WorkOrderDashboardJob): string | null {
   const inv = job.latestInvoice;
   if (inv) {
     if (inv.payment_status === 'paid') return 'Paid';
-    if (inv.payment_status === 'offline') return 'Paid Offline';
+    if (inv.payment_status === 'offline') return 'Paid offline';
     if (getInvoiceBusinessStatus(inv) === 'draft') return 'Invoice draft';
     return 'Invoiced';
   }

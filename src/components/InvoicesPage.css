@@ -53,7 +53,8 @@
 }
 
 /* Status uses same classes as WO invoice buttons but is non-interactive */
-.invoices-page.work-orders-page .work-orders-row-actions span.wo-row-invoice-btn {
+.invoices-page.work-orders-page .work-orders-row-actions span.wo-row-invoice-btn,
+.invoices-page.work-orders-page .work-orders-row-actions span.iw-payment-badge {
   cursor: default;
   pointer-events: none;
   user-select: none;

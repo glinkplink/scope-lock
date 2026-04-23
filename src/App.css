@@ -89,6 +89,55 @@
   --form-label: var(--iron-200);
   --form-placeholder: var(--iron-400);
   --focus-ring-spark: 0 0 0 3px var(--spark-glow);
+
+  /* Invoice payment chips (Forge shell lists + WO detail): Stripe `paid` vs `offline` */
+  --iw-payment-stripe-bg: #0a4d32;
+  --iw-payment-stripe-fg: #e8faf1;
+  --iw-payment-stripe-border: rgba(110, 231, 183, 0.45);
+  --iw-payment-offline-bg: rgba(190, 244, 210, 0.95);
+  --iw-payment-offline-fg: #052818;
+  --iw-payment-offline-border: rgba(52, 150, 95, 0.55);
+}
+
+/* Same chip shape + type as `.wo-row-invoice-btn--draft` / `--invoiced` (WorkOrdersPage.css) */
+.iw-payment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px var(--space-md);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--shell-radius-sm);
+}
+
+.iw-payment-badge--stripe {
+  background: var(--iw-payment-stripe-bg);
+  color: var(--iw-payment-stripe-fg);
+  border: 1px solid var(--iw-payment-stripe-border);
+}
+
+.iw-payment-badge--offline {
+  background: var(--iw-payment-offline-bg);
+  color: var(--iw-payment-offline-fg);
+  border: 1px solid var(--iw-payment-offline-border);
+}
+
+/* Same chip treatment as WorkOrders list draft / invoiced (non-payment invoice states) */
+.iw-payment-badge--draft {
+  background: rgba(212, 160, 23, 0.25);
+  color: #f5e6a8;
+  border: 1px solid rgba(212, 160, 23, 0.5);
+}
+
+.iw-payment-badge--invoiced {
+  background: rgba(45, 106, 46, 0.35);
+  color: #c8e6c9;
+  border: 1px solid rgba(74, 124, 75, 0.6);
 }
 
 body {

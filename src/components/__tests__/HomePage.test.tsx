@@ -17,9 +17,13 @@ vi.mock('../../lib/db/jobs', () => ({
   getSignedWorkOrdersCount: (...args: unknown[]) => getSignedWorkOrdersCount(...args),
 }));
 
-vi.mock('../../lib/db/invoices', () => ({
-  getInvoiceDashboardSummary: (...args: unknown[]) => getInvoiceDashboardSummary(...args),
-}));
+vi.mock('../../lib/db/invoices', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/db/invoices')>();
+  return {
+    ...actual,
+    getInvoiceDashboardSummary: (...args: unknown[]) => getInvoiceDashboardSummary(...args),
+  };
+});
 
 const minimalProfile: BusinessProfile = {
   id: 'p1',
@@ -299,6 +303,77 @@ describe('HomePage', () => {
     await user.click(screen.getByRole('button', { name: /WO #0001/i }));
 
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-1');
+  });
+
+  it('recent row shows invoice draft chip like work orders list', async () => {
+    const jobDraft: WorkOrderDashboardJob = {
+      ...listJob,
+      latestInvoice: {
+        id: 'inv-draft',
+        job_id: 'job-1',
+        issued_at: null,
+        invoice_number: 1,
+        created_at: '2025-06-02T00:00:00Z',
+        payment_status: 'unpaid',
+      },
+    };
+    listWorkOrdersDashboardPage.mockResolvedValue({
+      data: [jobDraft],
+      error: null,
+      hasMore: false,
+      nextCursor: null,
+    });
+    getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryOk, error: null });
+
+    render(<HomePage {...signedInProps()} />);
+
+    await waitFor(() => {
+      const draftChip = screen.getByText('Invoice draft');
+      expect(draftChip).toHaveClass('iw-payment-badge', 'iw-payment-badge--draft');
+    });
+  });
+
+  it('invoice chip calls onOpenInvoiceFromDashboard without opening WO', async () => {
+    const user = userEvent.setup();
+    const onOpenWorkOrderDetail = vi.fn();
+    const onOpenInvoiceFromDashboard = vi.fn();
+    const jobDraft: WorkOrderDashboardJob = {
+      ...listJob,
+      latestInvoice: {
+        id: 'inv-draft',
+        job_id: 'job-1',
+        issued_at: null,
+        invoice_number: 1,
+        created_at: '2025-06-02T00:00:00Z',
+        payment_status: 'unpaid',
+      },
+    };
+    listWorkOrdersDashboardPage.mockResolvedValue({
+      data: [jobDraft],
+      error: null,
+      hasMore: false,
+      nextCursor: null,
+    });
+    getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryOk, error: null });
+
+    render(
+      <HomePage
+        {...signedInProps()}
+        onOpenWorkOrderDetail={onOpenWorkOrderDetail}
+        onOpenInvoiceFromDashboard={onOpenInvoiceFromDashboard}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Invoice draft')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /Open invoice for WO #0001/i }));
+
+    expect(onOpenInvoiceFromDashboard).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'job-1', latestInvoice: expect.objectContaining({ id: 'inv-draft' }) })
+    );
+    expect(onOpenWorkOrderDetail).not.toHaveBeenCalled();
   });
 
   it('compact status: invoice paid overrides signature on recent row', async () => {

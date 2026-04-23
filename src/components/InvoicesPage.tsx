@@ -34,10 +34,10 @@ function formatWoLabel(woNumber: number | null): string {
 function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } {
   const businessStatus = getInvoiceBusinessStatus(invoice);
   if (invoice.payment_status === 'paid') {
-    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--paid', label: 'Paid' };
+    return { className: 'iw-payment-badge iw-payment-badge--stripe', label: 'Paid' };
   }
   if (invoice.payment_status === 'offline') {
-    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--offline', label: 'Paid Offline' };
+    return { className: 'iw-payment-badge iw-payment-badge--offline', label: 'Paid offline' };
   }
   if (businessStatus === 'draft') {
     return { className: 'wo-row-invoice-btn wo-row-invoice-btn--draft', label: 'Invoice draft' };

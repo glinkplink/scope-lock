@@ -7,7 +7,7 @@ export type InvoiceFlowState = {
   invoiceFlowJob: Job | null;
   wizardExistingInvoice: Invoice | null;
   activeInvoice: Invoice | null;
-  invoiceFinalReturnView: 'work-orders' | 'invoices';
+  invoiceFinalReturnView: 'work-orders' | 'invoices' | 'home';
   refreshKey: number;
 };
 
@@ -61,7 +61,7 @@ export function useInvoiceFlow(
   );
 
   const handleOpenPendingInvoice = useCallback(
-    (jobRow: Job, inv: Invoice, returnView: 'work-orders' | 'invoices' = 'work-orders') => {
+    (jobRow: Job, inv: Invoice, returnView: 'work-orders' | 'invoices' | 'home' = 'work-orders') => {
       setInvoice((i) => ({
         ...i,
         invoiceFlowJob: jobRow,

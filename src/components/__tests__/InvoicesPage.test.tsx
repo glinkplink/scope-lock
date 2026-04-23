@@ -176,7 +176,7 @@ describe('InvoicesPage', () => {
     );
 
     const statGroup = await screen.findByRole('group', {
-      name: /^Invoiced, paid, and pending invoice totals$/i,
+      name: /^Outstanding and paid invoice totals$/i,
     });
     expect(within(statGroup).getByText('$900')).toBeInTheDocument();
     expect(within(statGroup).getByText('Paid')).toBeInTheDocument();
@@ -244,12 +244,12 @@ describe('InvoicesPage', () => {
     );
 
     const statGroup = await screen.findByRole('group', {
-      name: /^Invoiced, paid, and pending invoice totals$/i,
+      name: /^Outstanding and paid invoice totals$/i,
     });
     expect(within(statGroup).getByText('$46,376')).toBeInTheDocument();
     expect(within(statGroup).getByText('$11,496')).toBeInTheDocument();
-    expect(within(statGroup).getByText('$1,000')).toBeInTheDocument();
-    expect(within(screen.getByRole('list')).getAllByText('Paid Offline')).toHaveLength(2);
+    expect(within(screen.getByRole('list')).getByText('Draft Customer')).toBeInTheDocument();
+    expect(within(screen.getByRole('list')).getAllByText(/paid offline/i)).toHaveLength(2);
   });
 
   it('renders draft, invoiced, paid, and paid offline status pills (WO row invoice button styles)', async () => {
@@ -301,10 +301,10 @@ describe('InvoicesPage', () => {
       'wo-row-invoice-btn',
       'wo-row-invoice-btn--invoiced'
     );
-    expect(within(list).getByText('Paid')).toHaveClass('wo-row-invoice-btn', 'wo-row-invoice-btn--paid');
-    expect(within(list).getByText('Paid Offline')).toHaveClass(
-      'wo-row-invoice-btn',
-      'wo-row-invoice-btn--offline'
+    expect(within(list).getByText('Paid')).toHaveClass('iw-payment-badge', 'iw-payment-badge--stripe');
+    expect(within(list).getByText(/paid offline/i)).toHaveClass(
+      'iw-payment-badge',
+      'iw-payment-badge--offline'
     );
   });
 

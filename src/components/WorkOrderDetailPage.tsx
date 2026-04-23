@@ -627,9 +627,9 @@ export function WorkOrderDetailPage({
       {jobInvoiceStatus ? (
         <div className="wo-invoice-status wo-detail-invoice-strip">
           {jobInvoiceStatus.payment_status === 'paid' ? (
-            <span className="badge-paid">Paid</span>
+            <span className="iw-payment-badge iw-payment-badge--stripe">Paid</span>
           ) : jobInvoiceStatus.payment_status === 'offline' ? (
-            <span className="badge-offline">Paid Offline</span>
+            <span className="iw-payment-badge iw-payment-badge--offline">Paid offline</span>
           ) : jobInvoiceStatus.issued_at ? (
             <span className="badge-invoiced">Invoiced</span>
           ) : (

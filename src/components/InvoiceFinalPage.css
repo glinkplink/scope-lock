@@ -31,6 +31,8 @@
 .invoice-final-status-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   min-height: 2.125rem;
   padding: 0.5rem 0.85rem;
   border-radius: 999px;
@@ -50,9 +52,16 @@
   color: #ffd48a;
 }
 
-.invoice-final-status-badge--paid {
-  background: #1a5f5a;
-  color: #eef7f7;
+.invoice-final-status-badge--paid-stripe {
+  background: var(--iw-payment-stripe-bg);
+  color: var(--iw-payment-stripe-fg);
+  border: 1px solid var(--iw-payment-stripe-border);
+}
+
+.invoice-final-status-badge--paid-offline {
+  background: var(--iw-payment-offline-bg);
+  color: var(--iw-payment-offline-fg);
+  border: 1px solid var(--iw-payment-offline-border);
 }
 
 .invoice-final-status-date {
@@ -245,6 +254,21 @@
   margin-bottom: var(--space-md);
 }
 
+.invoice-final-preview-header-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  text-align: right;
+  min-width: 0;
+}
+
+.invoice-final-preview-status-badge-wrap {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .invoice-final-preview-title {
   margin: 0;
   font-family: var(--font-display);
@@ -276,6 +300,7 @@
   align-items: center;
   gap: 0.65rem;
   width: 100%;
+  min-width: 0;
 }
 
 .invoice-final-preview-invoice-number {
@@ -371,6 +396,11 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--space-md);
+  }
+
+  .invoice-final-preview-header-aside {
+    flex: 0 1 auto;
+    max-width: min(100%, 22rem);
   }
 
   .invoice-final-actions {
