@@ -14,7 +14,7 @@ vi.mock('@scope-server/lib/stripe.mjs', () => ({
   createOrReuseInvoicePaymentLink: vi.fn(),
 }));
 
-import { tryHandleInvoiceRoute } from '@scope-server/invoice-routes.mjs';
+import { countPendingChangeOrders, tryHandleInvoiceRoute } from '@scope-server/invoice-routes.mjs';
 
 const USER_UUID = '660e8400-e29b-41d4-a716-446655440001';
 const INVOICE_UUID = '770e8400-e29b-41d4-a716-446655440002';
@@ -232,5 +232,45 @@ describe('tryHandleInvoiceRoute offline paid undo', () => {
 
     expect(res.status).toBe(409);
     expect(JSON.parse(res.body).error).toMatch(/Only offline-paid/i);
+  });
+});
+
+describe('countPendingChangeOrders', () => {
+  type COStub = { esign_status: string | null; offline_signed_at: string | null };
+
+  function stubSupabase(rows: COStub[] | null, error: { message: string } | null = null) {
+    const eqUser = vi.fn(async () => ({ data: rows, error }));
+    const eqJob = vi.fn(() => ({ eq: eqUser }));
+    const select = vi.fn(() => ({ eq: eqJob }));
+    const from = vi.fn(() => ({ select }));
+    return { from } as unknown as Parameters<typeof countPendingChangeOrders>[0];
+  }
+
+  it('returns 0 when the job has no change orders', async () => {
+    const supabase = stubSupabase([]);
+    expect(await countPendingChangeOrders(supabase, 'job-1', USER_UUID)).toBe(0);
+  });
+
+  it('counts COs that are not signed and not marked signed offline', async () => {
+    const supabase = stubSupabase([
+      { esign_status: 'completed', offline_signed_at: null },
+      { esign_status: 'not_sent', offline_signed_at: null },
+      { esign_status: 'sent', offline_signed_at: null },
+      { esign_status: null, offline_signed_at: '2025-01-01T00:00:00Z' },
+      { esign_status: 'declined', offline_signed_at: null },
+    ]);
+    expect(await countPendingChangeOrders(supabase, 'job-1', USER_UUID)).toBe(3);
+  });
+
+  it('treats a null data response as zero pending', async () => {
+    const supabase = stubSupabase(null);
+    expect(await countPendingChangeOrders(supabase, 'job-1', USER_UUID)).toBe(0);
+  });
+
+  it('propagates query errors so callers can return 500', async () => {
+    const supabase = stubSupabase(null, { message: 'boom' });
+    await expect(countPendingChangeOrders(supabase, 'job-1', USER_UUID)).rejects.toMatchObject({
+      message: 'boom',
+    });
   });
 });
