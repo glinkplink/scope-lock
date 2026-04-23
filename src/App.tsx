@@ -18,7 +18,7 @@ import { useAuthProfile } from './hooks/useAuthProfile';
 import { upsertProfile } from './lib/db/profile';
 import { signUp } from './lib/auth';
 import { buildInitialProfileDefaults } from './lib/defaults';
-import { getInvoice } from './lib/db/invoices';
+import { getInvoice, getInvoiceByJobId } from './lib/db/invoices';
 import { getChangeOrderById } from './lib/db/change-orders';
 import { getJobById } from './lib/db/jobs';
 import type { BusinessProfile, ChangeOrder, Job } from './types/db';
@@ -399,6 +399,16 @@ function App() {
       if (!active || !job) return;
       const co = routeCoId ? await getChangeOrderById(routeCoId) : null;
       if (!active) return;
+      if (!routeInvoiceId && !routeCoId) {
+        const existingJobInvoice = await getInvoiceByJobId(job.id);
+        if (!active) return;
+        if (existingJobInvoice) {
+          setRouteInvoiceWizard(null);
+          setRouteInvoiceFinal({ invoice: existingJobInvoice, job });
+          navigateTo('invoice-final', { invoiceId: existingJobInvoice.id });
+          return;
+        }
+      }
       const existingInvoice = routeInvoiceId ? await getInvoice(routeInvoiceId) : null;
       if (!active) return;
       setRouteInvoiceWizard({
@@ -410,7 +420,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [routeCoId, routeInvoiceId, routeJobId, view]);
+  }, [navigateTo, routeCoId, routeInvoiceId, routeJobId, view]);
 
   useEffect(() => {
     if (view !== 'change-order-wizard' || !routeJobId) {

@@ -25,7 +25,32 @@ vi.mock('../../supabase', () => ({
   },
 }));
 
-import { getBlocksNewChangeOrdersForJob, isIssuedJobLevelInvoiceRow } from '../invoices';
+import {
+  getBlocksNewChangeOrdersForJob,
+  isIssuedJobLevelInvoiceRow,
+  isJobLevelInvoiceLineItems,
+} from '../invoices';
+
+describe('isJobLevelInvoiceLineItems', () => {
+  it('keeps empty, original-scope, and mixed invoices at job level', () => {
+    expect(isJobLevelInvoiceLineItems([])).toBe(true);
+    expect(isJobLevelInvoiceLineItems([{ description: 'Original scope' }])).toBe(true);
+    expect(
+      isJobLevelInvoiceLineItems([
+        { description: 'Original scope', source: 'original_scope' },
+        { description: 'Change Order #0001', source: 'change_order', change_order_id: 'co-1' },
+      ])
+    ).toBe(true);
+  });
+
+  it('treats CO-only invoices as separate from job-level invoices', () => {
+    expect(
+      isJobLevelInvoiceLineItems([
+        { description: 'Change Order #0001', source: 'change_order', change_order_id: 'co-1' },
+      ])
+    ).toBe(false);
+  });
+});
 
 describe('isIssuedJobLevelInvoiceRow', () => {
   it('is true for issued rows with no change_order_id on lines', () => {

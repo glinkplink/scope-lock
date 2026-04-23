@@ -8,10 +8,12 @@ import { InvoiceWizard } from '../InvoiceWizard';
 
 const createInvoice = vi.fn();
 const updateInvoice = vi.fn();
+const getInvoiceByJobId = vi.fn();
 const listChangeOrders = vi.fn();
 
 vi.mock('../../lib/db/invoices', () => ({
   createInvoice: (...args: unknown[]) => createInvoice(...args),
+  getInvoiceByJobId: (...args: unknown[]) => getInvoiceByJobId(...args),
   updateInvoice: (...args: unknown[]) => updateInvoice(...args),
 }));
 
@@ -128,6 +130,44 @@ function makeCO(n: number, description: string): ChangeOrder {
   };
 }
 
+function minimalInvoice(overrides: Partial<Invoice> = {}): Invoice {
+  return {
+    id: 'inv-existing',
+    user_id: 'u1',
+    job_id: 'job-1',
+    invoice_number: 7,
+    invoice_date: '2025-01-01',
+    due_date: '2025-01-15',
+    status: 'draft',
+    issued_at: null,
+    line_items: [
+      {
+        id: 'l1',
+        position: 0,
+        kind: 'labor',
+        description: 'Original scope',
+        qty: 1,
+        unit_price: 100,
+        total: 100,
+        source: 'original_scope',
+      },
+    ],
+    stripe_payment_link_id: null,
+    stripe_payment_url: null,
+    payment_status: 'unpaid',
+    paid_at: null,
+    subtotal: 100,
+    tax_rate: 0,
+    tax_amount: 0,
+    total: 100,
+    payment_methods: [],
+    notes: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 function renderWizard(opts?: { changeOrder?: ChangeOrder | null; existingInvoice?: Invoice | null }) {
   const onSuccess = vi.fn();
   render(
@@ -152,6 +192,7 @@ describe('InvoiceWizard', () => {
       data: { id: 'inv-1', invoice_number: 1 },
       error: null,
     });
+    getInvoiceByJobId.mockResolvedValue(null);
     updateInvoice.mockResolvedValue({ data: null, error: null });
   });
 
@@ -196,6 +237,30 @@ describe('InvoiceWizard', () => {
     expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
+  it('opens the existing job invoice when duplicate creation is rejected', async () => {
+    const user = userEvent.setup();
+    const existing = minimalInvoice();
+    createInvoice.mockResolvedValueOnce({
+      data: null,
+      error: new Error('A work order invoice already exists for this work order.'),
+    });
+    getInvoiceByJobId.mockResolvedValueOnce(existing);
+    const { onSuccess } = renderWizard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Change orders on this job/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await user.click(screen.getByRole('button', { name: /generate invoice/i }));
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith(existing);
+    });
+    expect(getInvoiceByJobId).toHaveBeenCalledWith('job-1');
+  });
+
   it('shows separate original and combined change-order totals in fixed pricing step one', async () => {
     renderWizard();
 
@@ -214,15 +279,9 @@ describe('InvoiceWizard', () => {
   });
 
   it('does not force CO-only edit mode when existing invoice includes base-scope lines', async () => {
-    const existingInvoice: Invoice = {
+    const existingInvoice = minimalInvoice({
       id: 'inv-1',
-      user_id: 'u1',
-      job_id: 'job-1',
       invoice_number: 1,
-      invoice_date: '2025-01-01',
-      due_date: '2025-01-15',
-      status: 'draft',
-      issued_at: null,
       line_items: [
         {
           id: 'l1',
@@ -246,19 +305,9 @@ describe('InvoiceWizard', () => {
           change_order_id: 'co-2',
         },
       ],
-      stripe_payment_link_id: null,
-      stripe_payment_url: null,
-      payment_status: 'unpaid',
-      paid_at: null,
       subtotal: 150,
-      tax_rate: 0,
-      tax_amount: 0,
       total: 150,
-      payment_methods: [],
-      notes: null,
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-    };
+    });
 
     renderWizard({ changeOrder: makeCO(2, 'Second'), existingInvoice });
 

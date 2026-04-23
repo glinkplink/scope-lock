@@ -6,7 +6,7 @@ import type {
   ChangeOrder,
   InvoiceLineItem,
 } from '../types/db';
-import { createInvoice, updateInvoice } from '../lib/db/invoices';
+import { createInvoice, getInvoiceByJobId, updateInvoice } from '../lib/db/invoices';
 import { listChangeOrders } from '../lib/db/change-orders';
 import {
   buildInvoiceLineItems,
@@ -441,6 +441,13 @@ export function InvoiceWizard({
           notes: null,
         });
         if (cErr || !data) {
+          if (!isChangeOrderInvoice) {
+            const existing = await getInvoiceByJobId(job.id);
+            if (existing) {
+              onSuccess(existing);
+              return;
+            }
+          }
           setError(cErr?.message || 'Could not create invoice.');
           return;
         }

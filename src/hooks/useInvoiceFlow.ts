@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ChangeOrder, Job, Invoice } from '../types/db';
 import type { AppRouteParams, AppView } from './useAppNavigation';
+import { getInvoiceByJobId } from '../lib/db/invoices';
 
 export type InvoiceFlowState = {
   invoiceFlowJob: Job | null;
@@ -36,16 +37,33 @@ export function useInvoiceFlow(
 
   const handleStartInvoice = useCallback(
     (jobRow: Job) => {
-      setInvoice((inv) => ({
-        ...inv,
-        invoiceFlowJob: jobRow,
-        invoiceFlowChangeOrder: null,
-        invoiceFlowTarget: 'job',
-        wizardExistingInvoice: null,
-        activeInvoice: null,
-        invoiceFinalReturnView: 'work-orders',
-      }));
-      navigateTo('invoice-wizard', { jobId: jobRow.id });
+      void (async () => {
+        const existing = await getInvoiceByJobId(jobRow.id);
+        if (existing) {
+          setInvoice((inv) => ({
+            ...inv,
+            invoiceFlowJob: jobRow,
+            invoiceFlowChangeOrder: null,
+            invoiceFlowTarget: 'job',
+            wizardExistingInvoice: null,
+            activeInvoice: existing,
+            invoiceFinalReturnView: 'work-orders',
+          }));
+          navigateTo('invoice-final', { invoiceId: existing.id });
+          return;
+        }
+
+        setInvoice((inv) => ({
+          ...inv,
+          invoiceFlowJob: jobRow,
+          invoiceFlowChangeOrder: null,
+          invoiceFlowTarget: 'job',
+          wizardExistingInvoice: null,
+          activeInvoice: null,
+          invoiceFinalReturnView: 'work-orders',
+        }));
+        navigateTo('invoice-wizard', { jobId: jobRow.id });
+      })();
     },
     [navigateTo]
   );

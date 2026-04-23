@@ -272,6 +272,11 @@ function isChangeOrderOnlyInvoiceLineItems(lineItems: unknown[]): boolean {
   return hasChangeOrderScopeLine && !lineItems.some((item) => isBaseScopeInvoiceLine(item));
 }
 
+export function isJobLevelInvoiceLineItems(lineItems: unknown): boolean {
+  const rows = Array.isArray(lineItems) ? lineItems : [];
+  return !isChangeOrderOnlyInvoiceLineItems(rows);
+}
+
 /**
  * True when the row is an issued job-level invoice (no line item has change_order_id).
  * Aligns with `parseWorkOrderInvoiceStatusRow` job-level semantics and `create_change_order` in the DB.
@@ -281,8 +286,7 @@ export function isIssuedJobLevelInvoiceRow(row: {
   line_items: unknown;
 }): boolean {
   if (typeof row.issued_at !== 'string' || row.issued_at.trim() === '') return false;
-  const lineItems = Array.isArray(row.line_items) ? row.line_items : [];
-  return !isChangeOrderOnlyInvoiceLineItems(lineItems);
+  return isJobLevelInvoiceLineItems(row.line_items);
 }
 
 export type GetBlocksNewChangeOrdersForJobResult = {
