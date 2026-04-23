@@ -983,7 +983,7 @@
 
 @media (min-width: 640px) {
   .home-stat-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -1000,16 +1000,16 @@
   background: var(--spark);
 }
 
-.home-stat-card--blue::before {
+.home-stat-card--signed::before {
   background: var(--status-sent);
+}
+
+.home-stat-card--outstanding::before {
+  background: #f3d978;
 }
 
 .home-stat-card--paid::before {
   background: var(--status-paid);
-}
-
-.home-stat-card--green::before {
-  background: #f3d978;
 }
 
 .home-stat-num {

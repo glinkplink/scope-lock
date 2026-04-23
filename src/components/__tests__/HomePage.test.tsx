@@ -9,10 +9,12 @@ import { HomePage } from '../HomePage';
 const listWorkOrdersDashboardPage = vi.fn();
 const getWorkOrdersDashboardSummary = vi.fn();
 const getInvoiceDashboardSummary = vi.fn();
+const getSignedWorkOrdersCount = vi.fn();
 
 vi.mock('../../lib/db/jobs', () => ({
   listWorkOrdersDashboardPage: (...args: unknown[]) => listWorkOrdersDashboardPage(...args),
   getWorkOrdersDashboardSummary: (...args: unknown[]) => getWorkOrdersDashboardSummary(...args),
+  getSignedWorkOrdersCount: (...args: unknown[]) => getSignedWorkOrdersCount(...args),
 }));
 
 vi.mock('../../lib/db/invoices', () => ({
@@ -100,6 +102,7 @@ describe('HomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getInvoiceDashboardSummary.mockResolvedValue({ data: invoiceSummaryOk, error: null });
+    getSignedWorkOrdersCount.mockResolvedValue({ data: 0, error: null });
   });
 
   afterEach(() => {
@@ -247,7 +250,6 @@ describe('HomePage', () => {
     await waitFor(() => {
       expect(screen.getByText(/No work orders yet — tap \+ to create one/i)).toBeInTheDocument();
     });
-    expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByText('No work orders yet.')).toBeInTheDocument();
   });
 
@@ -263,6 +265,7 @@ describe('HomePage', () => {
       data: { invoicedTotal: 100, pendingInvoiceTotal: 200, paidTotal: 300 },
       error: null,
     });
+    getSignedWorkOrdersCount.mockResolvedValue({ data: 1, error: null });
 
     render(<HomePage {...signedInProps()} />);
 
@@ -273,6 +276,7 @@ describe('HomePage', () => {
 
     const statGroup = screen.getByRole('group', { name: /Work order count and invoice totals/i });
     expect(within(statGroup).getByText('2')).toBeInTheDocument();
+    expect(within(statGroup).getByText('1')).toBeInTheDocument();
   });
 
   it('recent row opens work order detail with job id', async () => {

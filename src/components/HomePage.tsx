@@ -5,7 +5,7 @@ import type {
   WorkOrderDashboardJob,
   WorkOrdersDashboardSummary,
 } from '../types/db';
-import { getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
+import { getSignedWorkOrdersCount, getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
 import { getInvoiceDashboardSummary } from '../lib/db/invoices';
 import { splitFullNameForForm } from '../lib/owner-name';
 import {
@@ -381,6 +381,7 @@ export function HomePage({
 }: HomePageProps) {
   const [summary, setSummary] = useState<WorkOrdersDashboardSummary | null>(null);
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceDashboardSummary | null>(null);
+  const [signedCount, setSignedCount] = useState<number | null>(null);
   const [recentJobs, setRecentJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const loadSeq = useRef(0);
@@ -410,7 +411,8 @@ export function HomePage({
         listWorkOrdersDashboardPage(uid, HOME_RECENT_LIMIT, null),
         getWorkOrdersDashboardSummary(uid),
         getInvoiceDashboardSummary(uid),
-      ]).then(([pageResult, summaryResult, invoiceSummaryResult]) => {
+        getSignedWorkOrdersCount(uid),
+      ]).then(([pageResult, summaryResult, invoiceSummaryResult, signedCountResult]) => {
         if (cancelled || seq !== loadSeq.current) return;
 
         if (pageResult.error || summaryResult.error || invoiceSummaryResult.error) {
@@ -421,6 +423,7 @@ export function HomePage({
             'Unknown error';
           setSummary(null);
           setInvoiceSummary(null);
+          setSignedCount(null);
           setRecentJobs([]);
           setDashboardError(`Could not load dashboard (${msg}).`);
           return;
@@ -428,6 +431,7 @@ export function HomePage({
 
         setSummary(summaryResult.data);
         setInvoiceSummary(invoiceSummaryResult.data);
+        setSignedCount(signedCountResult.error ? 0 : signedCountResult.data);
         setRecentJobs(pageResult.data ?? []);
         setDashboardError(null);
       });
@@ -803,7 +807,11 @@ export function HomePage({
               <div className="home-stat-num">{jobCount}</div>
               <div className="home-stat-label">Work orders</div>
             </div>
-            <div className="home-stat-card home-stat-card--blue">
+            <div className="home-stat-card home-stat-card--signed">
+              <div className="home-stat-num">{signedCount ?? 0}</div>
+              <div className="home-stat-label">WO&apos;s signed</div>
+            </div>
+            <div className="home-stat-card home-stat-card--outstanding">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.invoicedTotal)}</div>
               <div className="home-stat-label">Outstanding</div>
             </div>

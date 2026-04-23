@@ -185,7 +185,7 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
           role="group"
           aria-label="Outstanding and paid invoice totals"
         >
-          <div className="work-orders-stat-card work-orders-stat-card--blue">
+          <div className="work-orders-stat-card work-orders-stat-card--outstanding">
             <div className="work-orders-stat-num">{formatUsd(totalsSummary.invoicedTotal)}</div>
             <div className="work-orders-stat-label">Outstanding</div>
           </div>

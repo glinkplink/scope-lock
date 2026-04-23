@@ -78,24 +78,20 @@
   height: 3px;
 }
 
-.work-orders-stat-card--blue::before {
-  background: var(--status-sent);
-}
-
-.work-orders-stat-card--green {
-  order: 1;
-}
-
-.work-orders-stat-card--green::before {
-  background: #f3d978;
-}
-
 .work-orders-stat-card--spark::before {
   background: var(--spark);
 }
 
 .work-orders-stat-card--signed::before {
-  background: var(--status-signed);
+  background: var(--status-sent);
+}
+
+.work-orders-stat-card--outstanding::before {
+  background: #f3d978;
+}
+
+.work-orders-stat-card--paid::before {
+  background: var(--status-paid);
 }
 
 .work-orders-stat-card--paid {
