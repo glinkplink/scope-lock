@@ -34,15 +34,15 @@ function formatWoLabel(woNumber: number | null): string {
 function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } {
   const businessStatus = getInvoiceBusinessStatus(invoice);
   if (invoice.payment_status === 'paid') {
-    return { className: 'iw-payment-badge iw-payment-badge--stripe', label: 'Paid' };
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Paid' };
   }
   if (invoice.payment_status === 'offline') {
-    return { className: 'iw-payment-badge iw-payment-badge--offline', label: 'Paid offline' };
+    return { className: 'iw-status-chip iw-status-chip--offline', label: 'Paid offline' };
   }
   if (businessStatus === 'draft') {
-    return { className: 'wo-row-invoice-btn wo-row-invoice-btn--draft', label: 'Invoice draft' };
+    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Draft' };
   }
-  return { className: 'wo-row-invoice-btn wo-row-invoice-btn--invoiced', label: 'Invoiced' };
+  return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Invoiced' };
 }
 
 function matchesInvoiceSearch(invoice: InvoiceWithCustomerName, searchTerm: string): boolean {

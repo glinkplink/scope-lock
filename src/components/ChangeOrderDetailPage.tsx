@@ -45,27 +45,31 @@ import './ChangeOrderDetailPage.css';
 
 const CHANGE_ORDER_STATUS_META: Record<
   ChangeOrder['status'],
-  { label: string; description: string; tone: 'draft' | 'pending' | 'approved' | 'rejected' }
+  {
+    label: string;
+    description: string;
+    chipVariant: 'draft' | 'outstanding' | 'paid' | 'negative';
+  }
 > = {
   draft: {
     label: 'Draft',
     description: 'Saved but not yet sent for approval.',
-    tone: 'draft',
+    chipVariant: 'draft',
   },
   pending_approval: {
     label: 'Pending Approval',
     description: 'Awaiting customer review and signature.',
-    tone: 'pending',
+    chipVariant: 'outstanding',
   },
   approved: {
     label: 'Approved',
     description: 'Customer approved and signed this change order.',
-    tone: 'approved',
+    chipVariant: 'paid',
   },
   rejected: {
     label: 'Rejected',
     description: 'Customer declined this change order.',
-    tone: 'rejected',
+    chipVariant: 'negative',
   },
 };
 
@@ -168,10 +172,10 @@ export function ChangeOrderDetailPage({
   );
   const coPreviewSignatureBadgeClass = useMemo(() => {
     const d = signatureState.displayLabel;
-    if (d === 'Signed') return ' co-detail-preview-signature-badge--signed';
-    if (d === 'Signed offline') return ' co-detail-preview-signature-badge--offline';
-    if (d === 'Declined' || d === 'Expired') return ' co-detail-preview-signature-badge--negative';
-    return ' co-detail-preview-signature-badge--pending';
+    if (d === 'Signed') return ' iw-status-chip--paid';
+    if (d === 'Signed offline') return ' iw-status-chip--offline';
+    if (d === 'Declined' || d === 'Expired') return ' iw-status-chip--negative';
+    return ' iw-status-chip--outstanding';
   }, [signatureState.displayLabel]);
   const coEsignWasResent = Boolean(co?.esign_resent_at);
   const esignProgress = useMemo(
@@ -424,7 +428,7 @@ export function ChangeOrderDetailPage({
           <h1 className="invoice-final-heading">{customerTitle}</h1>
           <div className="co-detail-heading-row">
             <p className="invoice-final-heading-sub">{coLabel}</p>
-            <span className={`co-detail-status-badge co-detail-status-badge--${statusMeta.tone}`}>
+            <span className={`iw-status-chip iw-status-chip--${statusMeta.chipVariant}`}>
               {statusMeta.label}
             </span>
           </div>
@@ -622,7 +626,7 @@ export function ChangeOrderDetailPage({
         <div className="co-detail-preview-meta">
           <div className="co-detail-preview-status-row">
             <p className="co-detail-preview-id">{coLabel}</p>
-            <span className={`co-detail-preview-signature-badge${coPreviewSignatureBadgeClass}`}>
+            <span className={`iw-status-chip${coPreviewSignatureBadgeClass}`}>
               {signatureState.displayLabel}
             </span>
           </div>

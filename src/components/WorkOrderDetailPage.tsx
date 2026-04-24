@@ -229,10 +229,10 @@ export function WorkOrderDetailPage({
   );
   const woPreviewSignatureBadgeClass = useMemo(() => {
     const d = signatureState.displayLabel;
-    if (d === 'Signed') return ' wo-detail-preview-signature-badge--signed';
-    if (d === 'Signed offline') return ' wo-detail-preview-signature-badge--offline';
-    if (d === 'Declined' || d === 'Expired') return ' wo-detail-preview-signature-badge--negative';
-    return ' wo-detail-preview-signature-badge--pending';
+    if (d === 'Signed') return ' iw-status-chip--paid';
+    if (d === 'Signed offline') return ' iw-status-chip--offline';
+    if (d === 'Declined' || d === 'Expired') return ' iw-status-chip--negative';
+    return ' iw-status-chip--outstanding';
   }, [signatureState.displayLabel]);
   const esignWasResent = Boolean(job?.esign_resent_at);
   const esignProgress = useMemo(
@@ -633,18 +633,18 @@ export function WorkOrderDetailPage({
       {/* Job-level invoice status */}
       {jobInvoiceStatus ? (
         <div className="wo-invoice-status wo-detail-invoice-strip">
-          {jobInvoiceStatus.payment_status === 'paid' ? (
-            <span className="iw-payment-badge iw-payment-badge--stripe">Paid</span>
-          ) : jobInvoiceStatus.payment_status === 'offline' ? (
-            <span className="iw-payment-badge iw-payment-badge--offline">Paid offline</span>
-          ) : jobInvoiceStatus.issued_at ? (
-            <span className="badge-invoiced">Invoiced</span>
-          ) : (
-            <span className="badge-draft">Draft</span>
-          )}
-          <span className="wo-invoice-number wo-detail-invoice-meta">
+          <span className="wo-invoice-number">
             Invoice #{String(jobInvoiceStatus.invoice_number).padStart(4, '0')}
           </span>
+          {jobInvoiceStatus.payment_status === 'paid' ? (
+            <span className="iw-status-chip iw-status-chip--paid">Paid</span>
+          ) : jobInvoiceStatus.payment_status === 'offline' ? (
+            <span className="iw-status-chip iw-status-chip--offline">Paid offline</span>
+          ) : jobInvoiceStatus.issued_at ? (
+            <span className="iw-status-chip iw-status-chip--outstanding">Invoiced</span>
+          ) : (
+            <span className="iw-status-chip iw-status-chip--draft">Draft</span>
+          )}
         </div>
       ) : jobInvoiceLoading ? (
         <div className="wo-invoice-status wo-invoice-status-loading">Loading invoice...</div>
@@ -806,18 +806,15 @@ export function WorkOrderDetailPage({
 
       <section className="wo-detail-preview-card" aria-labelledby="wo-preview-heading">
         <div className="wo-detail-preview-header">
-          <h2 id="wo-preview-heading" className="wo-detail-preview-title">
-            Preview
-          </h2>
-          <p className="wo-detail-preview-copy">Tap the preview to open the full sheet.</p>
-        </div>
-        <div className="wo-detail-preview-meta">
-          <div className="wo-detail-preview-status-row">
-            <p className="wo-detail-preview-id">{woLabel}</p>
-            <span className={`wo-detail-preview-signature-badge${woPreviewSignatureBadgeClass}`}>
-              {signatureState.displayLabel}
-            </span>
+          <div className="wo-detail-preview-header-titles">
+            <h2 id="wo-preview-heading" className="wo-detail-preview-title">
+              Preview
+            </h2>
+            <p className="wo-detail-preview-copy">Tap the preview to open the full sheet.</p>
           </div>
+          <span className={`iw-status-chip${woPreviewSignatureBadgeClass}`}>
+            {signatureState.displayLabel}
+          </span>
         </div>
         <div
           ref={woPreviewViewportRef}

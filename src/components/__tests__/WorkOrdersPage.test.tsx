@@ -456,7 +456,7 @@ describe('WorkOrdersPage', () => {
     expect(link.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('renders Invoice draft and Invoiced actions from dashboard invoice fields', async () => {
+  it('renders Draft and Invoiced actions from dashboard invoice fields', async () => {
     listWorkOrdersDashboardPage.mockResolvedValue(
       makePageResult([
         {
@@ -488,7 +488,7 @@ describe('WorkOrdersPage', () => {
 
     await waitFor(() => {
       const list = latestWorkOrdersListUl();
-      expect(within(list).getByRole('button', { name: /^Invoice draft$/i })).toBeInTheDocument();
+      expect(within(list).getByRole('button', { name: /^Draft$/i })).toBeInTheDocument();
       expect(within(list).getByRole('button', { name: /^Invoiced$/i })).toBeInTheDocument();
     });
   });
@@ -546,8 +546,8 @@ describe('WorkOrdersPage', () => {
     const user = userEvent.setup();
     const { onOpenPendingInvoice } = renderPage(minimalProfileWithPhone());
 
-    await screen.findByRole('button', { name: /^Invoice draft$/i });
-    await user.click(screen.getByRole('button', { name: /^Invoice draft$/i }));
+    await screen.findByRole('button', { name: /^Draft$/i });
+    await user.click(screen.getByRole('button', { name: /^Draft$/i }));
 
     await waitFor(() => {
       expect(onOpenPendingInvoice).toHaveBeenCalledTimes(1);

@@ -252,7 +252,7 @@ describe('InvoicesPage', () => {
     expect(within(screen.getByRole('list')).getAllByText(/paid offline/i)).toHaveLength(2);
   });
 
-  it('renders draft, invoiced, paid, and paid offline status pills (WO row invoice button styles)', async () => {
+  it('renders draft, invoiced, paid, and paid offline status pills using the canonical iw-status-chip', async () => {
     listInvoicesWithCustomerName.mockResolvedValue({
       data: [
       withListFields(
@@ -288,23 +288,17 @@ describe('InvoicesPage', () => {
       <InvoicesPage userId="u1" onOpenInvoice={onOpenInvoice} onOpenCoInvoice={onOpenCoInvoice} />
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('Invoice draft')).toBeInTheDocument();
-    });
+    const list = await screen.findByRole('list');
 
-    expect(screen.getByText('Invoice draft')).toHaveClass(
-      'wo-row-invoice-btn',
-      'wo-row-invoice-btn--draft'
-    );
-    const list = screen.getByRole('list');
+    expect(within(list).getByText('Draft')).toHaveClass('iw-status-chip', 'iw-status-chip--draft');
     expect(within(list).getByText('Invoiced')).toHaveClass(
-      'wo-row-invoice-btn',
-      'wo-row-invoice-btn--invoiced'
+      'iw-status-chip',
+      'iw-status-chip--outstanding'
     );
-    expect(within(list).getByText('Paid')).toHaveClass('iw-payment-badge', 'iw-payment-badge--stripe');
+    expect(within(list).getByText('Paid')).toHaveClass('iw-status-chip', 'iw-status-chip--paid');
     expect(within(list).getByText(/paid offline/i)).toHaveClass(
-      'iw-payment-badge',
-      'iw-payment-badge--offline'
+      'iw-status-chip',
+      'iw-status-chip--offline'
     );
   });
 

@@ -256,7 +256,7 @@ const WorkOrderRow = memo(function WorkOrderRow({
         ) : invoice.payment_status === 'paid' ? (
           <button
             type="button"
-            className="wo-row-invoice-btn wo-row-invoice-btn--paid"
+            className="iw-status-chip iw-status-chip--paid"
             disabled={rowBusy}
             onClick={() => onOpenPendingInvoice(job)}
           >
@@ -265,7 +265,7 @@ const WorkOrderRow = memo(function WorkOrderRow({
         ) : invoice.payment_status === 'offline' ? (
           <button
             type="button"
-            className="wo-row-invoice-btn wo-row-invoice-btn--offline"
+            className="iw-status-chip iw-status-chip--offline"
             disabled={rowBusy}
             onClick={() => onOpenPendingInvoice(job)}
           >
@@ -274,16 +274,16 @@ const WorkOrderRow = memo(function WorkOrderRow({
         ) : getInvoiceBusinessStatus(invoice) === 'draft' ? (
           <button
             type="button"
-            className="wo-row-invoice-btn wo-row-invoice-btn--draft"
+            className="iw-status-chip iw-status-chip--draft"
             disabled={rowBusy}
             onClick={() => onOpenPendingInvoice(job)}
           >
-            Invoice draft
+            Draft
           </button>
         ) : (
           <button
             type="button"
-            className="wo-row-invoice-btn wo-row-invoice-btn--invoiced"
+            className="iw-status-chip iw-status-chip--outstanding"
             disabled={rowBusy}
             onClick={() => onOpenPendingInvoice(job)}
           >

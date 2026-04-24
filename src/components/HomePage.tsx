@@ -877,28 +877,28 @@ export function HomePage({
                 if (statusLabel === 'Paid offline') {
                   statusNode = wrapHomeRecentInvoiceChip(
                     job,
-                    <span className="iw-payment-badge iw-payment-badge--offline">Paid offline</span>,
+                    <span className="iw-status-chip iw-status-chip--offline">Paid offline</span>,
                     openInvoice,
                     onOpenInvoiceFromDashboard
                   );
                 } else if (statusLabel === 'Paid') {
                   statusNode = wrapHomeRecentInvoiceChip(
                     job,
-                    <span className="iw-payment-badge iw-payment-badge--stripe">Paid</span>,
+                    <span className="iw-status-chip iw-status-chip--paid">Paid</span>,
                     openInvoice,
                     onOpenInvoiceFromDashboard
                   );
                 } else if (statusLabel === 'Invoice draft') {
                   statusNode = wrapHomeRecentInvoiceChip(
                     job,
-                    <span className="iw-payment-badge iw-payment-badge--draft">Invoice draft</span>,
+                    <span className="iw-status-chip iw-status-chip--draft">Draft</span>,
                     openInvoice,
                     onOpenInvoiceFromDashboard
                   );
                 } else if (statusLabel === 'Invoiced') {
                   statusNode = wrapHomeRecentInvoiceChip(
                     job,
-                    <span className="iw-payment-badge iw-payment-badge--invoiced">Invoiced</span>,
+                    <span className="iw-status-chip iw-status-chip--outstanding">Invoiced</span>,
                     openInvoice,
                     onOpenInvoiceFromDashboard
                   );

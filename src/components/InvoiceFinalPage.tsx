@@ -178,12 +178,12 @@ export function InvoiceFinalPage({
         ? 'Invoiced'
         : 'Draft';
   const invoiceStatusClass = isPaidOffline
-    ? ' invoice-final-status-badge--paid-offline'
+    ? ' iw-status-chip--offline'
     : isPaidStripe
-      ? ' invoice-final-status-badge--paid-stripe'
+      ? ' iw-status-chip--paid'
       : isReadOnly
-        ? ' invoice-final-status-badge--issued'
-        : ' invoice-final-status-badge--draft';
+        ? ' iw-status-chip--outstanding'
+        : ' iw-status-chip--draft';
 
   const flashPaymentLinkCopied = () => {
     if (paymentLinkCopiedTimeoutRef.current !== null) {
@@ -578,7 +578,7 @@ export function InvoiceFinalPage({
         <div className="invoice-final-preview-meta">
           <div className="invoice-final-preview-status-row">
             <p className="invoice-final-preview-invoice-number">{invoiceSubline}</p>
-            <span className={`invoice-final-status-badge${invoiceStatusClass}`}>
+            <span className={`iw-status-chip${invoiceStatusClass}`}>
               {invoiceStatusLabel}
             </span>
           </div>

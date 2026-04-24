@@ -477,46 +477,6 @@
   background: rgba(255, 140, 0, 0.12);
 }
 
-.work-orders-page .wo-row-invoice-btn--draft {
-  background: rgba(212, 160, 23, 0.25);
-  color: #f5e6a8;
-  border: 1px solid rgba(212, 160, 23, 0.5);
-}
-
-.work-orders-page .wo-row-invoice-btn--draft:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.work-orders-page .wo-row-invoice-btn--invoiced {
-  background: rgba(45, 106, 46, 0.35);
-  color: #c8e6c9;
-  border: 1px solid rgba(74, 124, 75, 0.6);
-}
-
-.work-orders-page .wo-row-invoice-btn--invoiced:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.work-orders-page .wo-row-invoice-btn--paid {
-  background: var(--iw-payment-stripe-bg);
-  color: var(--iw-payment-stripe-fg);
-  border: 1px solid var(--iw-payment-stripe-border);
-}
-
-.work-orders-page .wo-row-invoice-btn--paid:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.work-orders-page .wo-row-invoice-btn--offline {
-  background: var(--iw-payment-offline-bg);
-  color: var(--iw-payment-offline-fg);
-  border: 1px solid var(--iw-payment-offline-border);
-}
-
-.work-orders-page .wo-row-invoice-btn--offline:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
 .work-orders-load-more-wrap {
   display: flex;
   justify-content: center;

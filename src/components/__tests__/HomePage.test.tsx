@@ -328,8 +328,8 @@ describe('HomePage', () => {
     render(<HomePage {...signedInProps()} />);
 
     await waitFor(() => {
-      const draftChip = screen.getByText('Invoice draft');
-      expect(draftChip).toHaveClass('iw-payment-badge', 'iw-payment-badge--draft');
+      const draftChip = screen.getByText('Draft');
+      expect(draftChip).toHaveClass('iw-status-chip', 'iw-status-chip--draft');
     });
   });
 
@@ -365,7 +365,7 @@ describe('HomePage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Invoice draft')).toBeInTheDocument();
+      expect(screen.getByText('Draft')).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole('button', { name: /Open invoice for WO #0001/i }));

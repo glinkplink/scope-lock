@@ -33,43 +33,6 @@
   margin: 0;
 }
 
-.co-detail-status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border: 1px solid transparent;
-}
-
-.co-detail-status-badge--draft {
-  color: var(--iron-150);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.co-detail-status-badge--pending {
-  color: #ffd98b;
-  background: rgba(255, 140, 0, 0.12);
-  border-color: rgba(255, 140, 0, 0.24);
-}
-
-.co-detail-status-badge--approved {
-  color: #b7ffd7;
-  background: rgba(62, 207, 142, 0.14);
-  border-color: rgba(62, 207, 142, 0.26);
-}
-
-.co-detail-status-badge--rejected {
-  color: #ffc3ba;
-  background: rgba(255, 133, 117, 0.14);
-  border-color: rgba(255, 133, 117, 0.28);
-}
-
 .co-detail-status-description {
   margin: var(--space-sm) 0 0;
   color: var(--iron-250);
@@ -194,44 +157,6 @@
   line-height: 1.35;
   min-width: 0;
   flex: 1 1 auto;
-}
-
-.co-detail-preview-signature-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: 2.125rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-
-.co-detail-preview-signature-badge--pending {
-  background: rgba(255, 140, 0, 0.18);
-  color: #ffd48a;
-}
-
-.co-detail-preview-signature-badge--signed {
-  background: var(--iw-payment-stripe-bg);
-  color: var(--iw-payment-stripe-fg);
-  border: 1px solid var(--iw-payment-stripe-border);
-}
-
-.co-detail-preview-signature-badge--offline {
-  background: var(--iw-payment-offline-bg);
-  color: var(--iw-payment-offline-fg);
-  border: 1px solid var(--iw-payment-offline-border);
-}
-
-.co-detail-preview-signature-badge--negative {
-  background: rgba(255, 133, 117, 0.14);
-  color: #ffc3ba;
-  border: 1px solid rgba(255, 133, 117, 0.28);
 }
 
 .co-detail-mini-viewport {
