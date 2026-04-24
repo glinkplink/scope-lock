@@ -38,22 +38,12 @@
   font-family: 'Chakra Petch', var(--font-app);
 }
 
-/* Right column: amount above status pill (WO rows use a single invoice button) */
-.invoices-page.work-orders-page .invoices-row-actions-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
 .invoices-page.work-orders-page .invoices-row-amount {
-  font-size: 1rem;
-  font-weight: 600;
   color: var(--iron-50);
 }
 
 /* Status chips on invoice rows are non-interactive (row itself is clickable). */
-.invoices-page.work-orders-page .work-orders-row-actions span.iw-status-chip {
+.invoices-page.work-orders-page .work-orders-row-status-slot span.iw-status-chip {
   cursor: default;
   pointer-events: none;
   user-select: none;

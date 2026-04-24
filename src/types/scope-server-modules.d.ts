@@ -71,6 +71,11 @@ declare module '@scope-server/stripe-routes.mjs' {
 }
 
 declare module '@scope-server/invoice-routes.mjs' {
+  export function countPendingChangeOrders(
+    supabase: unknown,
+    jobId: string,
+    userId: string
+  ): Promise<number>;
   export function tryHandleInvoiceRoute(
     req: unknown,
     res: unknown,

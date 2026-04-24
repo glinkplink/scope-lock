@@ -372,6 +372,7 @@
 }
 
 .work-orders-page .work-orders-row {
+  position: relative;
   flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
@@ -383,24 +384,74 @@
   background: var(--iron-750);
 }
 
-.work-orders-page .work-orders-row-main {
+/* Match home “Recent work orders” paid card: fully paid (Stripe or offline). */
+.work-orders-page .work-orders-row--paid {
+  background: linear-gradient(180deg, rgba(46, 153, 104, 0.1), rgba(46, 153, 104, 0.04));
+  border-color: rgba(46, 153, 104, 0.35);
+}
+
+.work-orders-page .work-orders-row--paid::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  border-top-left-radius: var(--shell-radius-sm);
+  border-bottom-left-radius: var(--shell-radius-sm);
+  background: var(--iw-status-paid-border);
+  pointer-events: none;
+}
+
+.work-orders-page .work-orders-row-shell {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.work-orders-row-main {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.work-orders-page .work-orders-row-main > .esign-strip {
+.work-orders-row-main > .esign-strip {
   margin-top: 2px;
 }
 
-.work-orders-page .esign-strip {
-  color: var(--iron-300);
+.work-orders-page .work-orders-row-body {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
-.work-orders-page .esign-strip-text {
-  color: var(--iron-200);
+.work-orders-page .work-orders-row-left {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.work-orders-page .esign-strip-segment {
-  border-color: var(--iron-500);
+.work-orders-page .work-orders-row-right {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: fit-content;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.work-orders-page .work-orders-row-status-slot {
+  display: flex;
+  min-height: 1.875rem;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
 .work-orders-page .work-orders-wo {
@@ -413,68 +464,35 @@
 }
 
 .work-orders-page .work-orders-wo-date {
+  font-size: 0.8rem;
   color: var(--iron-400);
+  text-align: right;
 }
 
 .work-orders-page .work-orders-customer {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
+  line-height: 1.2;
   color: var(--iron-50);
 }
 
-.work-orders-page .work-orders-row-detail-hit:hover .work-orders-customer {
-  color: var(--spark);
-}
-
-.work-orders-page .work-orders-row-detail-hit:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-spark);
-  border-radius: var(--shell-radius-sm);
-}
-
-/* Row opens detail on click; main block is not a focusable button (invoice / CO buttons stay interactive). */
-.work-orders-page .work-orders-row-detail-hit--static {
-  cursor: default;
+.work-orders-page .work-orders-job-type {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--iron-250);
+  text-transform: capitalize;
 }
 
 .work-orders-page .work-orders-row {
   cursor: pointer;
 }
 
-/* Invoice column — page-owned (no global .badge-* coupling) */
-.work-orders-page .wo-row-invoice-btn {
-  display: inline-block;
-  margin: 0;
-  padding: 8px var(--space-md);
-  font-size: 0.6875rem;
+.work-orders-page .work-orders-row-amount {
+  margin-top: 0.35rem;
+  font-size: 1rem;
   font-weight: 700;
-  font-family: inherit;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: var(--shell-radius-sm);
-  cursor: pointer;
-  border: none;
-  transition: filter 0.15s;
-}
-
-.work-orders-page .wo-row-invoice-btn:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
-.work-orders-page .wo-row-invoice-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-spark);
-}
-
-.work-orders-page .wo-row-invoice-btn--outline {
-  color: var(--spark);
-  background: transparent;
-  border: 2px solid var(--spark);
-}
-
-.work-orders-page .wo-row-invoice-btn--outline:hover:not(:disabled) {
-  background: rgba(255, 140, 0, 0.12);
+  color: var(--iron-50);
 }
 
 .work-orders-load-more-wrap {
@@ -521,24 +539,21 @@
   margin-right: var(--space-md);
 }
 
-.work-orders-page .work-orders-meta {
+.work-orders-page .work-orders-row-footer {
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  font-size: calc(0.8125rem + 1px);
+  justify-content: center;
 }
 
 .work-orders-page .work-orders-change-orders-link {
   margin: 0;
   padding: 0;
-  align-self: flex-start;
   border: none;
   background: none;
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--spark);
-  text-align: left;
+  text-align: center;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
@@ -569,12 +584,10 @@
 
 @media (max-width: 640px) {
   .work-orders-page .work-orders-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-md);
+    gap: 12px;
   }
 
-  .work-orders-page .work-orders-row-actions {
-    align-self: flex-end;
+  .work-orders-page .work-orders-row-body {
+    gap: 12px;
   }
 }

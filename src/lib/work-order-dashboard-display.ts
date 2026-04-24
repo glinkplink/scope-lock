@@ -35,6 +35,15 @@ export function formatWorkOrderDashboardWoLabel(job: WorkOrderDashboardJob): str
   return job.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
 }
 
+export function formatWorkOrderDashboardJobType(job: WorkOrderDashboardJob): string {
+  const otherClassification = job.other_classification?.trim();
+  return otherClassification || job.job_type || '—';
+}
+
+export function isWorkOrderDashboardJobComplete(job: WorkOrderDashboardJob): boolean {
+  return job.latestInvoice?.payment_status === 'paid' || job.latestInvoice?.payment_status === 'offline';
+}
+
 /**
  * Single badge for Home recent rows: invoice-first (matches list action column + detail paid pills),
  * else primary e-sign label (matches list strip visibility and text).

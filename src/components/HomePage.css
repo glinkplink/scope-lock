@@ -1121,12 +1121,11 @@
   box-shadow: var(--focus-ring-spark);
 }
 
-.home-dash-card-top {
+.home-dash-card-body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-sm);
-  margin-bottom: 0.35rem;
+  gap: var(--space-md);
 }
 
 .home-dash-card-wo {
@@ -1134,62 +1133,61 @@
   font-weight: 600;
   font-size: 0.8rem;
   color: var(--iron-200);
+  text-transform: uppercase;
 }
 
-.home-dash-card-status {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--spark);
-  flex-shrink: 0;
+.home-dash-card-left {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.home-dash-invoice-status-btn {
-  flex-shrink: 0;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  border-radius: var(--shell-radius-sm);
+.home-dash-card-right {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: fit-content;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
 }
 
-.home-dash-invoice-status-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-spark);
+.home-dash-card-status-slot {
+  display: flex;
+  min-height: 1.875rem;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
 .home-dash-card-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--iron-50);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--iron-250);
   line-height: 1.3;
-  margin-bottom: 0.2rem;
+  text-transform: capitalize;
 }
 
 .home-dash-card-client {
-  font-size: 0.82rem;
-  color: var(--iron-300);
-  margin-bottom: 0.65rem;
-}
-
-.home-dash-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  color: var(--iron-200);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--iron-50);
 }
 
 .home-dash-card-amount {
-  font-weight: 600;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--iron-50);
 }
 
 .home-dash-card-date {
+  font-size: 0.8rem;
   color: var(--iron-400);
+  text-align: right;
 }
 
 @media (prefers-reduced-motion: reduce) {

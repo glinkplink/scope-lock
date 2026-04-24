@@ -21,7 +21,7 @@ import { buildInitialProfileDefaults } from './lib/defaults';
 import { getInvoice, getInvoiceByJobId } from './lib/db/invoices';
 import { getChangeOrderById } from './lib/db/change-orders';
 import { getJobById } from './lib/db/jobs';
-import type { BusinessProfile, ChangeOrder, Job, WorkOrderDashboardJob } from './types/db';
+import type { BusinessProfile, ChangeOrder, Job } from './types/db';
 import { ClipboardList, FileText, Home, Plus, Settings, Users } from 'lucide-react';
 import { useInvoiceFlow } from './hooks/useInvoiceFlow';
 import { useChangeOrderFlow } from './hooks/useChangeOrderFlow';
@@ -177,23 +177,6 @@ function App() {
   }, []);
 
   const { state: invoice, actions: invoiceFlow } = useInvoiceFlow(navigateTo, loadProfile);
-
-  const handleOpenInvoiceFromDashboard = useCallback(
-    (dashboardJob: WorkOrderDashboardJob) => {
-      const invStub = dashboardJob.latestInvoice;
-      if (!invStub) return;
-      void (async () => {
-        const [fullJob, fullInv] = await Promise.all([
-          getJobById(dashboardJob.id),
-          getInvoice(invStub.id),
-        ]);
-        if (fullJob && fullInv) {
-          invoiceFlow.handleOpenPendingInvoice(fullJob, fullInv, 'home');
-        }
-      })();
-    },
-    [invoiceFlow.handleOpenPendingInvoice]
-  );
 
   const { state: changeOrder, actions: changeOrderFlow } = useChangeOrderFlow(
     workOrderDetailJob,
@@ -546,7 +529,6 @@ function App() {
       onCreateAgreement={draftFlow.createNewAgreement}
       onOpenWorkOrders={openWorkOrders}
       onOpenWorkOrderDetail={(jobId) => handleOpenWorkOrderDetail(jobId, 'top')}
-      onOpenInvoiceFromDashboard={user && profile ? handleOpenInvoiceFromDashboard : undefined}
     />
   );
 
@@ -601,8 +583,6 @@ function App() {
             setProfileEntrySource('work-orders');
             navigateTo('profile');
           }}
-          onStartInvoice={invoiceFlow.handleStartInvoice}
-          onOpenPendingInvoice={invoiceFlow.handleOpenPendingInvoice}
           onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
         />
       );

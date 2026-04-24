@@ -1,26 +1,15 @@
 import { memo, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
-import type {
-  BusinessProfile,
-  Invoice,
-  Job,
-  WorkOrderDashboardJob,
-  WorkOrdersDashboardCursor,
-  WorkOrdersDashboardSummary,
-} from '../types/db';
-import {
-  getJobById,
-  getSignedWorkOrdersCount,
-  getWorkOrdersDashboardSummary,
-  listWorkOrdersDashboardPage,
-} from '../lib/db/jobs';
-import { getInvoice, getInvoiceBusinessStatus } from '../lib/db/invoices';
-import { useWorkOrderRowActions } from '../hooks/useWorkOrderRowActions';
+import type { BusinessProfile, WorkOrderDashboardJob, WorkOrdersDashboardCursor, WorkOrdersDashboardSummary } from '../types/db';
+import { getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
+import { getInvoiceBusinessStatus } from '../lib/db/invoices';
 import { getEsignProgressModel } from '../lib/esign-progress';
 import { getWorkOrderSignatureState } from '../lib/work-order-signature';
 import {
+  formatWorkOrderDashboardJobType,
   formatUsd,
   formatWorkOrderDashboardRowDate,
   formatWorkOrderDashboardWoLabel,
+  isWorkOrderDashboardJobComplete,
 } from '../lib/work-order-dashboard-display';
 import './WorkOrdersPage.css';
 
@@ -66,45 +55,34 @@ function hasBusinessPhone(profile: BusinessProfile | null): boolean {
   return Boolean(profile?.phone?.replace(/\D/g, '').length);
 }
 
-function renderEsignStrip(
-  status: WorkOrderDashboardJob['esign_status'],
-  offlineSignedAt: string | null
-) {
-  const { displayLabel, isSignatureSatisfied } = getWorkOrderSignatureState(status, offlineSignedAt);
-  if (!isSignatureSatisfied && status === 'not_sent') return null;
-
-  if (displayLabel === 'Signed offline' || displayLabel === 'Signed') {
-    return (
-      <span
-        className="esign-strip"
-        title={`Signature: ${displayLabel}`}
-        aria-label={`Signature status: ${displayLabel}`}
-      >
-        <span className="esign-strip-segment esign-strip-segment-success" aria-hidden="true" />
-        <span className="esign-strip-segment esign-strip-segment-success" aria-hidden="true" />
-        <span className="esign-strip-segment esign-strip-segment-success" aria-hidden="true" />
-        <span className="esign-strip-text">{displayLabel}</span>
-      </span>
-    );
+function getWorkOrderRowStatusChip(
+  job: WorkOrderDashboardJob
+): { className: string; label: string } | null {
+  if (job.esign_status === 'completed') {
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
   }
 
-  const progress = getEsignProgressModel(status);
-  return (
-    <span
-      className="esign-strip"
-      title={`E-signature: ${progress.title}`}
-      aria-label={`E-signature status: ${progress.title}`}
-    >
-      {progress.steps.map((step) => (
-        <span
-          key={step.key}
-          className={`esign-strip-segment esign-strip-segment-${step.tone}`}
-          aria-hidden="true"
-        />
-      ))}
-      <span className="esign-strip-text">{progress.title}</span>
-    </span>
-  );
+  if (job.offline_signed_at) {
+    return { className: 'iw-status-chip iw-status-chip--offline', label: 'Signed offline' };
+  }
+
+  if (job.esign_status === 'sent') {
+    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
+  }
+
+  if (job.esign_status === 'opened') {
+    return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Opened' };
+  }
+
+  if (job.esign_status === 'declined') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Declined' };
+  }
+
+  if (job.esign_status === 'expired') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Expired' };
+  }
+
+  return null;
 }
 
 function appendDashboardRows(
@@ -196,100 +174,50 @@ function matchesWorkOrderSearch(job: WorkOrderDashboardJob, searchTerm: string):
 
 type WorkOrderRowProps = {
   job: WorkOrderDashboardJob;
-  rowBusy: boolean;
   onOpenDetail: (job: WorkOrderDashboardJob) => void;
   onOpenChangeOrdersSection: (job: WorkOrderDashboardJob) => void;
-  onStartInvoice: (job: WorkOrderDashboardJob) => void;
-  onOpenPendingInvoice: (job: WorkOrderDashboardJob) => void;
 };
 
-const WorkOrderRow = memo(function WorkOrderRow({
-  job,
-  rowBusy,
-  onOpenDetail,
-  onOpenChangeOrdersSection,
-  onStartInvoice,
-  onOpenPendingInvoice,
-}: WorkOrderRowProps) {
+const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onOpenChangeOrdersSection }: WorkOrderRowProps) {
   const woLabel = formatWorkOrderDashboardWoLabel(job);
-  const invoice = job.latestInvoice;
   const jobMetaLabel = formatWorkOrderDashboardRowDate(job);
+  const statusChip = getWorkOrderRowStatusChip(job);
+  const isPaidRow = isWorkOrderDashboardJobComplete(job);
 
   const handleRowClick = (e: MouseEvent<HTMLLIElement>) => {
-    if (rowBusy) return;
     if ((e.target as HTMLElement).closest('button')) return;
     onOpenDetail(job);
   };
 
   return (
-    <li className="work-orders-row" onClick={handleRowClick}>
-      <div className="work-orders-row-main">
-        <div className="work-orders-row-detail-hit work-orders-row-detail-hit--static">
-          <span className="work-orders-row-heading">
+    <li
+      className={`work-orders-row${isPaidRow ? ' work-orders-row--paid' : ''}`}
+      onClick={handleRowClick}
+    >
+      <div className="work-orders-row-shell">
+        <div className="work-orders-row-body">
+          <div className="work-orders-row-left">
             <span className="work-orders-wo">{woLabel}</span>
-            <span className="work-orders-wo-date">{`· ${jobMetaLabel}`}</span>
-          </span>
-          <span className="work-orders-customer">{job.customer_name}</span>
+            <span className="work-orders-customer">{job.customer_name}</span>
+            <span className="work-orders-job-type">{formatWorkOrderDashboardJobType(job)}</span>
+            <span className="work-orders-row-amount">{formatUsd(job.price)}</span>
+          </div>
+          <div className="work-orders-row-right">
+            <div className="work-orders-row-status-slot">
+              {statusChip ? <span className={statusChip.className}>{statusChip.label}</span> : null}
+            </div>
+            <span className="work-orders-wo-date">{jobMetaLabel}</span>
+          </div>
         </div>
-        {job.changeOrderCount > 0 ? (
+        <div className="work-orders-row-footer">
           <button
             type="button"
             className="work-orders-change-orders-link"
-            disabled={rowBusy}
             onClick={() => onOpenChangeOrdersSection(job)}
           >
             View & Create Change Orders
           </button>
-        ) : null}
-        {renderEsignStrip(job.esign_status, job.offline_signed_at)}
-      </div>
-      <div className="work-orders-row-actions">
-        {!invoice ? (
-          <button
-            type="button"
-            className="wo-row-invoice-btn wo-row-invoice-btn--outline"
-            disabled={rowBusy}
-            onClick={() => onStartInvoice(job)}
-          >
-            Invoice
-          </button>
-        ) : invoice.payment_status === 'paid' ? (
-          <button
-            type="button"
-            className="iw-status-chip iw-status-chip--paid"
-            disabled={rowBusy}
-            onClick={() => onOpenPendingInvoice(job)}
-          >
-            Paid
-          </button>
-        ) : invoice.payment_status === 'offline' ? (
-          <button
-            type="button"
-            className="iw-status-chip iw-status-chip--offline"
-            disabled={rowBusy}
-            onClick={() => onOpenPendingInvoice(job)}
-          >
-            Paid offline
-          </button>
-        ) : getInvoiceBusinessStatus(invoice) === 'draft' ? (
-          <button
-            type="button"
-            className="iw-status-chip iw-status-chip--draft"
-            disabled={rowBusy}
-            onClick={() => onOpenPendingInvoice(job)}
-          >
-            Draft
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="iw-status-chip iw-status-chip--outstanding"
-            disabled={rowBusy}
-            onClick={() => onOpenPendingInvoice(job)}
-          >
-            Invoiced
-          </button>
-        )}
+        </div>
       </div>
     </li>
   );
@@ -302,8 +230,6 @@ interface WorkOrdersPageProps {
   onClearSuccessBanner: () => void;
   onCreateWorkOrder: () => void;
   onCompleteProfileClick: () => void;
-  onStartInvoice: (job: Job) => void;
-  onOpenPendingInvoice: (job: Job, invoice: Invoice) => void;
   onOpenWorkOrderDetail: (jobId: string, targetSection?: 'top' | 'change-orders') => void;
 }
 
@@ -314,8 +240,6 @@ export function WorkOrdersPage({
   onClearSuccessBanner,
   onCreateWorkOrder,
   onCompleteProfileClick,
-  onStartInvoice,
-  onOpenPendingInvoice,
   onOpenWorkOrderDetail,
 }: WorkOrdersPageProps) {
   const [jobs, setJobs] = useState<WorkOrderDashboardJob[]>([]);
@@ -326,23 +250,15 @@ export function WorkOrdersPage({
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [summary, setSummary] = useState<WorkOrdersDashboardSummary | null>(null);
-  const [signedWorkOrdersCount, setSignedWorkOrdersCount] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<WorkOrderFilterOption>('all');
 
-  const {
-    busyJobIds: actionLoadingJobIds,
-    handleOpenDetail,
-    handleStartInvoice,
-    handleOpenPendingInvoice,
-  } = useWorkOrderRowActions({
-    userId,
-    getJobById,
-    getInvoice,
-    onOpenWorkOrderDetail,
-    onStartInvoice,
-    onOpenPendingInvoice,
-  });
+  const handleOpenDetail = useCallback(
+    (listJob: WorkOrderDashboardJob) => {
+      onOpenWorkOrderDetail(listJob.id);
+    },
+    [onOpenWorkOrderDetail]
+  );
 
   const hideCtaKey = `${HIDE_COMPLETE_PROFILE_CTA_PREFIX}${userId}`;
   const [profileNudgeDismissedActive, setProfileNudgeDismissedActive] = useState(() =>
@@ -362,13 +278,11 @@ export function WorkOrdersPage({
     setNextCursor(null);
     setLoadMoreError(null);
     setSummary(null);
-    setSignedWorkOrdersCount(null);
 
     void Promise.all([
       listWorkOrdersDashboardPage(userId, WORK_ORDERS_PAGE_SIZE),
       getWorkOrdersDashboardSummary(userId),
-      getSignedWorkOrdersCount(userId),
-    ]).then(([pageResult, summaryResult, signedCountResult]) => {
+    ]).then(([pageResult, summaryResult]) => {
       if (cancelled) return;
 
       if (pageResult.error) {
@@ -387,12 +301,6 @@ export function WorkOrdersPage({
         setSummary(null);
       } else {
         setSummary(summaryResult.data);
-      }
-
-      if (signedCountResult.error) {
-        setSignedWorkOrdersCount(null);
-      } else {
-        setSignedWorkOrdersCount(signedCountResult.data);
       }
 
       setJobsLoading(false);
@@ -419,14 +327,6 @@ export function WorkOrdersPage({
     }
     setProfileNudgeDismissedActive(true);
   };
-
-  const handleOpenPendingInvoiceForRow = useCallback(
-    (job: WorkOrderDashboardJob) => {
-      if (!job.latestInvoice) return;
-      handleOpenPendingInvoice(job, job.latestInvoice);
-    },
-    [handleOpenPendingInvoice]
-  );
 
   const handleOpenChangeOrdersSection = useCallback(
     (job: WorkOrderDashboardJob) => {
@@ -456,7 +356,7 @@ export function WorkOrdersPage({
   }, [hasMore, loadMoreLoading, nextCursor, userId]);
 
   const summaryJobCountDisplay = summary?.jobCount ?? 0;
-  const signedWorkOrdersDisplay = signedWorkOrdersCount ?? 0;
+  const signedWorkOrdersDisplay = summary?.signedJobCount ?? 0;
   const filteredJobs = useMemo(
     () =>
       jobs.filter(
@@ -618,11 +518,8 @@ export function WorkOrdersPage({
                   <WorkOrderRow
                     key={job.id}
                     job={job}
-                    rowBusy={actionLoadingJobIds.has(job.id)}
                     onOpenDetail={handleOpenDetail}
                     onOpenChangeOrdersSection={handleOpenChangeOrdersSection}
-                    onStartInvoice={handleStartInvoice}
-                    onOpenPendingInvoice={handleOpenPendingInvoiceForRow}
                   />
                 ))}
               </ul>

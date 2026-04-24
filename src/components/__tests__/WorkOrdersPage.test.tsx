@@ -5,8 +5,6 @@ import { cleanup, render, screen, waitFor, within, act } from '@testing-library/
 import userEvent from '@testing-library/user-event';
 import type {
   BusinessProfile,
-  Invoice,
-  Job,
   WorkOrderDashboardJob,
   WorkOrdersDashboardCursor,
   WorkOrdersDashboardSummary,
@@ -15,27 +13,16 @@ import { WorkOrdersPage } from '../WorkOrdersPage';
 
 const listWorkOrdersDashboardPage = vi.fn();
 const getWorkOrdersDashboardSummary = vi.fn();
-const getSignedWorkOrdersCount = vi.fn();
-const getJobById = vi.fn();
-const getInvoice = vi.fn();
 
 vi.mock('../../lib/db/jobs', () => ({
   listWorkOrdersDashboardPage: (...args: unknown[]) => listWorkOrdersDashboardPage(...args),
   getWorkOrdersDashboardSummary: (...args: unknown[]) => getWorkOrdersDashboardSummary(...args),
-  getSignedWorkOrdersCount: (...args: unknown[]) => getSignedWorkOrdersCount(...args),
-  getJobById: (...args: unknown[]) => getJobById(...args),
 }));
-
-vi.mock('../../lib/db/invoices', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/db/invoices')>();
-  return {
-    ...actual,
-    getInvoice: (...args: unknown[]) => getInvoice(...args),
-  };
-});
 
 const summaryResult: WorkOrdersDashboardSummary = {
   jobCount: 2,
+  signedJobCount: 1,
+  completedJobCount: 1,
   invoicedContractTotal: 125,
   pendingContractTotal: 275,
   paidContractTotal: 0,
@@ -112,92 +99,6 @@ function previewCO(
   };
 }
 
-function minimalFullJob(id: string, customer: string): Job {
-  return {
-    id,
-    user_id: 'u1',
-    client_id: null,
-    customer_name: customer,
-    customer_phone: null,
-    job_location: 'x',
-    job_type: 'repair',
-    other_classification: null,
-    asset_or_item_description: 'x',
-    requested_work: 'x',
-    materials_provided_by: null,
-    installation_included: null,
-    grinding_included: null,
-    paint_or_coating_included: null,
-    removal_or_disassembly_included: null,
-    hidden_damage_possible: null,
-    price_type: 'fixed',
-    price: 100,
-    deposit_required: null,
-    payment_terms: null,
-    target_completion_date: null,
-    exclusions: [],
-    assumptions: [],
-    change_order_required: null,
-    workmanship_warranty_days: null,
-    status: 'active',
-    wo_number: 1,
-    agreement_date: null,
-    contractor_phone: null,
-    contractor_email: null,
-    customer_email: null,
-    governing_state: null,
-    target_start: null,
-    deposit_amount: null,
-    late_payment_terms: null,
-    payment_terms_days: null,
-    late_fee_rate: null,
-    negotiation_period: null,
-    customer_obligations: null,
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
-    esign_submission_id: null,
-    esign_submitter_id: null,
-    esign_embed_src: null,
-    esign_status: 'not_sent',
-    esign_submission_state: null,
-    esign_submitter_state: null,
-    esign_sent_at: null,
-    esign_opened_at: null,
-    esign_completed_at: null,
-    esign_declined_at: null,
-    esign_decline_reason: null,
-    esign_signed_document_url: null,
-    esign_resent_at: null,
-    offline_signed_at: null,
-  };
-}
-
-function minimalInvoice(id: string): Invoice {
-  return {
-    id,
-    user_id: 'u1',
-    job_id: 'job-a',
-    invoice_number: 1,
-    invoice_date: '2025-01-01',
-    due_date: '2025-01-14',
-    status: 'draft',
-    issued_at: null,
-    line_items: [],
-    stripe_payment_link_id: null,
-    stripe_payment_url: null,
-    payment_status: 'unpaid',
-    paid_at: null,
-    subtotal: 100,
-    tax_rate: 0,
-    tax_amount: 0,
-    total: 100,
-    payment_methods: [],
-    notes: null,
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
-  };
-}
-
 function makePageResult(
   data: WorkOrderDashboardJob[],
   opts?: { hasMore?: boolean; nextCursor?: WorkOrdersDashboardCursor | null }
@@ -258,8 +159,6 @@ function minimalProfileNoPhone(): BusinessProfile {
 
 function renderPage(profile: BusinessProfile | null = null) {
   const onCreateWorkOrder = vi.fn();
-  const onStartInvoice = vi.fn();
-  const onOpenPendingInvoice = vi.fn();
   const onOpenWorkOrderDetail = vi.fn();
   const onClearSuccessBanner = vi.fn();
   render(
@@ -270,15 +169,11 @@ function renderPage(profile: BusinessProfile | null = null) {
       onClearSuccessBanner={onClearSuccessBanner}
       onCreateWorkOrder={onCreateWorkOrder}
       onCompleteProfileClick={() => {}}
-      onStartInvoice={onStartInvoice}
-      onOpenPendingInvoice={onOpenPendingInvoice}
       onOpenWorkOrderDetail={onOpenWorkOrderDetail}
     />
   );
   return {
     onCreateWorkOrder,
-    onStartInvoice,
-    onOpenPendingInvoice,
     onOpenWorkOrderDetail,
     onClearSuccessBanner,
   };
@@ -300,14 +195,8 @@ describe('WorkOrdersPage', () => {
     localStorage.clear();
     listWorkOrdersDashboardPage.mockReset();
     getWorkOrdersDashboardSummary.mockReset();
-    getSignedWorkOrdersCount.mockReset();
-    getJobById.mockReset();
-    getInvoice.mockReset();
     listWorkOrdersDashboardPage.mockResolvedValue(makePageResult([listJobA]));
     getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryResult, error: null });
-    getSignedWorkOrdersCount.mockResolvedValue({ data: 1, error: null });
-    getJobById.mockImplementation((id: string) => Promise.resolve(minimalFullJob(id, id)));
-    getInvoice.mockImplementation((id: string) => Promise.resolve(minimalInvoice(id)));
   });
 
   it('renders the Create Work Order button and calls onCreateWorkOrder', async () => {
@@ -325,13 +214,14 @@ describe('WorkOrdersPage', () => {
     getWorkOrdersDashboardSummary.mockResolvedValue({
       data: {
         jobCount: 2,
+        signedJobCount: 1,
+        completedJobCount: 0,
         invoicedContractTotal: 150,
         pendingContractTotal: 250,
         paidContractTotal: 0,
       },
       error: null,
     });
-    getSignedWorkOrdersCount.mockResolvedValue({ data: 1, error: null });
 
     renderPage(minimalProfileWithPhone());
 
@@ -342,7 +232,6 @@ describe('WorkOrdersPage', () => {
 
     expect(listWorkOrdersDashboardPage).toHaveBeenCalledWith('u1', 25);
     expect(getWorkOrdersDashboardSummary).toHaveBeenCalledWith('u1');
-    expect(getSignedWorkOrdersCount).toHaveBeenCalledWith('u1');
     const statGroup = screen.getByRole('group', {
       name: /Work order counts/i,
     });
@@ -385,6 +274,34 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByText('Customer B')).toBeInTheDocument();
   });
 
+  it('applies paid-row green tint when the job invoice is fully paid (same signal as the home list)', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        listJobA,
+        listJobSignedOffline,
+        {
+          ...listJobA,
+          id: 'job-paid-stripe',
+          customer_name: 'Customer Paid Stripe',
+          wo_number: 9,
+          latestInvoice: {
+            id: 'inv-p',
+            job_id: 'job-paid-stripe',
+            issued_at: '2025-01-10T00:00:00Z',
+            invoice_number: 9,
+            created_at: '2025-01-10T00:00:00Z',
+            payment_status: 'paid',
+          },
+        },
+      ])
+    );
+    renderPage(minimalProfileWithPhone());
+    await screen.findByText('Customer C');
+    expect(screen.getByText('Customer C').closest('li')).toHaveClass('work-orders-row--paid');
+    expect(screen.getByText('Customer Paid Stripe').closest('li')).toHaveClass('work-orders-row--paid');
+    expect(screen.getByText('Customer A').closest('li')).not.toHaveClass('work-orders-row--paid');
+  });
+
   it('opens work-order detail immediately with the row job id and does not prefetch on click', async () => {
     const user = userEvent.setup();
     const { onOpenWorkOrderDetail } = renderPage(minimalProfileWithPhone());
@@ -393,20 +310,34 @@ describe('WorkOrdersPage', () => {
     await user.click(screen.getByText('Customer A'));
 
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a');
-    expect(getJobById).not.toHaveBeenCalled();
   });
 
-  it('hydrates a full job only when starting an invoice', async () => {
-    const user = userEvent.setup();
-    const { onStartInvoice } = renderPage(minimalProfileWithPhone());
-
-    await screen.findByText('Customer A');
-    await user.click(screen.getByRole('button', { name: /^Invoice$/i }));
-
-    await waitFor(() => {
-      expect(onStartInvoice).toHaveBeenCalledTimes(1);
-    });
-    expect(getJobById).toHaveBeenCalledWith('job-a');
+  it('does not render per-row invoice chips or the start-invoice control on the list', async () => {
+    listWorkOrdersDashboardPage.mockResolvedValue(
+      makePageResult([
+        { ...listJobA, latestInvoice: null },
+        {
+          ...listJobB,
+          latestInvoice: {
+            id: 'inv-b',
+            job_id: 'job-b',
+            issued_at: null,
+            invoice_number: 2,
+            created_at: '2025-01-02T00:00:00Z',
+            payment_status: 'unpaid',
+          },
+        },
+        listJobSignedOffline,
+      ])
+    );
+    renderPage(minimalProfileWithPhone());
+    await screen.findByText('Customer C');
+    const list = latestWorkOrdersListUl();
+    expect(within(list).queryByRole('button', { name: /^Invoice$/i })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Draft$/i })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Invoiced$/i })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Paid$/i })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Paid Offline$/i })).not.toBeInTheDocument();
   });
 
   it('shows View & Create Change Orders link when changeOrderCount > 0 and opens change-orders section', async () => {
@@ -433,132 +364,95 @@ describe('WorkOrdersPage', () => {
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a', 'change-orders');
   });
 
-  it('renders the mini e-sign strip below the change-orders link on the work-orders row', async () => {
+  it('keeps the change-order CTA visible even when the row has zero change orders', async () => {
+    const user = userEvent.setup();
+    const { onOpenWorkOrderDetail } = renderPage(minimalProfileWithPhone());
+
+    await screen.findByText('Customer A');
+    await user.click(screen.getByRole('button', { name: /View & Create Change Orders/i }));
+
+    expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a', 'change-orders');
+  });
+
+  it('renders signature chips on work-order rows using the canonical status-chip variants', async () => {
     listWorkOrdersDashboardPage.mockResolvedValue(
       makePageResult([
         {
           ...listJobA,
+          id: 'job-sent',
+          customer_name: 'Customer Sent',
+          esign_status: 'sent',
+        },
+        {
+          ...listJobA,
+          id: 'job-opened',
+          customer_name: 'Customer Opened',
+          esign_status: 'opened',
+        },
+        {
+          ...listJobA,
+          id: 'job-signed',
+          customer_name: 'Customer Signed',
           esign_status: 'completed',
-          changeOrderCount: 2,
+        },
+        {
+          ...listJobSignedOffline,
+          customer_name: 'Customer Offline',
+          latestInvoice: null,
+        },
+        {
+          ...listJobA,
+          id: 'job-declined',
+          customer_name: 'Customer Declined',
+          esign_status: 'declined',
         },
       ])
     );
 
     renderPage(minimalProfileWithPhone());
 
-    await screen.findByText('Customer A');
-    const row = screen.getByText('Customer A').closest('li');
-    expect(row).toBeTruthy();
-    const rowEl = row as HTMLElement;
-    const link = within(rowEl).getByRole('button', { name: /View & Create Change Orders/i });
-    const strip = within(rowEl).getByLabelText('Signature status: Signed');
+    const sentRow = (await screen.findByText('Customer Sent')).closest('li') as HTMLElement;
+    expect(within(sentRow).getByText('Sent')).toHaveClass('iw-status-chip', 'iw-status-chip--draft');
 
-    expect(link.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('renders Draft and Invoiced actions from dashboard invoice fields', async () => {
-    listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        {
-          ...listJobA,
-          latestInvoice: {
-            id: 'inv-a',
-            job_id: 'job-a',
-            issued_at: null,
-            invoice_number: 1,
-            created_at: '2025-01-03T00:00:00Z',
-            payment_status: 'unpaid',
-          },
-        },
-        {
-          ...listJobB,
-          latestInvoice: {
-            id: 'inv-b',
-            job_id: 'job-b',
-            issued_at: '2025-01-04T00:00:00Z',
-            invoice_number: 2,
-            created_at: '2025-01-04T00:00:00Z',
-            payment_status: 'unpaid',
-          },
-        },
-      ])
+    const openedRow = screen.getByText('Customer Opened').closest('li') as HTMLElement;
+    expect(within(openedRow).getByText('Opened')).toHaveClass(
+      'iw-status-chip',
+      'iw-status-chip--outstanding'
     );
 
-    renderPage();
+    const signedRow = screen.getByText('Customer Signed').closest('li') as HTMLElement;
+    expect(within(signedRow).getByText('Signed')).toHaveClass('iw-status-chip', 'iw-status-chip--paid');
 
-    await waitFor(() => {
-      const list = latestWorkOrdersListUl();
-      expect(within(list).getByRole('button', { name: /^Draft$/i })).toBeInTheDocument();
-      expect(within(list).getByRole('button', { name: /^Invoiced$/i })).toBeInTheDocument();
-    });
-  });
-
-  it('renders Paid Offline row action and opens invoice on click', async () => {
-    listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        {
-          ...listJobA,
-          latestInvoice: {
-            id: 'inv-off',
-            job_id: 'job-a',
-            issued_at: '2025-01-05T00:00:00Z',
-            invoice_number: 9,
-            created_at: '2025-01-05T00:00:00Z',
-            payment_status: 'offline',
-          },
-        },
-      ])
+    const offlineRow = screen.getByText('Customer Offline').closest('li') as HTMLElement;
+    expect(within(offlineRow).getByText('Signed offline')).toHaveClass(
+      'iw-status-chip',
+      'iw-status-chip--offline'
     );
 
-    const user = userEvent.setup();
-    const { onOpenPendingInvoice } = renderPage(minimalProfileWithPhone());
-
-    await waitFor(() => {
-      const list = latestWorkOrdersListUl();
-      expect(within(list).getByRole('button', { name: /^Paid Offline$/i })).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByRole('button', { name: /^Paid Offline$/i }));
-
-    await waitFor(() => {
-      expect(onOpenPendingInvoice).toHaveBeenCalledTimes(1);
-    });
-    expect(getInvoice).toHaveBeenCalledWith('inv-off');
-  });
-
-  it('opens the pending invoice using the invoice id from the dashboard row', async () => {
-    listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        {
-          ...listJobA,
-          latestInvoice: {
-            id: 'inv-a',
-            job_id: 'job-a',
-            issued_at: null,
-            invoice_number: 1,
-            created_at: '2025-01-03T00:00:00Z',
-            payment_status: 'unpaid',
-          },
-        },
-      ])
+    const declinedRow = screen.getByText('Customer Declined').closest('li') as HTMLElement;
+    expect(within(declinedRow).getByText('Declined')).toHaveClass(
+      'iw-status-chip',
+      'iw-status-chip--negative'
     );
-
-    const user = userEvent.setup();
-    const { onOpenPendingInvoice } = renderPage(minimalProfileWithPhone());
-
-    await screen.findByRole('button', { name: /^Draft$/i });
-    await user.click(screen.getByRole('button', { name: /^Draft$/i }));
-
-    await waitFor(() => {
-      expect(onOpenPendingInvoice).toHaveBeenCalledTimes(1);
-    });
-    expect(getInvoice).toHaveBeenCalledWith('inv-a');
   });
 
-  it('shows the date on the row header', async () => {
+  it('does not show a status chip for unsent unsigned work orders', async () => {
+    renderPage(minimalProfileWithPhone());
+
+    const row = (await screen.findByText('Customer A')).closest('li') as HTMLElement;
+    expect(within(row).queryByText('Sent')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Opened')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Signed')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Signed offline')).not.toBeInTheDocument();
+  });
+
+  it('shows the left-column fields and right-column date on the row', async () => {
     renderPage();
     await screen.findByText('Customer A');
-    expect(screen.getByText((text) => text.includes('Jan 1, 2025'))).toBeInTheDocument();
+    expect(screen.getByText('WO #0001')).toBeInTheDocument();
+    expect(screen.getByText('repair')).toBeInTheDocument();
+    expect(screen.getByText('$100')).toBeInTheDocument();
+    expect(screen.getByText('Jan 1, 2025')).toBeInTheDocument();
   });
 
   it('clears the success banner after 10 seconds and not before', async () => {
@@ -573,8 +467,6 @@ describe('WorkOrdersPage', () => {
         onClearSuccessBanner={onClearSuccessBanner}
         onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
       />
     );
@@ -805,8 +697,6 @@ describe('WorkOrdersPage', () => {
         onClearSuccessBanner={() => {}}
         onCreateWorkOrder={() => {}}
         onCompleteProfileClick={onCompleteProfileClick}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
       />
     );
@@ -832,8 +722,6 @@ describe('WorkOrdersPage', () => {
         onClearSuccessBanner={() => {}}
         onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
       />
     );
@@ -852,8 +740,6 @@ describe('WorkOrdersPage', () => {
         onClearSuccessBanner={() => {}}
         onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
       />
     );
@@ -873,8 +759,6 @@ describe('WorkOrdersPage', () => {
         onClearSuccessBanner={() => {}}
         onCreateWorkOrder={() => {}}
         onCompleteProfileClick={() => {}}
-        onStartInvoice={() => {}}
-        onOpenPendingInvoice={() => {}}
         onOpenWorkOrderDetail={() => {}}
       />
     );

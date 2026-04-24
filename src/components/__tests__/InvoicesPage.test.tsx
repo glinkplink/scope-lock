@@ -130,7 +130,7 @@ describe('InvoicesPage', () => {
     cleanup();
   });
 
-  it('renders invoice row with wo number label and wo fallback copy', async () => {
+  it('renders invoice row with invoice id, client, wo label, amount, and date', async () => {
     const invA = withListFields(
       baseInvoice({ id: 'inv-a', invoice_number: 1, job_id: 'job-a' }),
       'Customer A',
@@ -150,6 +150,11 @@ describe('InvoicesPage', () => {
     await waitFor(() => {
       expect(screen.getByText('WO #0003')).toBeInTheDocument();
     });
+    const firstRow = screen.getByText('Customer A').closest('li') as HTMLElement;
+    expect(within(firstRow).getByText('INV #0001')).toBeInTheDocument();
+    expect(within(firstRow).getByText('Customer A')).toBeInTheDocument();
+    expect(within(firstRow).getByText('$100')).toBeInTheDocument();
+    expect(within(firstRow).getByText('Jan 15, 2025')).toBeInTheDocument();
     expect(screen.getByText('WO (no #)')).toBeInTheDocument();
   });
 
@@ -180,6 +185,9 @@ describe('InvoicesPage', () => {
     });
     expect(within(statGroup).getByText('$900')).toBeInTheDocument();
     expect(within(statGroup).getByText('Paid')).toBeInTheDocument();
+
+    expect(screen.getByText('Bravo Gate').closest('li')).toHaveClass('work-orders-row--paid');
+    expect(screen.getByText('Alpha Rail').closest('li')).not.toHaveClass('work-orders-row--paid');
 
     await user.type(screen.getByRole('searchbox', { name: /search invoices/i }), 'Bravo');
 

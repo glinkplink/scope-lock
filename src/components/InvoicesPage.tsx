@@ -74,30 +74,35 @@ interface InvoiceRowProps {
   onOpen: (invoice: InvoiceWithCustomerName) => void;
 }
 
-/** Row DOM mirrors `WorkOrderRow` in `WorkOrdersPage.tsx` so `WorkOrdersPage.css` applies. */
+/** Row uses shared work-orders list classes so `WorkOrdersPage.css` applies. */
 function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
   const pill = invoiceRowStatusPill(invoice);
+  const isPaidRow = invoice.payment_status === 'paid' || invoice.payment_status === 'offline';
 
   return (
-    <li className={`work-orders-row${busy ? ' work-orders-row--busy' : ''}`}>
+    <li
+      className={`work-orders-row${busy ? ' work-orders-row--busy' : ''}${
+        isPaidRow ? ' work-orders-row--paid' : ''
+      }`}
+    >
       <button
         type="button"
         className="invoices-row-full-hit"
         disabled={busy}
         onClick={() => onOpen(invoice)}
       >
-        <div className="work-orders-row-main">
-          <span className="work-orders-row-heading">
+        <div className="work-orders-row-body">
+          <div className="work-orders-row-left">
             <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
-            <span className="work-orders-wo-date">{`· ${formatInvoiceDate(invoice.invoice_date)}`}</span>
-          </span>
-          <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
-          <span className="invoices-row-wo-line">{formatWoLabel(invoice.wo_number)}</span>
-        </div>
-        <div className="work-orders-row-actions">
-          <div className="invoices-row-actions-stack">
-            <span className="invoices-row-amount">{formatUsd(invoice.total)}</span>
-            <span className={pill.className}>{pill.label}</span>
+            <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
+            <span className="invoices-row-wo-line">{formatWoLabel(invoice.wo_number)}</span>
+            <span className="work-orders-row-amount invoices-row-amount">{formatUsd(invoice.total)}</span>
+          </div>
+          <div className="work-orders-row-right">
+            <div className="work-orders-row-status-slot">
+              <span className={pill.className}>{pill.label}</span>
+            </div>
+            <span className="work-orders-wo-date">{formatInvoiceDate(invoice.invoice_date)}</span>
           </div>
         </div>
       </button>

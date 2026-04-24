@@ -87,7 +87,7 @@ A contractor can **start a work order without signing in**. They fill the job fo
 ### Design system tokens (`src/App.css :root`)
 
 - **Forge shell (dark app UI):** `--iron-*` (iron palette), `--spark` (orange accent), `--nav-height`, `--header-height`, `--shell-radius-*`, `--font-app` (Outfit stack).
-- **Invoice payment status (shared shell):** **Lists** (Home recent rows, Work Orders / Invoices rows, WO detail strip) use **`.iw-payment-badge`** chips: same padding, radius, type scale, and bordered treatment as **`.wo-row-invoice-btn--draft` / `--invoiced`** (`WorkOrdersPage.css`). Modifiers **`--draft`** and **`--invoiced`** match those row styles for **Invoice draft** / **Invoiced**; **`--stripe`** / **`--offline`** use `--iw-payment-*` (darker **PAID** vs light **PAID OFFLINE**). **Home** recent cards are a focusable row (`role="button"`) so a nested **Open invoice** control is valid; invoice chips call `getJobById` + `getInvoice` then **`handleOpenPendingInvoice(..., 'home')`** so **Back** returns to Home. **`InvoiceFinalPage`** preview header keeps a **pill** (`.invoice-final-status-badge`) for Draft / Invoiced / Paid; paid variants use the same payment color tokens plus matching borders.
+- **Status chips (shared shell):** list and detail surfaces use the canonical **`.iw-status-chip`** system from `App.css`: **`--draft`** (yellow), **`--outstanding`** (orange), **`--paid`** (solid green), **`--offline`** (outlined green), and **`--negative`** (red). **Home** recent rows use rolled-up job progress (`Sent`, `Signed`, `Completed`); **Work Orders** rows use signature progress (`Sent`, `Opened`, `Signed`, `Signed offline`); **Invoices** rows keep invoice lifecycle (`Draft`, `Invoiced`, `Paid`, `Paid offline`). Across all three list surfaces, the **green row tint** means the job or invoice is fully complete because the latest standard invoice is `paid` or `offline`.
 - **Shared shell form panels:** `--form-panel-bg`, `--form-panel-border`, `--form-control-bg`, `--form-control-border`, `--form-control-text`, `--form-label`, `--form-placeholder`, `--focus-ring-spark`. Primary CTAs use `.btn-primary` (spark), not legacy navy.
 - **Light document tokens:** `--primary`, `--surface`, `--surface-white`, `--border`, `--text-primary`, `--agreement-section-blue`, `--radius`, `--radius-lg`, `--font-document` (Barlow stack). These remain the semantics for light UI surfaces (agreement preview sheet, e-sign timeline card, CaptureModal fields, invoice wizard summary box, payment-method document copy) and for document markup. **`buildPdfHtml`** inlines raw `App.css`; do not redefine these to dark semantics without pinning light values in the PDF HTML wrapper.
 - **`body` font** is Outfit; on-screen agreement/invoice preview sheets set `font-family: var(--font-document)` on scoped document containers so preview matches PDF.
@@ -161,9 +161,9 @@ scope-lock/
 │   │   ├── CaptureModal.tsx          # Anonymous first Download & Save / Send: account + optional defaults opt-in
 │   │   ├── ClientsPage.tsx           # Saved clients list with inline contact editing + work-order activity context
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
-│   │   ├── HomePage.tsx              # Guest marketing landing + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page` for recent rows)
+│   │   ├── HomePage.tsx              # Guest marketing landing + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page`; recent rows show rolled-up WO progress)
 │   │   ├── LandingPreviewModal.tsx   # Full-document lightbox for landing PDF placeholders (WO / invoice)
-│   │   ├── WorkOrdersPage.tsx        # List jobs + invoice actions; row opens detail
+│   │   ├── WorkOrdersPage.tsx        # Work-order list + signature/invoice filters; row opens detail, row footer opens change-orders section
 │   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement + change orders + PDFs + e-sign / offline-sign actions
 │   │   ├── ChangeOrderWizard.tsx     # Create/edit change order (3 steps; saves + sends to DocuSeal on finish)
 │   │   ├── ChangeOrderDetailPage.tsx # Saved CO → HTML/PDF + e-sign / offline-sign actions + timeline
@@ -182,8 +182,7 @@ scope-lock/
 │   │   ├── useChangeOrderFlow.ts     # Detail/wizard/detail navigation for COs
 │   │   ├── useInvoiceFlow.ts         # Work-order invoice wizard/final page flow state
 │   │   ├── useScaledPreview.ts       # 816px preview scaling for WO/invoice mini previews
-│   │   ├── useWorkOrderDraft.ts      # New/edit draft state + next_wo_number refresh path
-│   │   └── useWorkOrderRowActions.ts # Work Orders row hydration/open/invoice helpers
+│   │   └── useWorkOrderDraft.ts      # New/edit draft state + next_wo_number refresh path
 │   ├── lib/
 │   │   ├── supabase.ts               # Supabase client singleton
 │   │   ├── auth.ts                   # signUp / signIn / signOut helpers
@@ -290,13 +289,14 @@ First Download & Save → CaptureModal → signUp + upsertProfile (+ optional WO
       ↓
 [Signed in, no profile row] → BusinessProfileForm (rare edge case)
       ↓
-[Signed in + profile] → HomePage (dashboard summary + recent WOs; **Back** from detail opened here still returns to Work Orders until a `backTarget` stack exists)
+[Signed in + profile] → HomePage (dashboard summary + recent WOs; rows stay status-only and open WO detail; **Back** from detail opened here still returns to Work Orders until a `backTarget` stack exists)
       ↓
 Clients → ClientsPage (saved clients; real-time search on name/phone/email/address; inline edit for phone/email/address only)
       ↓
 Work Orders → WorkOrdersPage → row → WorkOrderDetailPage (agreement + change orders + PDFs + offline-sign controls)
-                      → Change Order → ChangeOrderWizard → detail (refresh list; CO detail also supports offline-sign / undo)
-                      → Invoice → InvoiceWizard (single WO invoice; signed/offline-signed CO lines only) → InvoiceFinalPage (PDF + send/payment-link issuance gate; back returns to Work Orders)
+                     → View & Create Change Orders → WorkOrderDetailPage change-orders section
+                     → Change Order → ChangeOrderWizard → detail (refresh list; CO detail also supports offline-sign / undo)
+                     → Invoice → InvoiceWizard (single WO invoice; signed/offline-signed CO lines only) → InvoiceFinalPage (PDF + send/payment-link issuance gate; back returns to Work Orders)
       ↓
 Invoices → InvoicesPage (standard job-level invoices only; legacy CO-only rows hidden from normal UI) → InvoiceFinalPage (back returns to Invoices list)
       ↓
@@ -381,13 +381,13 @@ Core domain tables use `auth.uid()` RLS policies: users can only read/write thei
 
 ### Dashboard rollups
 
-- **Home** shows four cards: **Work orders** count from the work-order dashboard summary plus **Invoiced** / **Paid** / **Pending Invoice** money cards from the invoice-financial summary over **`invoices.total`**. Invoice buckets are mutually exclusive from invoice state: paid/offline-paid, issued-but-unpaid, and draft/unissued.
-- **Invoices** shows only invoice-financial money cards from the same invoice summary. Its **Paid** card spans the full row below **Invoiced** and **Pending Invoice**.
-- **Work Orders** shows work-order operational counts only: **Work orders** and **WO's signed**. Signed count includes DocuSeal-completed work orders and work orders marked signed offline.
+- **Home** shows four cards: **Work orders**, **WO's completed**, **Outstanding**, and **Paid**. `completedJobCount` comes from `get_work_orders_dashboard_summary` and means the latest standard job-level invoice is `paid` or `offline`; the money cards still come from the invoice-financial summary over **`invoices.total`**.
+- **Invoices** shows only invoice-financial money cards from the same invoice summary: **Outstanding** and **Paid**.
+- **Work Orders** shows work-order operational counts only: **Work orders** and **WO's signed**. `signedJobCount` includes DocuSeal-completed work orders and work orders marked signed offline.
 - `0014_work_orders_dashboard.sql` remains applied and available for targeted row refresh by `job_id`; the main Work Orders list no longer relies on it for initial page load.
 - **`list_work_orders_dashboard_page`** pages jobs by `(created_at DESC, id DESC)`, aggregates only the current page’s change orders and invoices, uses `DISTINCT ON (job_id)` for latest job-level invoice lookup, and returns:
   - `change_order_count`
-  - `change_orders_preview` (first two COs; used for merge/poll payloads, not list chips—the UI uses **`change_order_count`** only to show **View & Create Change Orders**)
+  - `change_orders_preview` (first two COs; used for merge/poll payloads / preview context, not for list-row chip rendering)
   - `has_in_flight_change_orders`
   - `latest_invoice`
 - **`get_work_orders_dashboard_summary`** runs separately from the page RPC for whole-dataset work-order count.

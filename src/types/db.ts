@@ -165,6 +165,8 @@ export interface WorkOrdersDashboardCursor {
 
 export interface WorkOrdersDashboardSummary {
   jobCount: number;
+  signedJobCount: number;
+  completedJobCount: number;
   invoicedContractTotal: number;
   pendingContractTotal: number;
   paidContractTotal: number;

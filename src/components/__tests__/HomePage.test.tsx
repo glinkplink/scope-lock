@@ -9,12 +9,10 @@ import { HomePage } from '../HomePage';
 const listWorkOrdersDashboardPage = vi.fn();
 const getWorkOrdersDashboardSummary = vi.fn();
 const getInvoiceDashboardSummary = vi.fn();
-const getSignedWorkOrdersCount = vi.fn();
 
 vi.mock('../../lib/db/jobs', () => ({
   listWorkOrdersDashboardPage: (...args: unknown[]) => listWorkOrdersDashboardPage(...args),
   getWorkOrdersDashboardSummary: (...args: unknown[]) => getWorkOrdersDashboardSummary(...args),
-  getSignedWorkOrdersCount: (...args: unknown[]) => getSignedWorkOrdersCount(...args),
 }));
 
 vi.mock('../../lib/db/invoices', async (importOriginal) => {
@@ -54,6 +52,8 @@ const minimalProfile: BusinessProfile = {
 
 const summaryOk: WorkOrdersDashboardSummary = {
   jobCount: 2,
+  signedJobCount: 1,
+  completedJobCount: 1,
   invoicedContractTotal: 100,
   pendingContractTotal: 200,
   paidContractTotal: 0,
@@ -106,7 +106,6 @@ describe('HomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getInvoiceDashboardSummary.mockResolvedValue({ data: invoiceSummaryOk, error: null });
-    getSignedWorkOrdersCount.mockResolvedValue({ data: 0, error: null });
   });
 
   afterEach(() => {
@@ -241,7 +240,14 @@ describe('HomePage', () => {
       nextCursor: null,
     });
     getWorkOrdersDashboardSummary.mockResolvedValue({
-      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0, paidContractTotal: 0 },
+      data: {
+        jobCount: 0,
+        signedJobCount: 0,
+        completedJobCount: 0,
+        invoicedContractTotal: 0,
+        pendingContractTotal: 0,
+        paidContractTotal: 0,
+      },
       error: null,
     });
     getInvoiceDashboardSummary.mockResolvedValue({
@@ -269,7 +275,6 @@ describe('HomePage', () => {
       data: { invoicedTotal: 100, pendingInvoiceTotal: 200, paidTotal: 300 },
       error: null,
     });
-    getSignedWorkOrdersCount.mockResolvedValue({ data: 1, error: null });
 
     render(<HomePage {...signedInProps()} />);
 
@@ -305,9 +310,10 @@ describe('HomePage', () => {
     expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-1');
   });
 
-  it('recent row suppresses the invoice-draft chip (dashboard surfaces complete vs in-progress only)', async () => {
+  it('home row uses rolled-up status chips and suppresses invoice-specific draft labels', async () => {
     const jobDraft: WorkOrderDashboardJob = {
       ...listJob,
+      esign_status: 'opened',
       latestInvoice: {
         id: 'inv-draft',
         job_id: 'job-1',
@@ -330,6 +336,7 @@ describe('HomePage', () => {
     await waitFor(() => {
       expect(screen.getByText('Customer Alpha')).toBeInTheDocument();
     });
+    expect(screen.getByText('Sent')).toBeInTheDocument();
     expect(screen.queryByText('Draft')).toBeNull();
     expect(screen.queryByText('Invoice draft')).toBeNull();
   });
@@ -358,52 +365,32 @@ describe('HomePage', () => {
 
     const card = await screen.findByRole('button', { name: /Open work order WO #0001/i });
     expect(card).toHaveClass('home-dash-card--paid');
-    // Chip inside the card reads "Paid"
-    expect(within(card.parentElement as HTMLElement).getByText('Paid')).toBeInTheDocument();
+    expect(within(card).getByText('Completed')).toBeInTheDocument();
   });
 
-  it('invoice chip calls onOpenInvoiceFromDashboard without opening WO', async () => {
-    const user = userEvent.setup();
-    const onOpenWorkOrderDetail = vi.fn();
-    const onOpenInvoiceFromDashboard = vi.fn();
-    const jobPaid: WorkOrderDashboardJob = {
+  it('offline-signed unpaid rows collapse to Signed on the homepage', async () => {
+    const offlineSignedJob: WorkOrderDashboardJob = {
       ...listJob,
-      latestInvoice: {
-        id: 'inv-paid',
-        job_id: 'job-1',
-        issued_at: '2025-06-02T00:00:00Z',
-        invoice_number: 1,
-        created_at: '2025-06-02T00:00:00Z',
-        payment_status: 'paid',
-      },
+      esign_status: 'not_sent',
+      offline_signed_at: '2025-06-02T00:00:00Z',
     };
     listWorkOrdersDashboardPage.mockResolvedValue({
-      data: [jobPaid],
+      data: [offlineSignedJob],
       error: null,
       hasMore: false,
       nextCursor: null,
     });
     getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryOk, error: null });
 
-    render(
-      <HomePage
-        {...signedInProps()}
-        onOpenWorkOrderDetail={onOpenWorkOrderDetail}
-        onOpenInvoiceFromDashboard={onOpenInvoiceFromDashboard}
-      />
-    );
+    render(<HomePage {...signedInProps()} />);
 
-    await screen.findByRole('button', { name: /Open invoice for WO #0001/i });
-    await user.click(screen.getByRole('button', { name: /Open invoice for WO #0001/i }));
-
-    expect(onOpenInvoiceFromDashboard).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'job-1', latestInvoice: expect.objectContaining({ id: 'inv-paid' }) })
-    );
-    expect(onOpenWorkOrderDetail).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText('Signed')).toBeInTheDocument();
+    });
   });
 
-  it('compact status: invoice paid overrides signature on recent row', async () => {
-    const jobInvoiced: WorkOrderDashboardJob = {
+  it('offline-paid jobs show Completed on the homepage', async () => {
+    const jobCompletedOffline: WorkOrderDashboardJob = {
       ...listJob,
       latestInvoice: {
         id: 'inv-1',
@@ -411,11 +398,11 @@ describe('HomePage', () => {
         issued_at: '2025-06-02T00:00:00Z',
         invoice_number: 1,
         created_at: '2025-06-02T00:00:00Z',
-        payment_status: 'paid',
+        payment_status: 'offline',
       },
     };
     listWorkOrdersDashboardPage.mockResolvedValue({
-      data: [jobInvoiced],
+      data: [jobCompletedOffline],
       error: null,
       hasMore: false,
       nextCursor: null,
@@ -426,13 +413,17 @@ describe('HomePage', () => {
 
     await waitFor(() => {
       const recentRow = screen.getByRole('button', { name: /WO #0001/i });
-      expect(within(recentRow).getByText('Paid')).toBeInTheDocument();
+      expect(within(recentRow).getByText('Completed')).toBeInTheDocument();
     });
   });
 
-  it('compact status: signature-only row shows e-sign label', async () => {
+  it('opened work orders map to Sent on the homepage', async () => {
+    const openedJob: WorkOrderDashboardJob = {
+      ...listJob,
+      esign_status: 'opened',
+    };
     listWorkOrdersDashboardPage.mockResolvedValue({
-      data: [listJob],
+      data: [openedJob],
       error: null,
       hasMore: false,
       nextCursor: null,
@@ -446,6 +437,25 @@ describe('HomePage', () => {
     });
   });
 
+  it('declined work orders show a negative chip on the homepage', async () => {
+    const declinedJob: WorkOrderDashboardJob = {
+      ...listJob,
+      esign_status: 'declined',
+    };
+    listWorkOrdersDashboardPage.mockResolvedValue({
+      data: [declinedJob],
+      error: null,
+      hasMore: false,
+      nextCursor: null,
+    });
+    getWorkOrdersDashboardSummary.mockResolvedValue({ data: summaryOk, error: null });
+
+    render(<HomePage {...signedInProps()} />);
+
+    const chip = await screen.findByText('Declined');
+    expect(chip).toHaveClass('iw-status-chip', 'iw-status-chip--negative');
+  });
+
   it('View all calls onOpenWorkOrders', async () => {
     const user = userEvent.setup();
     const onOpenWorkOrders = vi.fn();
@@ -456,7 +466,14 @@ describe('HomePage', () => {
       nextCursor: null,
     });
     getWorkOrdersDashboardSummary.mockResolvedValue({
-      data: { jobCount: 0, invoicedContractTotal: 0, pendingContractTotal: 0, paidContractTotal: 0 },
+      data: {
+        jobCount: 0,
+        signedJobCount: 0,
+        completedJobCount: 0,
+        invoicedContractTotal: 0,
+        pendingContractTotal: 0,
+        paidContractTotal: 0,
+      },
       error: null,
     });
     getInvoiceDashboardSummary.mockResolvedValue({

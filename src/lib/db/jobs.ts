@@ -198,6 +198,8 @@ function mapDashboardChangeOrderPreviewRows(raw: unknown): WorkOrderListChangeOr
 
 function mapWorkOrdersDashboardSummaryRow(row: Record<string, unknown>): WorkOrdersDashboardSummary {
   const jobCountRaw = row.job_count;
+  const signedJobCountRaw = row.signed_job_count;
+  const completedJobCountRaw = row.completed_job_count;
   const invoicedContractTotalRaw = row.invoiced_contract_total;
   const pendingContractTotalRaw = row.pending_contract_total;
   const paidContractTotalRaw = row.paid_contract_total;
@@ -207,6 +209,14 @@ function mapWorkOrdersDashboardSummaryRow(row: Record<string, unknown>): WorkOrd
       typeof jobCountRaw === 'number' && Number.isFinite(jobCountRaw)
         ? jobCountRaw
         : Number(jobCountRaw) || 0,
+    signedJobCount:
+      typeof signedJobCountRaw === 'number' && Number.isFinite(signedJobCountRaw)
+        ? signedJobCountRaw
+        : Number(signedJobCountRaw) || 0,
+    completedJobCount:
+      typeof completedJobCountRaw === 'number' && Number.isFinite(completedJobCountRaw)
+        ? completedJobCountRaw
+        : Number(completedJobCountRaw) || 0,
     invoicedContractTotal:
       typeof invoicedContractTotalRaw === 'number' && Number.isFinite(invoicedContractTotalRaw)
         ? invoicedContractTotalRaw

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import type {
   BusinessProfile,
   InvoiceDashboardSummary,
@@ -6,14 +6,16 @@ import type {
   WorkOrdersDashboardSummary,
 } from '../types/db';
 import { getInvoiceDashboardSummary } from '../lib/db/invoices';
-import { getSignedWorkOrdersCount, getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
+import { getWorkOrdersDashboardSummary, listWorkOrdersDashboardPage } from '../lib/db/jobs';
 import { splitFullNameForForm } from '../lib/owner-name';
 import {
-  compactWorkOrderDashboardStatusLabel,
+  formatWorkOrderDashboardJobType,
   formatUsd,
   formatWorkOrderDashboardRowDate,
   formatWorkOrderDashboardWoLabel,
+  isWorkOrderDashboardJobComplete,
 } from '../lib/work-order-dashboard-display';
+import { getWorkOrderSignatureState } from '../lib/work-order-signature';
 import { supabase } from '../lib/supabase';
 import { LandingPreviewModal } from './LandingPreviewModal';
 import './HomePage.css';
@@ -364,32 +366,29 @@ function DocThumbnail({ htmlMarkup, onClick, ariaLabel }: { htmlMarkup: string; 
   );
 }
 
-const HOME_RECENT_INVOICE_CHIP_LABELS = new Set([
-  'Paid',
-  'Paid offline',
-  'Invoiced',
-]);
+function getHomeRecentStatusChip(job: WorkOrderDashboardJob): { className: string; label: string } | null {
+  if (isWorkOrderDashboardJobComplete(job)) {
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Completed' };
+  }
 
-function wrapHomeRecentInvoiceChip(
-  job: WorkOrderDashboardJob,
-  chip: ReactNode,
-  openInvoice: boolean,
-  onOpenInvoiceFromDashboard: ((j: WorkOrderDashboardJob) => void) | undefined
-): ReactNode {
-  if (!openInvoice || !onOpenInvoiceFromDashboard) return chip;
-  return (
-    <button
-      type="button"
-      className="home-dash-invoice-status-btn"
-      aria-label={`Open invoice for ${formatWorkOrderDashboardWoLabel(job)}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpenInvoiceFromDashboard(job);
-      }}
-    >
-      {chip}
-    </button>
-  );
+  const signatureState = getWorkOrderSignatureState(job.esign_status, job.offline_signed_at);
+  if (signatureState.isSignatureSatisfied) {
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
+  }
+
+  if (job.esign_status === 'sent' || job.esign_status === 'opened') {
+    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
+  }
+
+  if (job.esign_status === 'declined') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Declined' };
+  }
+
+  if (job.esign_status === 'expired') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Expired' };
+  }
+
+  return null;
 }
 
 export interface HomePageProps {
@@ -398,8 +397,6 @@ export interface HomePageProps {
   onCreateAgreement: () => void;
   onOpenWorkOrders: () => void;
   onOpenWorkOrderDetail: (jobId: string) => void;
-  /** When set, invoice chips on recent rows open the job invoice (hydrated in App). */
-  onOpenInvoiceFromDashboard?: (job: WorkOrderDashboardJob) => void;
 }
 
 export function HomePage({
@@ -408,11 +405,9 @@ export function HomePage({
   onCreateAgreement,
   onOpenWorkOrders,
   onOpenWorkOrderDetail,
-  onOpenInvoiceFromDashboard,
 }: HomePageProps) {
   const [summary, setSummary] = useState<WorkOrdersDashboardSummary | null>(null);
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceDashboardSummary | null>(null);
-  const [signedCount, setSignedCount] = useState<number | null>(null);
   const [recentJobs, setRecentJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const loadSeq = useRef(0);
@@ -442,8 +437,7 @@ export function HomePage({
         listWorkOrdersDashboardPage(uid, HOME_RECENT_LIMIT, null),
         getWorkOrdersDashboardSummary(uid),
         getInvoiceDashboardSummary(uid),
-        getSignedWorkOrdersCount(uid),
-      ]).then(([pageResult, summaryResult, invoiceSummaryResult, signedCountResult]) => {
+      ]).then(([pageResult, summaryResult, invoiceSummaryResult]) => {
         if (cancelled || seq !== loadSeq.current) return;
 
         if (pageResult.error || summaryResult.error || invoiceSummaryResult.error) {
@@ -454,7 +448,6 @@ export function HomePage({
             'Unknown error';
           setSummary(null);
           setInvoiceSummary(null);
-          setSignedCount(null);
           setRecentJobs([]);
           setDashboardError(`Could not load dashboard (${msg}).`);
           return;
@@ -462,7 +455,6 @@ export function HomePage({
 
         setSummary(summaryResult.data);
         setInvoiceSummary(invoiceSummaryResult.data);
-        setSignedCount(signedCountResult.error ? 0 : signedCountResult.data);
         setRecentJobs(pageResult.data ?? []);
         setDashboardError(null);
       });
@@ -839,8 +831,8 @@ export function HomePage({
               <div className="home-stat-label">Work orders</div>
             </div>
             <div className="home-stat-card home-stat-card--signed">
-              <div className="home-stat-num">{signedCount ?? 0}</div>
-              <div className="home-stat-label">WO&apos;s signed</div>
+              <div className="home-stat-num">{summary?.completedJobCount ?? 0}</div>
+              <div className="home-stat-label">WO&apos;s completed</div>
             </div>
             <div className="home-stat-card home-stat-card--outstanding">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.invoicedTotal)}</div>
@@ -864,43 +856,8 @@ export function HomePage({
           ) : (
             <ul className="home-recent-list">
               {recentJobs.map((job) => {
-                const statusLabel = compactWorkOrderDashboardStatusLabel(job);
-                const openInvoice = Boolean(
-                  onOpenInvoiceFromDashboard &&
-                    job.latestInvoice &&
-                    statusLabel &&
-                    HOME_RECENT_INVOICE_CHIP_LABELS.has(statusLabel)
-                );
-
-                const isPaidCard = statusLabel === 'Paid' || statusLabel === 'Paid offline';
-                let statusNode: ReactNode = null;
-                if (statusLabel === 'Paid offline') {
-                  statusNode = wrapHomeRecentInvoiceChip(
-                    job,
-                    <span className="iw-status-chip iw-status-chip--offline">Paid offline</span>,
-                    openInvoice,
-                    onOpenInvoiceFromDashboard
-                  );
-                } else if (statusLabel === 'Paid') {
-                  statusNode = wrapHomeRecentInvoiceChip(
-                    job,
-                    <span className="iw-status-chip iw-status-chip--paid">Paid</span>,
-                    openInvoice,
-                    onOpenInvoiceFromDashboard
-                  );
-                } else if (statusLabel === 'Invoiced') {
-                  statusNode = wrapHomeRecentInvoiceChip(
-                    job,
-                    <span className="iw-status-chip iw-status-chip--outstanding">Invoiced</span>,
-                    openInvoice,
-                    onOpenInvoiceFromDashboard
-                  );
-                } else if (statusLabel && statusLabel !== 'Invoice draft') {
-                  // Non-invoice statuses (e.g. WO-level states) fall back to plain text.
-                  // "Invoice draft" is intentionally suppressed on the dashboard: users
-                  // scan here for completed vs in-progress jobs, not pre-issue invoice state.
-                  statusNode = <span className="home-dash-card-status">{statusLabel}</span>;
-                }
+                const statusChip = getHomeRecentStatusChip(job);
+                const isPaidCard = isWorkOrderDashboardJobComplete(job);
 
                 return (
                   <li key={job.id}>
@@ -917,15 +874,25 @@ export function HomePage({
                         }
                       }}
                     >
-                      <div className="home-dash-card-top">
-                        <span className="home-dash-card-wo">{formatWorkOrderDashboardWoLabel(job)}</span>
-                        {statusNode}
-                      </div>
-                      <div className="home-dash-card-title">{job.job_type}</div>
-                      <div className="home-dash-card-client">{job.customer_name}</div>
-                      <div className="home-dash-card-footer">
-                        <span className="home-dash-card-amount">{formatUsd(job.price)}</span>
-                        <span className="home-dash-card-date">{formatWorkOrderDashboardRowDate(job)}</span>
+                      <div className="home-dash-card-body">
+                        <div className="home-dash-card-left">
+                          <span className="home-dash-card-wo">{formatWorkOrderDashboardWoLabel(job)}</span>
+                          <span className="home-dash-card-client">{job.customer_name}</span>
+                          <span className="home-dash-card-title">
+                            {formatWorkOrderDashboardJobType(job)}
+                          </span>
+                          <span className="home-dash-card-amount">{formatUsd(job.price)}</span>
+                        </div>
+                        <div className="home-dash-card-right">
+                          <div className="home-dash-card-status-slot">
+                            {statusChip ? (
+                              <span className={statusChip.className}>{statusChip.label}</span>
+                            ) : null}
+                          </div>
+                          <span className="home-dash-card-date">
+                            {formatWorkOrderDashboardRowDate(job)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </li>
