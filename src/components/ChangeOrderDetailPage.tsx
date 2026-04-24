@@ -166,6 +166,13 @@ export function ChangeOrderDetailPage({
     () => getChangeOrderSignatureState(co.esign_status, co.offline_signed_at),
     [co.esign_status, co.offline_signed_at]
   );
+  const coPreviewSignatureBadgeClass = useMemo(() => {
+    const d = signatureState.displayLabel;
+    if (d === 'Signed') return ' co-detail-preview-signature-badge--signed';
+    if (d === 'Signed offline') return ' co-detail-preview-signature-badge--offline';
+    if (d === 'Declined' || d === 'Expired') return ' co-detail-preview-signature-badge--negative';
+    return ' co-detail-preview-signature-badge--pending';
+  }, [signatureState.displayLabel]);
   const coEsignWasResent = Boolean(co?.esign_resent_at);
   const esignProgress = useMemo(
     () =>
@@ -611,6 +618,14 @@ export function ChangeOrderDetailPage({
             Preview
           </h2>
           <p className="co-detail-preview-copy">Tap the preview to open the full sheet.</p>
+        </div>
+        <div className="co-detail-preview-meta">
+          <div className="co-detail-preview-status-row">
+            <p className="co-detail-preview-id">{coLabel}</p>
+            <span className={`co-detail-preview-signature-badge${coPreviewSignatureBadgeClass}`}>
+              {signatureState.displayLabel}
+            </span>
+          </div>
         </div>
         <div
           ref={coPreviewViewportRef}

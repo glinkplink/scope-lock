@@ -227,6 +227,13 @@ export function WorkOrderDetailPage({
     () => getWorkOrderSignatureState(job?.esign_status ?? null, job?.offline_signed_at ?? null),
     [job?.esign_status, job?.offline_signed_at]
   );
+  const woPreviewSignatureBadgeClass = useMemo(() => {
+    const d = signatureState.displayLabel;
+    if (d === 'Signed') return ' wo-detail-preview-signature-badge--signed';
+    if (d === 'Signed offline') return ' wo-detail-preview-signature-badge--offline';
+    if (d === 'Declined' || d === 'Expired') return ' wo-detail-preview-signature-badge--negative';
+    return ' wo-detail-preview-signature-badge--pending';
+  }, [signatureState.displayLabel]);
   const esignWasResent = Boolean(job?.esign_resent_at);
   const esignProgress = useMemo(
     () =>
@@ -803,6 +810,14 @@ export function WorkOrderDetailPage({
             Preview
           </h2>
           <p className="wo-detail-preview-copy">Tap the preview to open the full sheet.</p>
+        </div>
+        <div className="wo-detail-preview-meta">
+          <div className="wo-detail-preview-status-row">
+            <p className="wo-detail-preview-id">{woLabel}</p>
+            <span className={`wo-detail-preview-signature-badge${woPreviewSignatureBadgeClass}`}>
+              {signatureState.displayLabel}
+            </span>
+          </div>
         </div>
         <div
           ref={woPreviewViewportRef}

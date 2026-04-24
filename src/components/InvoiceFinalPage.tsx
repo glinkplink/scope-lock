@@ -572,17 +572,15 @@ export function InvoiceFinalPage({
           </h2>
           <div className="invoice-final-preview-header-aside">
             <p className="invoice-final-preview-copy">Tap the preview to open the full sheet.</p>
-            <div className="invoice-final-preview-status-badge-wrap">
-              <span className={`invoice-final-status-badge${invoiceStatusClass}`}>
-                {invoiceStatusLabel}
-              </span>
-            </div>
           </div>
         </div>
 
         <div className="invoice-final-preview-meta">
           <div className="invoice-final-preview-status-row">
             <p className="invoice-final-preview-invoice-number">{invoiceSubline}</p>
+            <span className={`invoice-final-status-badge${invoiceStatusClass}`}>
+              {invoiceStatusLabel}
+            </span>
           </div>
           {isPaid && invoiceProp.paid_at ? (
             <span className="invoice-final-status-date">

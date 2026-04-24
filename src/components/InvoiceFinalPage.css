@@ -263,12 +263,6 @@
   min-width: 0;
 }
 
-.invoice-final-preview-status-badge-wrap {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-}
-
 .invoice-final-preview-title {
   margin: 0;
   font-family: var(--font-display);
@@ -298,6 +292,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.65rem;
   width: 100%;
   min-width: 0;
@@ -310,6 +305,12 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   line-height: 1.35;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.invoice-final-preview-status-row .invoice-final-status-badge {
+  flex-shrink: 0;
 }
 
 .invoice-final-mini-viewport {

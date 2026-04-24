@@ -6,6 +6,9 @@
   margin: 0 auto;
   min-height: 50vh;
   padding-bottom: var(--space-md);
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .work-order-detail-header {
@@ -243,6 +246,7 @@
 
 .wo-detail-preview-card {
   margin-bottom: var(--space-lg);
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -269,6 +273,74 @@
   font-size: 0.875rem;
   color: var(--iron-300);
   line-height: 1.5;
+}
+
+.wo-detail-preview-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: 0 var(--space-xs);
+}
+
+.wo-detail-preview-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.wo-detail-preview-id {
+  margin: 0;
+  color: var(--iron-100);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wo-detail-preview-signature-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 2.125rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.wo-detail-preview-signature-badge--pending {
+  background: rgba(255, 140, 0, 0.18);
+  color: #ffd48a;
+}
+
+.wo-detail-preview-signature-badge--signed {
+  background: var(--iw-payment-stripe-bg);
+  color: var(--iw-payment-stripe-fg);
+  border: 1px solid var(--iw-payment-stripe-border);
+}
+
+.wo-detail-preview-signature-badge--offline {
+  background: var(--iw-payment-offline-bg);
+  color: var(--iw-payment-offline-fg);
+  border: 1px solid var(--iw-payment-offline-border);
+}
+
+.wo-detail-preview-signature-badge--negative {
+  background: rgba(255, 133, 117, 0.14);
+  color: #ffc3ba;
+  border: 1px solid rgba(255, 133, 117, 0.28);
 }
 
 .wo-detail-mini-viewport {
