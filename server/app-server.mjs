@@ -69,8 +69,12 @@ export async function getBrowser() {
   return browser;
 }
 
-function sendText(res, statusCode, message) {
-  res.writeHead(statusCode, { ...COMMON_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' });
+function sendText(res, statusCode, message, headers = {}) {
+  res.writeHead(statusCode, {
+    ...COMMON_HEADERS,
+    ...headers,
+    'Content-Type': 'text/plain; charset=utf-8',
+  });
   res.end(message);
 }
 
@@ -114,9 +118,29 @@ function getMimeType(filePath) {
       return 'image/jpeg';
     case '.json':
       return 'application/json; charset=utf-8';
+    case '.webmanifest':
+      return 'application/manifest+json; charset=utf-8';
     default:
       return 'application/octet-stream';
   }
+}
+
+function shouldServeSpaFallback(normalizedPath) {
+  if (normalizedPath === '/' || normalizedPath === '/index.html') return true;
+  if (normalizedPath === '/assets' || normalizedPath.startsWith('/assets/')) return false;
+  return path.posix.extname(normalizedPath) === '';
+}
+
+function getCacheControlHeader(normalizedPath, mimeType) {
+  if (mimeType.startsWith('text/html') || normalizedPath === '/sw.js') {
+    return 'no-cache, no-store, must-revalidate';
+  }
+
+  if (normalizedPath.startsWith('/assets/')) {
+    return 'public, max-age=31536000, immutable';
+  }
+
+  return 'public, max-age=3600';
 }
 
 /**
@@ -318,6 +342,7 @@ async function createAppServer() {
 
     const resolvedDistDir = path.resolve(distDir);
     let servePath;
+    let normalizedPath = '/';
     try {
       const u = new URL(req.url === '/' ? '/' : req.url || '/', 'http://local');
       let decoded = u.pathname;
@@ -332,6 +357,7 @@ async function createAppServer() {
         return;
       }
       const normalized = path.posix.normalize(decoded === '' ? '/' : decoded);
+      normalizedPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
       const relative = normalized.replace(/^\/+/, '') || 'index.html';
       const resolvedFile = path.resolve(distDir, relative);
       if (resolvedFile !== resolvedDistDir && !resolvedFile.startsWith(resolvedDistDir + path.sep)) {
@@ -344,16 +370,34 @@ async function createAppServer() {
       return;
     }
 
+    const canUseSpaFallback = shouldServeSpaFallback(normalizedPath);
+    const sendMissingStatic = () => {
+      log.warn('Static file not found', { path: normalizedPath });
+      sendText(res, 404, 'Not found.', { 'Cache-Control': 'no-store' });
+    };
+
     if (!existsSync(servePath) || servePath.endsWith(path.sep)) {
+      if (!canUseSpaFallback) {
+        sendMissingStatic();
+        return;
+      }
       servePath = path.join(distDir, 'index.html');
     } else {
       try {
         const st = statSync(servePath);
         if (st.isDirectory()) {
           // e.g. GET /assets → dist/assets is a folder; streaming it causes EISDIR and can crash the process
+          if (!canUseSpaFallback) {
+            sendMissingStatic();
+            return;
+          }
           servePath = path.join(distDir, 'index.html');
         }
       } catch {
+        if (!canUseSpaFallback) {
+          sendMissingStatic();
+          return;
+        }
         servePath = path.join(distDir, 'index.html');
       }
     }
@@ -364,6 +408,7 @@ async function createAppServer() {
       res.writeHead(200, {
         ...COMMON_HEADERS,
         ...(isHtml ? { 'X-Frame-Options': 'DENY' } : {}),
+        'Cache-Control': getCacheControlHeader(normalizedPath, mimeType),
         'Content-Type': mimeType,
       });
       const stream = createReadStream(servePath);
@@ -378,11 +423,16 @@ async function createAppServer() {
       stream.pipe(res);
     } catch (error) {
       log.error('Static file serving failed', log.errCtx(error));
+      if (!canUseSpaFallback) {
+        sendText(res, 500, 'Failed to serve asset.', { 'Cache-Control': 'no-store' });
+        return;
+      }
       try {
         const indexHtml = await readFile(path.join(distDir, 'index.html'));
         res.writeHead(200, {
           ...COMMON_HEADERS,
           'X-Frame-Options': 'DENY',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Content-Type': 'text/html; charset=utf-8',
         });
         res.end(indexHtml);

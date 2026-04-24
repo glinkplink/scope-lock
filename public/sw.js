@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironwork-app-shell-v1';
+const CACHE_NAME = 'ironwork-app-shell-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -11,6 +11,28 @@ const PRECACHE_URLS = [
   '/icon-512.png',
   '/icon-maskable-512.png',
 ];
+
+function responseHasType(response, expectedType) {
+  return (response.headers.get('content-type') || '').toLowerCase().includes(expectedType);
+}
+
+function canCacheResponse(request, response) {
+  if (!response.ok) return false;
+
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    return responseHasType(response, 'text/html');
+  }
+
+  if (request.destination === 'manifest') {
+    return responseHasType(response, 'application/manifest+json')
+      || responseHasType(response, 'application/json');
+  }
+
+  if (request.destination === 'image') return responseHasType(response, 'image/');
+  if (request.destination === 'font') return responseHasType(response, 'font/');
+
+  return false;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -43,11 +65,16 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
+  if (url.pathname.startsWith('/assets/') || request.destination === 'script' || request.destination === 'style') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          if (canCacheResponse(request, response)) {
             const responseClone = response.clone();
             void caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
           }
@@ -61,7 +88,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const shouldCache = ['style', 'script', 'image', 'font', 'manifest'].includes(request.destination)
+  const shouldCache = ['image', 'font', 'manifest'].includes(request.destination)
     || PRECACHE_URLS.includes(url.pathname);
 
   if (!shouldCache) return;
@@ -71,7 +98,7 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(request).then((response) => {
-        if (response.ok) {
+        if (canCacheResponse(request, response)) {
           const responseClone = response.clone();
           void caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
         }

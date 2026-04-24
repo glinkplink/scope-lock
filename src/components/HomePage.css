@@ -874,6 +874,10 @@
   max-width: 22ch;
 }
 
+.home-hero-lead-second {
+  display: block;
+}
+
 .home-hero-cta {
   min-height: 48px;
   min-width: 220px;

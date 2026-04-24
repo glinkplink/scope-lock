@@ -510,7 +510,8 @@ export function HomePage({
       <div className="home-page home-page--guest">
         <section className="home-hero">
           <h1 className="home-hero-lead">
-            Pros don't work on a promise. Your job, your terms.
+            Pros don&apos;t work on a promise.{' '}
+            <span className="home-hero-lead-second">Your job, your terms.</span>
           </h1>
           <div className="home-hero-sub-block">
             <p className="home-hero-sub">Ironclad scope. Signed price. Paid on time.</p>

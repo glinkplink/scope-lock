@@ -53,7 +53,12 @@ A contractor can **start a work order without signing in**. They fill the job fo
   **`fonts.gstatic.com`**) and **`setJavaScriptEnabled(false)`** to reduce SSRF risk from untrusted HTML.
 - **PWA install support is metadata-first:** the app includes a manifest, platform icons, and a
   minimal service worker for installability and shell caching, but it is **not** an offline-first
-  product. Auth, PDFs, Stripe, DocuSeal, and data mutations still require network access.
+  product. Auth, PDFs, Stripe, DocuSeal, and data mutations still require network access. The
+  service worker does **not** cache Vite JS/CSS chunks; `src/boot.ts` clears legacy app-shell
+  caches once before loading `main.tsx` so a stale asset cache cannot keep serving HTML as JS/CSS.
+- **Static asset serving is strict:** production serves SPA fallback HTML only for extensionless
+  app routes. Missing `/assets/*` files and missing file-like URLs return 404 instead of
+  `index.html`, which makes deploy/dist mismatches visible instead of causing MIME errors.
 
 ### E-sign (DocuSeal)
 
@@ -153,7 +158,7 @@ scope-lock/
 ├── public/
 │   ├── ironwork_symbol_forgeblock.svg # Canonical icon source
 │   ├── manifest.webmanifest         # iOS / Android / PWA install metadata
-│   └── sw.js                        # Minimal same-origin app-shell service worker
+│   └── sw.js                        # Minimal same-origin app-shell service worker; no JS/CSS chunk caching
 ├── src/
 │   ├── components/
 │   │   ├── AuthPage.tsx              # Sign-in only (email + password)
@@ -228,7 +233,8 @@ scope-lock/
 │   │   ├── db.ts                     # BusinessProfile, Client, Job, ChangeOrder (+ esign_* fields)
 │   │   └── capture-flow.ts           # CaptureFlow type for anonymous capture modal
 │   ├── App.tsx                       # Root component - view state machine + lazy-loaded document/dashboard screens
-│   └── main.tsx                      # Entry point
+│   ├── boot.ts                       # Production cache recovery before loading the app entry
+│   └── main.tsx                      # React entry point + service worker registration
 ├── server/
 │   ├── app-server.mjs               # App server + /api/pdf + e-sign + Stripe + invoice routes
 │   ├── stripe-routes.mjs            # Stripe Connect start/status, payment-link, Stripe webhook
