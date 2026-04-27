@@ -424,10 +424,7 @@ describe('WorkOrdersPage', () => {
     expect(within(signedRow).getByText('Signed')).toHaveClass('iw-status-chip', 'iw-status-chip--paid');
 
     const offlineRow = screen.getByText('Customer Offline').closest('li') as HTMLElement;
-    expect(within(offlineRow).getByText('Signed offline')).toHaveClass(
-      'iw-status-chip',
-      'iw-status-chip--offline'
-    );
+    expect(within(offlineRow).getByText('Signed')).toHaveClass('iw-status-chip', 'iw-status-chip--paid');
 
     const declinedRow = screen.getByText('Customer Declined').closest('li') as HTMLElement;
     expect(within(declinedRow).getByText('Declined')).toHaveClass(
@@ -443,7 +440,7 @@ describe('WorkOrdersPage', () => {
     expect(within(row).queryByText('Sent')).not.toBeInTheDocument();
     expect(within(row).queryByText('Opened')).not.toBeInTheDocument();
     expect(within(row).queryByText('Signed')).not.toBeInTheDocument();
-    expect(within(row).queryByText('Signed offline')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Signed')).not.toBeInTheDocument();
   });
 
   it('shows the left-column fields and right-column date on the row', async () => {
@@ -614,7 +611,7 @@ describe('WorkOrdersPage', () => {
     expect(within(list).getByText('Customer B')).toBeInTheDocument();
     expect(within(list).queryByText('Customer A')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: /^Paid offline$/i }));
+    await user.click(screen.getByRole('tab', { name: /^Paid$/i }));
     list = latestWorkOrdersListUl();
     expect(within(list).getByText('Customer C')).toBeInTheDocument();
     expect(within(list).queryByText('Customer B')).not.toBeInTheDocument();
@@ -630,7 +627,7 @@ describe('WorkOrdersPage', () => {
     renderPage(minimalProfileWithPhone());
 
     await screen.findByText('Customer A');
-    await user.click(screen.getByRole('tab', { name: /^Paid offline$/i }));
+    await user.click(screen.getByRole('tab', { name: /^Paid$/i }));
 
     expect(screen.getByText('No loaded work orders match')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /load more/i })).toBeInTheDocument();

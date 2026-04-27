@@ -52,7 +52,7 @@ export function compactWorkOrderDashboardStatusLabel(job: WorkOrderDashboardJob)
   const inv = job.latestInvoice;
   if (inv) {
     if (inv.payment_status === 'paid') return 'Paid';
-    if (inv.payment_status === 'offline') return 'Paid offline';
+    if (inv.payment_status === 'offline') return 'Paid';
     if (getInvoiceBusinessStatus(inv) === 'draft') return 'Invoice draft';
     return 'Invoiced';
   }
@@ -63,7 +63,7 @@ export function compactWorkOrderDashboardStatusLabel(job: WorkOrderDashboardJob)
   );
   if (!isSignatureSatisfied && job.esign_status === 'not_sent') return null;
 
-  if (displayLabel === 'Signed offline' || displayLabel === 'Signed') return displayLabel;
+  if (displayLabel === 'Signed offline' || displayLabel === 'Signed') return 'Signed';
 
   return getEsignProgressModel(job.esign_status).title;
 }

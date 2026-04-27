@@ -170,20 +170,16 @@ export function InvoiceFinalPage({
   const isPaidOffline = invoiceProp.payment_status === 'offline';
   const isPaidStripe = invoiceProp.payment_status === 'paid';
   const isPaid = isPaidStripe || isPaidOffline;
-  const invoiceStatusLabel = isPaidOffline
-    ? 'Paid offline'
-    : isPaidStripe
-      ? 'Paid'
-      : isReadOnly
-        ? 'Invoiced'
-        : 'Draft';
-  const invoiceStatusClass = isPaidOffline
-    ? ' iw-status-chip--offline'
-    : isPaidStripe
-      ? ' iw-status-chip--paid'
-      : isReadOnly
-        ? ' iw-status-chip--outstanding'
-        : ' iw-status-chip--draft';
+  const invoiceStatusLabel = isPaid
+    ? 'Paid'
+    : isReadOnly
+      ? 'Invoiced'
+      : 'Draft';
+  const invoiceStatusClass = isPaid
+    ? ' iw-status-chip--paid'
+    : isReadOnly
+      ? ' iw-status-chip--outstanding'
+      : ' iw-status-chip--draft';
 
   const flashPaymentLinkCopied = () => {
     if (paymentLinkCopiedTimeoutRef.current !== null) {

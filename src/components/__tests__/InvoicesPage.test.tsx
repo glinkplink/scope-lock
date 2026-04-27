@@ -257,10 +257,10 @@ describe('InvoicesPage', () => {
     expect(within(statGroup).getByText('$46,376')).toBeInTheDocument();
     expect(within(statGroup).getByText('$11,496')).toBeInTheDocument();
     expect(within(screen.getByRole('list')).getByText('Draft Customer')).toBeInTheDocument();
-    expect(within(screen.getByRole('list')).getAllByText(/paid offline/i)).toHaveLength(2);
+    expect(within(screen.getByRole('list')).getAllByText(/^Paid$/i)).toHaveLength(2);
   });
 
-  it('renders draft, invoiced, paid, and paid offline status pills using the canonical iw-status-chip', async () => {
+  it('renders draft, invoiced, and paid status pills using the canonical iw-status-chip', async () => {
     listInvoicesWithCustomerName.mockResolvedValue({
       data: [
       withListFields(
@@ -303,10 +303,9 @@ describe('InvoicesPage', () => {
       'iw-status-chip',
       'iw-status-chip--outstanding'
     );
-    expect(within(list).getByText('Paid')).toHaveClass('iw-status-chip', 'iw-status-chip--paid');
-    expect(within(list).getByText(/paid offline/i)).toHaveClass(
-      'iw-status-chip',
-      'iw-status-chip--offline'
+    expect(within(list).getAllByText('Paid')).toHaveLength(2);
+    within(list).getAllByText('Paid').forEach((el) =>
+      expect(el).toHaveClass('iw-status-chip', 'iw-status-chip--paid')
     );
   });
 

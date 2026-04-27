@@ -37,7 +37,7 @@ function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: st
     return { className: 'iw-status-chip iw-status-chip--paid', label: 'Paid' };
   }
   if (invoice.payment_status === 'offline') {
-    return { className: 'iw-status-chip iw-status-chip--offline', label: 'Paid offline' };
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Paid' };
   }
   if (businessStatus === 'draft') {
     return { className: 'iw-status-chip iw-status-chip--draft', label: 'Draft' };

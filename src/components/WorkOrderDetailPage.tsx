@@ -218,8 +218,7 @@ export function WorkOrderDetailPage({
   );
   const woPreviewSignatureBadgeClass = useMemo(() => {
     const d = signatureState.displayLabel;
-    if (d === 'Signed') return ' iw-status-chip--paid';
-    if (d === 'Signed offline') return ' iw-status-chip--offline';
+    if (d === 'Signed' || d === 'Signed offline') return ' iw-status-chip--paid';
     if (d === 'Declined' || d === 'Expired') return ' iw-status-chip--negative';
     return ' iw-status-chip--outstanding';
   }, [signatureState.displayLabel]);

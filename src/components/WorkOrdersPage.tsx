@@ -24,7 +24,6 @@ const WORK_ORDER_FILTER_OPTIONS = [
   'draft_invoice',
   'invoiced',
   'paid',
-  'paid_offline',
 ] as const;
 
 type WorkOrderFilterOption = (typeof WORK_ORDER_FILTER_OPTIONS)[number];
@@ -36,7 +35,6 @@ const WORK_ORDER_FILTER_LABELS: Record<WorkOrderFilterOption, string> = {
   draft_invoice: 'Draft invoice',
   invoiced: 'Invoiced',
   paid: 'Paid',
-  paid_offline: 'Paid offline',
 };
 
 function readProfileNudgeDismissedActive(userId: string): boolean {
@@ -63,7 +61,7 @@ function getWorkOrderRowStatusChip(
   }
 
   if (job.offline_signed_at) {
-    return { className: 'iw-status-chip iw-status-chip--offline', label: 'Signed offline' };
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
   }
 
   if (job.esign_status === 'sent') {
@@ -111,7 +109,7 @@ function getRowInvoiceLabel(job: WorkOrderDashboardJob): string | null {
   const invoice = job.latestInvoice;
   if (!invoice) return null;
   if (invoice.payment_status === 'paid') return 'Paid';
-  if (invoice.payment_status === 'offline') return 'Paid offline';
+  if (invoice.payment_status === 'offline') return 'Paid';
   if (getInvoiceBusinessStatus(invoice) === 'draft') return 'Invoice draft';
   return 'Invoiced';
 }
@@ -138,9 +136,7 @@ function matchesWorkOrderFilter(job: WorkOrderDashboardJob, filter: WorkOrderFil
         invoice.payment_status !== 'offline'
       );
     case 'paid':
-      return Boolean(invoice && invoice.payment_status === 'paid');
-    case 'paid_offline':
-      return Boolean(invoice && invoice.payment_status === 'offline');
+      return Boolean(invoice && (invoice.payment_status === 'paid' || invoice.payment_status === 'offline'));
     default:
       return true;
   }
