@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git -C /home/billy/Documents/MVPs/scope-lock diff HEAD src/components/WorkOrdersPage.tsx)",
       "Bash(git -C /home/billy/Documents/MVPs/scope-lock stash list)",
-      "Bash(git -C /home/billy/Documents/MVPs/scope-lock show HEAD:src/components/WorkOrdersPage.tsx)"
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock show HEAD:src/components/WorkOrdersPage.tsx)",
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock add src/components/WorkOrderDetailPage.tsx)",
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock commit -m ' *)",
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock diff -- .claude/settings.json)",
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock log --oneline -3)",
+      "Bash(git -C /home/billy/Documents/MVPs/scope-lock add .claude/settings.json)"
     ]
   },
   "hooks": {
