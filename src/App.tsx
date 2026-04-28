@@ -641,7 +641,10 @@ function App() {
         />
       );
     }
-    if (view === 'invoice-wizard' && user && profile && invoiceWizardJob) {
+    if (view === 'invoice-wizard' && user && profile) {
+      if (!invoiceWizardJob) {
+        return <p className="work-orders-loading">Loading…</p>;
+      }
       return renderLazyPage(
         <InvoiceWizard
           key={`${invoiceWizardJob.id}-${invoiceWizardExisting?.id ?? 'new'}`}

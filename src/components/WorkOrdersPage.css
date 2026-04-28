@@ -546,9 +546,8 @@
 }
 
 .work-orders-page .work-orders-create-invoice-btn {
-  width: 100%;
-  min-height: 38px;
-  padding: 8px var(--space-md);
+  min-height: 44px;
+  padding: 10px var(--space-xl);
   border: 1px solid rgba(255, 140, 0, 0.35);
   border-radius: var(--shell-radius-sm);
   background: rgba(255, 140, 0, 0.1);
