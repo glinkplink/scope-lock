@@ -12,7 +12,18 @@
   padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-xl));
 }
 
-.invoice-final-payment-card,
+.invoice-final-payment-card {
+  margin: 0 0 var(--space-lg);
+  padding: clamp(1rem, 2.5vw, 1.35rem);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--shell-radius-lg);
+  background:
+    linear-gradient(180deg, rgba(24, 26, 33, 0.94), rgba(13, 16, 22, 0.96)),
+    radial-gradient(circle at top, rgba(255, 140, 0, 0.1), transparent 42%);
+  text-align: center;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+}
+
 .invoice-final-preview-card {
   margin-bottom: var(--space-lg);
   padding: clamp(1.1rem, 3vw, 1.5rem);
@@ -24,67 +35,6 @@
   box-shadow: 0 20px 42px rgba(0, 0, 0, 0.2);
 }
 
-.invoice-final-payment-card {
-  text-align: center;
-}
-
-.invoice-final-status-date {
-  font-size: 0.875rem;
-  color: var(--iron-300);
-}
-
-.invoice-final-payment-card h2 {
-  margin: 0 0 var(--space-sm);
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--iron-50);
-  text-align: center;
-}
-
-.invoice-issued-metadata {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 0.5rem 1rem;
-  width: 100%;
-  margin-bottom: var(--space-sm);
-  font-size: 0.875rem;
-  color: var(--iron-300);
-  text-align: left;
-}
-
-.invoice-issued-date {
-  justify-self: start;
-  white-space: nowrap;
-}
-
-.invoice-paid-date {
-  justify-self: end;
-  text-align: right;
-  white-space: nowrap;
-  font-size: 0.875rem;
-  color: var(--iron-300);
-}
-
-.invoice-final-payment-text {
-  margin: 0 0 var(--space-md);
-  color: var(--iron-300);
-  font-size: 0.9375rem;
-  line-height: 1.6;
-}
-
-.invoice-final-paid-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  text-align: center;
-}
-
-.invoice-final-paid-block .invoice-final-payment-text {
-  margin-bottom: 0;
-}
-
 .invoice-final-payment-feedback {
   margin: 0 0 var(--space-sm);
   color: #ffb1c0;
@@ -94,24 +44,14 @@
 .invoice-final-payment-primary {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
 }
 
 .invoice-final-send-primary {
-  width: 100%;
-  margin-top: 2px;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  width: min(100%, 20rem);
   box-sizing: border-box;
-}
-
-.invoice-final-payment-primary-hint {
-  margin: 0;
-  color: var(--iron-300);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  text-align: center;
 }
 
 .invoice-final-offline-payment {
@@ -126,7 +66,25 @@
 }
 
 .invoice-final-mark-paid-btn {
-  align-self: center;
+  width: min(100%, 20rem);
+  box-sizing: border-box;
+}
+
+.invoice-final-payment-card .btn-action:not(.btn-primary) {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--iron-100);
+}
+
+.invoice-final-payment-card .btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--iron-100);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.invoice-final-payment-card .btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .invoice-final-online-payment {

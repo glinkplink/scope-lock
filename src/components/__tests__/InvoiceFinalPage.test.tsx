@@ -222,7 +222,7 @@ describe('InvoiceFinalPage', () => {
     renderPage(baseInvoice(), signedJob);
 
     expect(screen.getByRole('heading', { name: 'Send Invoice' })).toBeInTheDocument();
-    expect(screen.getByText('Emails the PDF invoice to the customer.')).toBeInTheDocument();
+    expect(screen.getByText('Ready to send invoice.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Online payment' })).toBeInTheDocument();
     expect(
       screen.getByText(/Want to accept online payments\? Connect Stripe/i)
@@ -443,7 +443,7 @@ describe('InvoiceFinalPage', () => {
     });
   });
 
-  it('renders paid metadata without a duplicate paid badge in the Send Invoice block', () => {
+  it('renders the Sent → Opened → Paid timeline and paid summary in the Send Invoice block', () => {
     renderPage(
       baseInvoice({
         issued_at: '2025-01-05T10:00:00Z',
@@ -453,9 +453,11 @@ describe('InvoiceFinalPage', () => {
     );
 
     const paymentBlock = screen.getByRole('region', { name: 'Send Invoice' });
-    expect(within(paymentBlock).getByText('Issued: Jan 5, 2025')).toBeInTheDocument();
-    expect(within(paymentBlock).getByText('Paid: Jan 10, 2025')).toBeInTheDocument();
-    expect(within(paymentBlock).queryByText(/^Paid$/)).not.toBeInTheDocument();
+    expect(within(paymentBlock).getAllByText('Sent').length).toBeGreaterThanOrEqual(1);
+    expect(within(paymentBlock).queryByText('Opened')).not.toBeInTheDocument();
+    expect(within(paymentBlock).getAllByText('Paid').length).toBeGreaterThanOrEqual(1);
+    expect(within(paymentBlock).getByText('Payment recorded offline.')).toBeInTheDocument();
+    expect(within(paymentBlock).queryByText(/iw-status-chip--paid/)).not.toBeInTheDocument();
   });
 
   it('disables send and payment-link actions before the work order is signed', () => {

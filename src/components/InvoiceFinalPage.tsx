@@ -406,55 +406,89 @@ export function InvoiceFinalPage({
       ) : null}
 
       <section className="invoice-final-payment-card" aria-labelledby="invoice-payment-heading">
-        <h2 id="invoice-payment-heading">Send Invoice</h2>
-        {(invoiceProp.issued_at || isPaid) && (
-          <div className="invoice-issued-metadata">
-            {invoiceProp.issued_at && (
-              <span className="invoice-issued-date">
-                Issued: {new Date(invoiceProp.issued_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
-            )}
-            {isPaid && invoiceProp.paid_at && (
-              <span className="invoice-paid-date">
-                Paid: {new Date(invoiceProp.paid_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
-            )}
-          </div>
-        )}
+        <h2 id="invoice-payment-heading" className="wo-esign-heading">Send Invoice</h2>
+        <div
+          className="wo-esign-timeline"
+          role="group"
+          aria-label={`Invoice status: ${isPaid ? 'Paid' : invoiceProp.issued_at ? 'Sent' : 'Not sent'}`}
+        >
+          {[
+            {
+              key: 'sent',
+              label: 'Sent',
+              tone: invoiceProp.issued_at ? 'active' : 'inactive',
+            },
+            {
+              key: 'paid',
+              label: 'Paid',
+              tone: isPaid ? 'success' : 'inactive',
+            },
+          ].map((step, index, arr) => (
+            <div
+              key={step.key}
+              className={`wo-esign-step wo-esign-step-${step.tone}`}
+              aria-current={step.tone !== 'inactive' ? 'step' : undefined}
+            >
+              <span
+                className={`wo-esign-step-dot${step.tone !== 'inactive' ? ' wo-esign-step-dot-filled' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="wo-esign-step-label">{step.label}</span>
+              {index < arr.length - 1 ? (
+                <span className="wo-esign-step-line" aria-hidden="true" />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {(invoiceProp.issued_at || isPaid) ? (
+          <dl className="wo-esign-meta">
+            {invoiceProp.issued_at ? (
+              <div className="wo-esign-meta-row">
+                <dt>Sent</dt>
+                <dd>{new Date(invoiceProp.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
+              </div>
+            ) : null}
+            {isPaid && invoiceProp.paid_at ? (
+              <div className="wo-esign-meta-row">
+                <dt>Paid</dt>
+                <dd>{new Date(invoiceProp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+
         {isPaid ? (
-          <div className="invoice-final-paid-block">
-            <p className="invoice-final-payment-text">
-              This invoice has been paid{isPaidOffline ? ' (recorded offline)' : ''}.
+          <>
+            <p className="wo-esign-summary">
+              {isPaidOffline ? 'Payment recorded offline.' : 'Payment received via Stripe.'}
             </p>
             {markPaidError ? (
               <p className="invoice-final-payment-feedback">{markPaidError}</p>
             ) : null}
             {isPaidOffline ? (
-              <button
-                type="button"
-                className="btn-secondary invoice-final-mark-paid-btn"
-                disabled={markingPaid}
-                onClick={() => void handleUnmarkPaidOffline()}
-              >
-                {markingPaid ? 'Saving...' : 'Undo offline paid'}
-              </button>
+              <div className="wo-esign-actions">
+                <button
+                  type="button"
+                  className="btn-secondary btn-action wo-esign-actions-primary"
+                  disabled={markingPaid}
+                  onClick={() => void handleUnmarkPaidOffline()}
+                >
+                  {markingPaid ? 'Saving...' : 'Undo offline paid'}
+                </button>
+              </div>
             ) : null}
-          </div>
+          </>
         ) : (
           <>
+            <p className="wo-esign-summary">
+              {invoiceProp.issued_at ? 'Invoice sent. Awaiting payment.' : 'Ready to send invoice.'}
+            </p>
             {sendError ? <p className="invoice-final-payment-feedback">{sendError}</p> : null}
-            <div className="invoice-final-payment-primary">
+            <div className="wo-esign-actions">
               <button
                 type="button"
-                className="btn-primary btn-large invoice-final-send-primary"
+                className="btn-primary btn-action wo-esign-actions-primary"
                 disabled={sending || !canIssueInvoice}
                 title={gateReason}
                 onClick={() => void handleSendInvoice()}
@@ -462,7 +496,7 @@ export function InvoiceFinalPage({
                 {sending ? 'Sending...' : invoiceProp.issued_at ? 'Resend Invoice' : 'Send Invoice'}
               </button>
               {!canIssueInvoice ? (
-                <p className="invoice-final-payment-primary-hint invoice-final-gate-hint">
+                <p className="invoice-final-gate-hint">
                   {hasPendingCOs ? (
                     <>
                       <button
@@ -480,31 +514,23 @@ export function InvoiceFinalPage({
                     </>
                   )}
                 </p>
-              ) : (
-                <p className="invoice-final-payment-primary-hint">
-                  Emails the PDF invoice to the customer.
-                </p>
-              )}
+              ) : null}
+              {invoiceProp.issued_at ? (
+                <>
+                  {markPaidError ? (
+                    <p className="invoice-final-payment-feedback">{markPaidError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn-secondary btn-action wo-esign-actions-primary"
+                    disabled={markingPaid}
+                    onClick={() => void handleMarkPaidOffline()}
+                  >
+                    {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
+                  </button>
+                </>
+              ) : null}
             </div>
-
-            {invoiceProp.issued_at && (
-              <div className="invoice-final-offline-payment">
-                {markPaidError ? (
-                  <p className="invoice-final-payment-feedback">{markPaidError}</p>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn-secondary invoice-final-mark-paid-btn"
-                  disabled={markingPaid}
-                  onClick={() => void handleMarkPaidOffline()}
-                >
-                  {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
-                </button>
-                <p className="invoice-final-payment-primary-hint">
-                  Received cash, check, or bank transfer? Record it here.
-                </p>
-              </div>
-            )}
 
             <div className="invoice-final-online-payment">
               <h3 className="invoice-final-online-heading">Online payment</h3>
@@ -682,43 +708,6 @@ export function InvoiceFinalPage({
           >
             {downloading ? 'Downloading…' : 'Download Invoice'}
           </button>
-          
-          {!isPaid && (
-            <div className="invoice-final-offline-payment-trigger">
-              {markPaidError ? (
-                <p className="invoice-final-payment-feedback">{markPaidError}</p>
-              ) : null}
-              <button
-                type="button"
-                className="btn-secondary invoice-final-mark-paid-btn"
-                disabled={markingPaid}
-                onClick={() => void handleMarkPaidOffline()}
-              >
-                {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
-              </button>
-            </div>
-          )}
-
-          {!canIssueInvoice && (
-            <p className="invoice-final-gate-hint invoice-final-gate-hint--actions">
-              {hasPendingCOs ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn-text invoice-final-gate-link"
-                    onClick={onOpenChangeOrdersSection}
-                  >
-                    Resolve {pendingCOCount} pending change order{pendingCOCount === 1 ? '' : 's'}
-                  </button>
-                  <br />(sign, mark signed offline, or delete).
-                </>
-              ) : (
-                <>
-                  Requires work order signature<br />(e-signed or marked signed offline).
-                </>
-              )}
-            </p>
-          )}
         </div>
         {!isReadOnly ? (
           <button
