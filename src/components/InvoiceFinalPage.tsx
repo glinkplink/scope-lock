@@ -441,15 +441,21 @@ export function InvoiceFinalPage({
           ))}
         </div>
 
-        {(invoiceProp.issued_at || isPaid) ? (
+        {(invoiceProp.issued_at || invoiceProp.paid_at) ? (
           <dl className="wo-esign-meta">
+            {isPaidOffline && invoiceProp.paid_at ? (
+              <div className="wo-esign-meta-row">
+                <dt>Paid offline</dt>
+                <dd>{new Date(invoiceProp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
+              </div>
+            ) : null}
             {invoiceProp.issued_at ? (
               <div className="wo-esign-meta-row">
                 <dt>Sent</dt>
                 <dd>{new Date(invoiceProp.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
               </div>
             ) : null}
-            {isPaid && invoiceProp.paid_at ? (
+            {isPaidStripe && invoiceProp.paid_at ? (
               <div className="wo-esign-meta-row">
                 <dt>Paid</dt>
                 <dd>{new Date(invoiceProp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd>
@@ -515,20 +521,18 @@ export function InvoiceFinalPage({
                   )}
                 </p>
               ) : null}
-              {invoiceProp.issued_at ? (
-                <>
-                  {markPaidError ? (
-                    <p className="invoice-final-payment-feedback">{markPaidError}</p>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn-secondary btn-action wo-esign-actions-primary"
-                    disabled={markingPaid}
-                    onClick={() => void handleMarkPaidOffline()}
-                  >
-                    {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
-                  </button>
-                </>
+              {markPaidError ? (
+                <p className="invoice-final-payment-feedback">{markPaidError}</p>
+              ) : null}
+              {canIssueInvoice ? (
+                <button
+                  type="button"
+                  className="btn-secondary btn-action wo-esign-actions-primary"
+                  disabled={markingPaid}
+                  onClick={() => void handleMarkPaidOffline()}
+                >
+                  {markingPaid ? 'Saving...' : 'Mark as paid (offline)'}
+                </button>
               ) : null}
             </div>
 

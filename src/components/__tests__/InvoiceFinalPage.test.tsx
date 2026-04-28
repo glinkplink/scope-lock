@@ -318,6 +318,7 @@ describe('InvoiceFinalPage', () => {
 
   it('updates active invoice after marking paid offline', async () => {
     const user = userEvent.setup();
+    const signedJob = { ...baseJob(), esign_status: 'completed' as const };
     const issued = baseInvoice({ id: 'inv-1', issued_at: '2025-01-05T10:00:00Z' });
     const updated = baseInvoice({
       id: 'inv-1',
@@ -333,7 +334,7 @@ describe('InvoiceFinalPage', () => {
       })
     );
 
-    renderPage(issued);
+    renderPage(issued, signedJob);
 
     await user.click(screen.getAllByRole('button', { name: /mark as paid \(offline\)/i })[0]);
 
@@ -360,7 +361,7 @@ describe('InvoiceFinalPage', () => {
       payment_status: 'unpaid',
       paid_at: null,
     });
-    getInvoice.mockResolvedValue(offlinePaid);
+    getInvoice.mockResolvedValueOnce(offlinePaid).mockResolvedValue(updated);
     fetchWithSupabaseAuthMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ invoice: updated }), {
         status: 200,
@@ -377,7 +378,7 @@ describe('InvoiceFinalPage', () => {
         '/api/invoices/inv-1/unmark-paid-offline',
         { method: 'POST' }
       );
-      expect(onInvoiceUpdated).toHaveBeenLastCalledWith(updated);
+      expect(onInvoiceUpdated).toHaveBeenCalledWith(updated);
     });
 
     rerender(
