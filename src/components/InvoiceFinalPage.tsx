@@ -220,7 +220,7 @@ export function InvoiceFinalPage({
     }
     return null;
   })();
-  const invoiceStatusPlainLabel = invoiceStatusChip ? null : 'Draft';
+  const invoiceTimelineStatusLabel = invoiceStatusChip?.label ?? 'Unsent';
 
   const flashPaymentLinkCopied = () => {
     if (paymentLinkCopiedTimeoutRef.current !== null) {
@@ -473,7 +473,7 @@ export function InvoiceFinalPage({
         <div
           className="wo-esign-timeline"
           role="group"
-          aria-label={`Invoice status: ${isPaid ? 'Paid' : invoiceProp.issued_at ? 'Sent' : 'Not sent'}`}
+          aria-label={`Invoice status: ${invoiceTimelineStatusLabel}`}
         >
           {[
             {
@@ -671,11 +671,7 @@ export function InvoiceFinalPage({
               <span className={`iw-status-chip${invoiceStatusChip.className}`}>
                 {invoiceStatusChip.label}
               </span>
-            ) : (
-              <span className="invoice-final-preview-status-text">
-                {invoiceStatusPlainLabel}
-              </span>
-            )}
+            ) : null}
           </div>
           {isPaid && invoiceProp.paid_at ? (
             <span className="invoice-final-status-date">

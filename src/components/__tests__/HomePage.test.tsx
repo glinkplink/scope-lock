@@ -336,7 +336,7 @@ describe('HomePage', () => {
     await waitFor(() => {
       expect(screen.getByText('Customer Alpha')).toBeInTheDocument();
     });
-    expect(screen.getByText('Sent')).toBeInTheDocument();
+    expect(screen.getByText('Opened')).toBeInTheDocument();
     expect(screen.queryByText('Draft')).toBeNull();
     expect(screen.queryByText('Invoice draft')).toBeNull();
   });
@@ -417,7 +417,7 @@ describe('HomePage', () => {
     });
   });
 
-  it('opened work orders map to Sent on the homepage', async () => {
+  it('opened work orders show Opened on the homepage', async () => {
     const openedJob: WorkOrderDashboardJob = {
       ...listJob,
       esign_status: 'opened',
@@ -433,7 +433,7 @@ describe('HomePage', () => {
     render(<HomePage {...signedInProps()} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Sent')).toBeInTheDocument();
+      expect(screen.getByText('Opened')).toBeInTheDocument();
     });
   });
 

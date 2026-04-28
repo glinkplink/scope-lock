@@ -29,7 +29,7 @@ type InvoiceFilterOption = (typeof INVOICE_FILTER_OPTIONS)[number];
 
 const INVOICE_FILTER_LABELS: Record<InvoiceFilterOption, string> = {
   all: 'All',
-  draft: 'Draft',
+  draft: 'Unsent',
   pending: 'Pending',
   paid_stripe: 'Paid via Stripe',
   paid_offline: 'Paid offline',
@@ -79,7 +79,7 @@ function formatJobType(
   return other || jobType || '—';
 }
 
-function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } {
+function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } | null {
   const businessStatus = getInvoiceBusinessStatus(invoice);
   if (invoice.payment_status === 'paid') {
     return { className: 'iw-status-chip iw-status-chip--paid', label: 'Paid' };
@@ -91,16 +91,22 @@ function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: st
     return { className: 'iw-status-chip iw-status-chip--draft', label: 'Downloaded' };
   }
   if (businessStatus === 'draft') {
-    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Draft' };
+    return null;
   }
   return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Pending' };
+}
+
+function invoiceSearchStatusLabel(invoice: InvoiceWithCustomerName): string {
+  const pill = invoiceRowStatusPill(invoice);
+  if (pill) return pill.label;
+  return getInvoiceBusinessStatus(invoice) === 'draft' ? 'Unsent' : '';
 }
 
 function matchesInvoiceSearch(invoice: InvoiceWithCustomerName, searchTerm: string): boolean {
   const trimmed = searchTerm.trim().toLowerCase();
   if (!trimmed) return true;
 
-  const statusLabel = invoiceRowStatusPill(invoice).label;
+  const statusLabel = invoiceSearchStatusLabel(invoice);
   const haystack = [
     formatInvoiceLabel(invoice.invoice_number),
     `Invoice #${String(invoice.invoice_number).padStart(4, '0')}`,
@@ -153,14 +159,17 @@ function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
       <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
           <div className="work-orders-row-left">
-            <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
+            <span className="invoices-row-id-line">
+              <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
+              <span className="invoices-row-wo-meta">{formatWoLabel(invoice.wo_number)}</span>
+            </span>
             <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
             <span className="work-orders-job-type">{formatJobType(invoice.job_type, invoice.other_classification)}</span>
             <span className="work-orders-row-amount invoices-row-amount">{formatUsd(invoice.total)}</span>
           </div>
           <div className="work-orders-row-right">
             <div className="work-orders-row-status-slot">
-              <span className={pill.className}>{pill.label}</span>
+              {pill ? <span className={pill.className}>{pill.label}</span> : null}
             </div>
           </div>
         </div>

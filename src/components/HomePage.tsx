@@ -377,8 +377,12 @@ function getHomeRecentStatusChip(job: WorkOrderDashboardJob): { className: strin
     return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
   }
 
-  if (job.esign_status === 'sent' || job.esign_status === 'opened') {
+  if (job.esign_status === 'sent') {
     return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
+  }
+
+  if (job.esign_status === 'opened') {
+    return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Opened' };
   }
 
   if (job.esign_status === 'declined') {

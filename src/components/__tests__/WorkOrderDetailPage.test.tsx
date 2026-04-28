@@ -338,7 +338,7 @@ describe('WorkOrderDetailPage', () => {
       },
       { job: jobWithEsign('sent'), label: 'Sent', className: 'iw-status-chip--draft' },
       { job: jobWithEsign('opened'), label: 'Opened', className: 'iw-status-chip--draft' },
-      { job: jobWithEsign('completed'), label: 'Signed', className: 'iw-status-chip--paid' },
+      { job: jobWithEsign('completed'), label: 'E-signed', className: 'iw-status-chip--paid' },
       {
         job: { ...minimalJob(), offline_signed_at: '2025-01-01T12:00:00Z' },
         label: 'Signed offline',

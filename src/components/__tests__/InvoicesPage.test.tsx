@@ -266,7 +266,7 @@ describe('InvoicesPage', () => {
     expect(within(screen.getByRole('list')).getAllByText(/^Paid$/i)).toHaveLength(2);
   });
 
-  it('renders draft, downloaded, invoiced, and paid status pills using the canonical iw-status-chip', async () => {
+  it('renders downloaded, invoiced, and paid status pills while leaving unsent rows unbadged', async () => {
     listInvoicesWithCustomerName.mockResolvedValue({
       data: [
       withListFields(
@@ -315,11 +315,15 @@ describe('InvoicesPage', () => {
 
     const list = await screen.findByRole('list');
 
-    expect(within(list).getByText('Draft')).toHaveClass('iw-status-chip', 'iw-status-chip--draft');
+    expect(screen.getByRole('tab', { name: /^Unsent$/i })).toBeInTheDocument();
+    const draftRow = within(list).getByText('Draft Customer').closest('li') as HTMLElement;
+    expect(within(draftRow).queryByText('Draft')).not.toBeInTheDocument();
+    expect(within(draftRow).queryByText('Unsent')).not.toBeInTheDocument();
     expect(within(list).getByText('Downloaded')).toHaveClass(
       'iw-status-chip',
       'iw-status-chip--draft'
     );
+    expect(within(list).getByText('WO #0005')).toBeInTheDocument();
     expect(within(list).getByText('Pending')).toHaveClass(
       'iw-status-chip',
       'iw-status-chip--outstanding'

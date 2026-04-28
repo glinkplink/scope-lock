@@ -501,6 +501,9 @@ describe('InvoiceFinalPage', () => {
 
     for (const testCase of cases) {
       const { unmount } = renderPage(testCase.invoice);
+      expect(
+        screen.getByRole('group', { name: `Invoice status: ${testCase.label}` })
+      ).toBeInTheDocument();
       const preview = screen.getByRole('region', { name: /^Preview$/i });
       expect(within(preview).getByText(testCase.label)).toHaveClass(
         'iw-status-chip',
@@ -529,14 +532,16 @@ describe('InvoiceFinalPage', () => {
     expect(screen.getByRole('heading', { name: /^Preview$/i })).toBeInTheDocument();
   });
 
-  it('places draft metadata and notes inside the Preview block', () => {
+  it('places invoice metadata and notes inside the Preview block without a draft label', () => {
     const signedJob = { ...baseJob(), esign_status: 'completed' as const };
     renderPage(baseInvoice(), signedJob);
 
     const preview = screen.getByRole('region', { name: /^Preview$/i });
 
     expect(within(preview).getByText('Invoice #0001')).toBeInTheDocument();
-    expect(within(preview).getByText('Draft')).toBeInTheDocument();
+    expect(within(preview).queryByText('Draft')).not.toBeInTheDocument();
+    expect(within(preview).queryByText('Unsent')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Invoice status: Unsent' })).toBeInTheDocument();
     expect(within(preview).getByRole('button', { name: /add notes/i })).toBeInTheDocument();
   });
 });

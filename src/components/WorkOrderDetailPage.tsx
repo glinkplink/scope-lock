@@ -254,7 +254,7 @@ export function WorkOrderDetailPage({
         ? { label: 'Downloaded', className: ' iw-status-chip--draft' }
         : null;
     }
-    if (d === 'Signed') return { label: d, className: ' iw-status-chip--paid' };
+    if (d === 'Signed') return { label: 'E-signed', className: ' iw-status-chip--paid' };
     if (d === 'Signed offline') return { label: d, className: ' iw-status-chip--offline' };
     if (d === 'Declined' || d === 'Expired') {
       return { label: d, className: ' iw-status-chip--negative' };

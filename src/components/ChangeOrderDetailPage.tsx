@@ -177,6 +177,8 @@ export function ChangeOrderDetailPage({
     if (d === 'Declined' || d === 'Expired') return ' iw-status-chip--negative';
     return ' iw-status-chip--outstanding';
   }, [signatureState.displayLabel]);
+  const coPreviewSignatureLabel =
+    signatureState.displayLabel === 'Signed' ? 'E-signed' : signatureState.displayLabel;
   const coEsignWasResent = Boolean(co?.esign_resent_at);
   const esignProgress = useMemo(
     () =>
@@ -627,7 +629,7 @@ export function ChangeOrderDetailPage({
           <div className="co-detail-preview-status-row">
             <p className="co-detail-preview-id">{coLabel}</p>
             <span className={`iw-status-chip${coPreviewSignatureBadgeClass}`}>
-              {signatureState.displayLabel}
+              {coPreviewSignatureLabel}
             </span>
           </div>
         </div>

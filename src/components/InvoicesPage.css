@@ -27,15 +27,20 @@
   margin-bottom: var(--space-md);
 }
 
-/* WO # line under customer — Forge tones (same role as extra meta on WO rows) */
-.invoices-page.work-orders-page .invoices-row-wo-line {
-  margin-top: 2px;
-  font-size: 0.8rem;
+.invoices-page.work-orders-page .invoices-row-id-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.invoices-page.work-orders-page .invoices-row-wo-meta {
+  font-family: 'Chakra Petch', var(--font-app);
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--iron-200);
-  font-family: 'Chakra Petch', var(--font-app);
+  color: var(--iron-350);
 }
 
 .invoices-page.work-orders-page .invoices-row-amount {
@@ -51,44 +56,4 @@
 
 .invoices-page.work-orders-page .work-orders-row--busy {
   opacity: 0.6;
-}
-
-/* Full-row tap target (single button wrapping main + status column) */
-.invoices-page.work-orders-page .invoices-row-full-hit {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  box-sizing: border-box;
-}
-
-.invoices-page.work-orders-page .invoices-row-full-hit:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
-.invoices-page.work-orders-page .invoices-row-full-hit:focus {
-  outline: none;
-}
-
-.invoices-page.work-orders-page .invoices-row-full-hit:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring-spark);
-  border-radius: var(--shell-radius-sm);
-}
-
-.invoices-page.work-orders-page .invoices-row-full-hit:hover .work-orders-customer {
-  color: var(--spark);
 }
