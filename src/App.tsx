@@ -584,6 +584,9 @@ function App() {
             navigateTo('profile');
           }}
           onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
+          onStartInvoice={(jobId: string) => {
+            navigateTo('invoice-wizard', { jobId });
+          }}
         />
       );
     }

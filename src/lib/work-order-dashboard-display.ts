@@ -28,7 +28,8 @@ export function formatWorkOrderDashboardRowDate(job: WorkOrderDashboardJob): str
   if (!raw) return '—';
   const [y, m, d] = raw.split('-').map(Number);
   if (!y || !m || !d) return raw;
-  return ROW_DATE_FORMATTER.format(new Date(y, m - 1, d));
+  // Use UTC date to avoid timezone shift when parsing YYYY-MM-DD
+  return ROW_DATE_FORMATTER.format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 export function formatWorkOrderDashboardWoLabel(job: WorkOrderDashboardJob): string {

@@ -1132,6 +1132,12 @@
   gap: var(--space-md);
 }
 
+.home-dash-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-sm);
+}
+
 .home-dash-card-wo {
   font-family: 'Chakra Petch', var(--font-app);
   font-weight: 600;

@@ -890,10 +890,12 @@ export function HomePage({
                               <span className={statusChip.className}>{statusChip.label}</span>
                             ) : null}
                           </div>
-                          <span className="home-dash-card-date">
-                            {formatWorkOrderDashboardRowDate(job)}
-                          </span>
                         </div>
+                      </div>
+                      <div className="home-dash-card-footer">
+                        <span className="home-dash-card-date">
+                          {formatWorkOrderDashboardRowDate(job)}
+                        </span>
                       </div>
                     </div>
                   </li>
