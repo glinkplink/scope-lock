@@ -253,6 +253,181 @@ describe('tryHandleInvoiceRoute offline paid mark/unmark', () => {
   });
 });
 
+describe('tryHandleInvoiceRoute mark-issued', () => {
+  const prevEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    prevEnv.SUPABASE_URL = process.env.SUPABASE_URL;
+    prevEnv.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    createClientMock.mockReset();
+    process.env.SUPABASE_URL = 'http://localhost:54321';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
+  });
+
+  afterEach(() => {
+    process.env.SUPABASE_URL = prevEnv.SUPABASE_URL;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = prevEnv.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  it('marks a draft invoice as issued and returns updated row', async () => {
+    const updated = fullUpdatedInvoice();
+    const single = vi.fn(async () => ({ data: updated, error: null }));
+    const selectSingle = vi.fn(() => ({ single }));
+    const updateEqUser = vi.fn(() => ({ select: selectSingle }));
+    const updateEqId = vi.fn(() => ({ eq: updateEqUser }));
+    const update = vi.fn(() => ({ eq: updateEqId }));
+
+    const invoiceMaybeSingle = vi.fn(async () => ({
+      data: { id: INVOICE_UUID, user_id: USER_UUID, issued_at: null, job_id: 'job-1' },
+      error: null,
+    }));
+    const invoiceLoadEqUser = vi.fn(() => ({ maybeSingle: invoiceMaybeSingle }));
+    const invoiceLoadEqId = vi.fn(() => ({ eq: invoiceLoadEqUser }));
+
+    const jobMaybeSingle = vi.fn(async () => ({
+      data: { esign_status: 'completed', offline_signed_at: null },
+      error: null,
+    }));
+    const jobLoadEqUser = vi.fn(() => ({ maybeSingle: jobMaybeSingle }));
+    const jobLoadEqId = vi.fn(() => ({ eq: jobLoadEqUser }));
+
+    const from = vi.fn((table: string) => {
+      if (table === 'invoices') return { select: vi.fn(() => ({ eq: invoiceLoadEqId })), update };
+      if (table === 'jobs') return { select: vi.fn(() => ({ eq: jobLoadEqId })) };
+      if (table === 'change_orders') {
+        const coEqUser = vi.fn(async () => ({ data: [], error: null }));
+        const coEqJob = vi.fn(() => ({ eq: coEqUser }));
+        return { select: vi.fn(() => ({ eq: coEqJob })) };
+      }
+      return { select: vi.fn(() => ({ eq: invoiceLoadEqId })), update };
+    });
+
+    const supabase = {
+      auth: { getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })) },
+      from,
+    };
+    createClientMock.mockReturnValue(supabase);
+    const res = captureRes();
+
+    await tryHandleInvoiceRoute(
+      {
+        method: 'POST',
+        url: `/api/invoices/${INVOICE_UUID}/mark-issued`,
+        headers: { authorization: 'Bearer token' },
+      },
+      res,
+      helpers()
+    );
+
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith({ issued_at: expect.any(String) });
+  });
+
+  it('returns 409 when work order is not signed', async () => {
+    const invoiceMaybeSingle = vi.fn(async () => ({
+      data: { id: INVOICE_UUID, user_id: USER_UUID, issued_at: null, job_id: 'job-1' },
+      error: null,
+    }));
+    const invoiceLoadEqUser = vi.fn(() => ({ maybeSingle: invoiceMaybeSingle }));
+    const invoiceLoadEqId = vi.fn(() => ({ eq: invoiceLoadEqUser }));
+
+    const jobMaybeSingle = vi.fn(async () => ({
+      data: { esign_status: 'not_sent', offline_signed_at: null },
+      error: null,
+    }));
+    const jobLoadEqUser = vi.fn(() => ({ maybeSingle: jobMaybeSingle }));
+    const jobLoadEqId = vi.fn(() => ({ eq: jobLoadEqUser }));
+
+    const from = vi.fn((table: string) => {
+      if (table === 'invoices') return { select: vi.fn(() => ({ eq: invoiceLoadEqId })) };
+      if (table === 'jobs') return { select: vi.fn(() => ({ eq: jobLoadEqId })) };
+      return { select: vi.fn(() => ({ eq: invoiceLoadEqId })) };
+    });
+
+    const supabase = {
+      auth: { getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })) },
+      from,
+    };
+    createClientMock.mockReturnValue(supabase);
+    const res = captureRes();
+
+    await tryHandleInvoiceRoute(
+      {
+        method: 'POST',
+        url: `/api/invoices/${INVOICE_UUID}/mark-issued`,
+        headers: { authorization: 'Bearer token' },
+      },
+      res,
+      helpers()
+    );
+
+    expect(res.status).toBe(409);
+    expect(JSON.parse(res.body).error).toMatch(/signed/i);
+  });
+
+  it('returns 200 idempotently when invoice is already issued', async () => {
+    const invoiceMaybeSingle = vi.fn(async () => ({
+      data: { id: INVOICE_UUID, user_id: USER_UUID, issued_at: '2025-01-01T00:00:00Z', job_id: 'job-1' },
+      error: null,
+    }));
+    const invoiceLoadEqUser = vi.fn(() => ({ maybeSingle: invoiceMaybeSingle }));
+    const invoiceLoadEqId = vi.fn(() => ({ eq: invoiceLoadEqUser }));
+
+    const freshMaybeSingle = vi.fn(async () => ({
+      data: { ...fullUpdatedInvoice(), issued_at: '2025-01-01T00:00:00Z' },
+      error: null,
+    }));
+    const freshLoadEqUser = vi.fn(() => ({ maybeSingle: freshMaybeSingle }));
+    const freshLoadEqId = vi.fn(() => ({ eq: freshLoadEqUser }));
+
+    const from = vi.fn((table: string) => {
+      if (table === 'invoices') {
+        // First call is the load, second call is the fresh fetch
+        const selectMock = vi.fn()
+          .mockReturnValueOnce({ eq: invoiceLoadEqId })
+          .mockReturnValueOnce({ eq: freshLoadEqId });
+        return { select: selectMock };
+      }
+      return { select: vi.fn(() => ({ eq: invoiceLoadEqId })) };
+    });
+
+    const supabase = {
+      auth: { getUser: vi.fn(async () => ({ data: { user: { id: USER_UUID } }, error: null })) },
+      from,
+    };
+    createClientMock.mockReturnValue(supabase);
+    const res = captureRes();
+
+    await tryHandleInvoiceRoute(
+      {
+        method: 'POST',
+        url: `/api/invoices/${INVOICE_UUID}/mark-issued`,
+        headers: { authorization: 'Bearer token' },
+      },
+      res,
+      helpers()
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 401 without authorization', async () => {
+    const res = captureRes();
+
+    await tryHandleInvoiceRoute(
+      {
+        method: 'POST',
+        url: `/api/invoices/${INVOICE_UUID}/mark-issued`,
+        headers: {},
+      },
+      res,
+      helpers()
+    );
+
+    expect(res.status).toBe(401);
+  });
+});
+
 describe('countPendingChangeOrders', () => {
   type COStub = { esign_status: string | null; offline_signed_at: string | null };
 

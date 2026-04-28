@@ -472,6 +472,8 @@ export const getInvoiceByJobId = async (jobId: string): Promise<Invoice | null> 
 export type InvoiceWithCustomerName = Invoice & {
   customer_name: string | null;
   wo_number: number | null;
+  job_type: string | null;
+  other_classification: string | null;
 };
 
 export type ListInvoicesWithCustomerNameResult =
@@ -511,7 +513,7 @@ export const listInvoicesWithCustomerName = async (
 ): Promise<ListInvoicesWithCustomerNameResult> => {
   const { data, error } = await supabase
     .from('invoices')
-    .select('*, jobs!job_id(customer_name, wo_number)')
+    .select('*, jobs!job_id(customer_name, wo_number, job_type, other_classification)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -532,7 +534,15 @@ export const listInvoicesWithCustomerName = async (
     const rawWo = jobRelation?.wo_number;
     const n = rawWo != null ? Number(rawWo) : NaN;
     const wo_number = Number.isFinite(n) ? n : null;
-      return { ...inv, customer_name, wo_number };
+    const job_type =
+      jobRelation && typeof jobRelation.job_type === 'string'
+        ? (jobRelation.job_type as string)
+        : null;
+    const other_classification =
+      jobRelation && typeof jobRelation.other_classification === 'string'
+        ? (jobRelation.other_classification as string)
+        : null;
+      return { ...inv, customer_name, wo_number, job_type, other_classification };
     });
   return { data: mapped, error: null };
 };

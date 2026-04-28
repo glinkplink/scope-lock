@@ -17,6 +17,45 @@ interface InvoicesPageProps {
   onOpenCoInvoice?: () => void;
 }
 
+const INVOICE_FILTER_OPTIONS = [
+  'all',
+  'draft',
+  'pending',
+  'paid_stripe',
+  'paid_offline',
+] as const;
+
+type InvoiceFilterOption = (typeof INVOICE_FILTER_OPTIONS)[number];
+
+const INVOICE_FILTER_LABELS: Record<InvoiceFilterOption, string> = {
+  all: 'All',
+  draft: 'Draft',
+  pending: 'Pending',
+  paid_stripe: 'Paid via Stripe',
+  paid_offline: 'Paid offline',
+};
+
+function matchesInvoiceFilter(invoice: InvoiceWithCustomerName, filter: InvoiceFilterOption): boolean {
+  if (filter === 'all') return true;
+  const businessStatus = getInvoiceBusinessStatus(invoice);
+  switch (filter) {
+    case 'draft':
+      return businessStatus === 'draft' && invoice.payment_status !== 'paid' && invoice.payment_status !== 'offline';
+    case 'pending':
+      return (
+        businessStatus === 'invoiced' &&
+        invoice.payment_status !== 'paid' &&
+        invoice.payment_status !== 'offline'
+      );
+    case 'paid_stripe':
+      return invoice.payment_status === 'paid';
+    case 'paid_offline':
+      return invoice.payment_status === 'offline';
+    default:
+      return true;
+  }
+}
+
 function formatInvoiceDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -31,6 +70,15 @@ function formatWoLabel(woNumber: number | null): string {
   return woNumber != null ? `WO #${String(woNumber).padStart(4, '0')}` : 'WO (no #)';
 }
 
+/** Matches `formatWorkOrderDashboardJobType` in `work-order-dashboard-display.ts`. */
+function formatJobType(
+  jobType: string | null,
+  otherClassification: string | null
+): string {
+  const other = otherClassification?.trim();
+  return other || jobType || '—';
+}
+
 function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: string; label: string } {
   const businessStatus = getInvoiceBusinessStatus(invoice);
   if (invoice.payment_status === 'paid') {
@@ -42,7 +90,7 @@ function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: st
   if (businessStatus === 'draft') {
     return { className: 'iw-status-chip iw-status-chip--draft', label: 'Draft' };
   }
-  return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Invoiced' };
+  return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Pending' };
 }
 
 function matchesInvoiceSearch(invoice: InvoiceWithCustomerName, searchTerm: string): boolean {
@@ -54,6 +102,7 @@ function matchesInvoiceSearch(invoice: InvoiceWithCustomerName, searchTerm: stri
     formatInvoiceLabel(invoice.invoice_number),
     `Invoice #${String(invoice.invoice_number).padStart(4, '0')}`,
     formatWoLabel(invoice.wo_number),
+    formatJobType(invoice.job_type, invoice.other_classification),
     invoice.customer_name,
     statusLabel,
     formatUsd(invoice.total),
@@ -78,34 +127,44 @@ interface InvoiceRowProps {
 function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
   const pill = invoiceRowStatusPill(invoice);
   const isPaidRow = invoice.payment_status === 'paid' || invoice.payment_status === 'offline';
+  const activate = () => {
+    if (!busy) onOpen(invoice);
+  };
 
   return (
     <li
       className={`work-orders-row${busy ? ' work-orders-row--busy' : ''}${
         isPaidRow ? ' work-orders-row--paid' : ''
       }`}
+      role="button"
+      tabIndex={busy ? -1 : 0}
+      aria-label={`Open invoice ${formatInvoiceLabel(invoice.invoice_number)}`}
+      onClick={activate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          activate();
+        }
+      }}
     >
-      <button
-        type="button"
-        className="invoices-row-full-hit"
-        disabled={busy}
-        onClick={() => onOpen(invoice)}
-      >
+      <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
           <div className="work-orders-row-left">
             <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
             <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
-            <span className="invoices-row-wo-line">{formatWoLabel(invoice.wo_number)}</span>
+            <span className="work-orders-job-type">{formatJobType(invoice.job_type, invoice.other_classification)}</span>
             <span className="work-orders-row-amount invoices-row-amount">{formatUsd(invoice.total)}</span>
           </div>
           <div className="work-orders-row-right">
             <div className="work-orders-row-status-slot">
               <span className={pill.className}>{pill.label}</span>
             </div>
-            <span className="work-orders-wo-date">{formatInvoiceDate(invoice.invoice_date)}</span>
           </div>
         </div>
-      </button>
+        <div className="work-orders-row-footer">
+          <span className="work-orders-wo-date">{formatInvoiceDate(invoice.invoice_date)}</span>
+        </div>
+      </div>
     </li>
   );
 }
@@ -116,6 +175,7 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState<InvoiceFilterOption>('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -163,7 +223,9 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
     }
   };
 
-  const visibleInvoices = invoices.filter((inv) => matchesInvoiceSearch(inv, searchTerm));
+  const visibleInvoices = invoices.filter(
+    (inv) => matchesInvoiceFilter(inv, activeFilter) && matchesInvoiceSearch(inv, searchTerm)
+  );
   const totalsSummary = summarizeInvoiceDashboardRows(invoices);
 
   return (
@@ -188,11 +250,11 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
         <div
           className="work-orders-stat-strip"
           role="group"
-          aria-label="Outstanding and paid invoice totals"
+          aria-label="Pending and paid invoice totals"
         >
           <div className="work-orders-stat-card work-orders-stat-card--outstanding">
             <div className="work-orders-stat-num">{formatUsd(totalsSummary.invoicedTotal)}</div>
-            <div className="work-orders-stat-label">Outstanding</div>
+            <div className="work-orders-stat-label">Pending</div>
           </div>
           <div className="work-orders-stat-card work-orders-stat-card--paid">
             <div className="work-orders-stat-num">{formatUsd(totalsSummary.paidTotal)}</div>
@@ -213,6 +275,23 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
               placeholder="Search invoice, WO, customer, status, amount, or date"
               autoComplete="off"
             />
+          </div>
+          <div className="work-orders-filter-chips" role="tablist" aria-label="Invoice status filters">
+            {INVOICE_FILTER_OPTIONS.map((filter) => {
+              const selected = filter === activeFilter;
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={`work-orders-filter-chip${selected ? ' work-orders-filter-chip--active' : ''}`}
+                  onClick={() => setActiveFilter(filter)}
+                >
+                  {INVOICE_FILTER_LABELS[filter]}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

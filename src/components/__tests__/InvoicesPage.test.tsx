@@ -53,9 +53,11 @@ function baseInvoice(overrides: Partial<Invoice> = {}): Invoice {
 function withListFields(
   inv: Invoice,
   customer_name: string | null,
-  wo_number: number | null
+  wo_number: number | null,
+  job_type: string | null = null,
+  other_classification: string | null = null
 ): InvoiceWithCustomerName {
-  return { ...inv, customer_name, wo_number };
+  return { ...inv, customer_name, wo_number, job_type, other_classification };
 }
 
 function minimalJob(id: string): Job {
@@ -130,15 +132,19 @@ describe('InvoicesPage', () => {
     cleanup();
   });
 
-  it('renders invoice row with invoice id, client, wo label, amount, and date', async () => {
+  it('renders invoice row with invoice id, client, job type, amount, and date', async () => {
     const invA = withListFields(
       baseInvoice({ id: 'inv-a', invoice_number: 1, job_id: 'job-a' }),
       'Customer A',
-      3
+      3,
+      'structural welding',
+      null
     );
     const invB = withListFields(
       baseInvoice({ id: 'inv-b', invoice_number: 2, job_id: 'job-b' }),
       'Customer B',
+      null,
+      null,
       null
     );
     listInvoicesWithCustomerName.mockResolvedValue({ data: [invA, invB], error: null });
@@ -148,14 +154,14 @@ describe('InvoicesPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('WO #0003')).toBeInTheDocument();
+      expect(screen.getByText('structural welding')).toBeInTheDocument();
     });
     const firstRow = screen.getByText('Customer A').closest('li') as HTMLElement;
     expect(within(firstRow).getByText('INV #0001')).toBeInTheDocument();
     expect(within(firstRow).getByText('Customer A')).toBeInTheDocument();
     expect(within(firstRow).getByText('$100')).toBeInTheDocument();
     expect(within(firstRow).getByText('Jan 15, 2025')).toBeInTheDocument();
-    expect(screen.getByText('WO (no #)')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('renders paid stat and filters loaded invoices by search text', async () => {
@@ -181,7 +187,7 @@ describe('InvoicesPage', () => {
     );
 
     const statGroup = await screen.findByRole('group', {
-      name: /^Outstanding and paid invoice totals$/i,
+      name: /^Pending and paid invoice totals$/i,
     });
     expect(within(statGroup).getByText('$900')).toBeInTheDocument();
     expect(within(statGroup).getByText('Paid')).toBeInTheDocument();
@@ -252,7 +258,7 @@ describe('InvoicesPage', () => {
     );
 
     const statGroup = await screen.findByRole('group', {
-      name: /^Outstanding and paid invoice totals$/i,
+      name: /^Pending and paid invoice totals$/i,
     });
     expect(within(statGroup).getByText('$46,376')).toBeInTheDocument();
     expect(within(statGroup).getByText('$11,496')).toBeInTheDocument();
@@ -299,7 +305,7 @@ describe('InvoicesPage', () => {
     const list = await screen.findByRole('list');
 
     expect(within(list).getByText('Draft')).toHaveClass('iw-status-chip', 'iw-status-chip--draft');
-    expect(within(list).getByText('Invoiced')).toHaveClass(
+    expect(within(list).getByText('Pending')).toHaveClass(
       'iw-status-chip',
       'iw-status-chip--outstanding'
     );
@@ -338,10 +344,11 @@ describe('InvoicesPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /INV #0001/i })).toBeInTheDocument();
+      expect(screen.getByText('INV #0001')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /INV #0001/i }));
+    const firstRow = screen.getByText('INV #0001').closest('li') as HTMLElement;
+    await user.click(firstRow);
 
     await waitFor(() => {
       expect(onOpenInvoice).toHaveBeenCalledTimes(1);
@@ -390,10 +397,11 @@ describe('InvoicesPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /INV #0001/i })).toBeInTheDocument();
+      expect(screen.getByText('INV #0001')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /INV #0001/i }));
+    const firstRow = screen.getByText('INV #0001').closest('li') as HTMLElement;
+    await user.click(firstRow);
 
     await waitFor(() => {
       expect(onOpenInvoice).toHaveBeenCalledTimes(1);
@@ -430,22 +438,20 @@ describe('InvoicesPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /INV #/i })).toHaveLength(2);
+      expect(screen.getByText('INV #0001')).toBeInTheDocument();
+      expect(screen.getByText('INV #0002')).toBeInTheDocument();
     });
 
-    const buttons = screen.getAllByRole('button', { name: /INV #/i });
-    const btn1 = buttons.find((b) => within(b).queryByText(/INV #0001/));
-    const btn2 = buttons.find((b) => within(b).queryByText(/INV #0002/));
-    expect(btn1).toBeTruthy();
-    expect(btn2).toBeTruthy();
+    const row1 = screen.getByText('INV #0001').closest('li') as HTMLElement;
+    const row2 = screen.getByText('INV #0002').closest('li') as HTMLElement;
 
-    await user.click(btn1!);
+    await user.click(row1);
 
     await waitFor(() => {
       expect(getJobById).toHaveBeenCalledTimes(1);
     });
 
-    await user.click(btn2!);
+    await user.click(row2);
 
     expect(getJobById).toHaveBeenCalledTimes(1);
     expect(onOpenInvoice).not.toHaveBeenCalled();
@@ -496,10 +502,11 @@ describe('InvoicesPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /INV #0001/i })).toBeInTheDocument();
+      expect(screen.getByText('INV #0001')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /INV #0001/i }));
+    const firstRow = screen.getByText('INV #0001').closest('li') as HTMLElement;
+    await user.click(firstRow);
 
     await waitFor(() => {
       expect(onOpenInvoice).toHaveBeenCalledTimes(1);

@@ -22,9 +22,6 @@ const WORK_ORDER_FILTER_OPTIONS = [
   'all',
   'needs_signature',
   'signed',
-  'draft_invoice',
-  'invoiced',
-  'paid',
 ] as const;
 
 type WorkOrderFilterOption = (typeof WORK_ORDER_FILTER_OPTIONS)[number];
@@ -33,9 +30,6 @@ const WORK_ORDER_FILTER_LABELS: Record<WorkOrderFilterOption, string> = {
   all: 'All',
   needs_signature: 'Needs signature',
   signed: 'Signed',
-  draft_invoice: 'Draft invoice',
-  invoiced: 'Invoiced',
-  paid: 'Paid',
 };
 
 function readProfileNudgeDismissedActive(userId: string): boolean {
@@ -112,32 +106,19 @@ function getRowInvoiceLabel(job: WorkOrderDashboardJob): string | null {
   if (invoice.payment_status === 'paid') return 'Paid';
   if (invoice.payment_status === 'offline') return 'Paid';
   if (getInvoiceBusinessStatus(invoice) === 'draft') return 'Invoice draft';
-  return 'Invoiced';
+  return 'Pending';
 }
 
 function matchesWorkOrderFilter(job: WorkOrderDashboardJob, filter: WorkOrderFilterOption): boolean {
   if (filter === 'all') return true;
 
   const signatureState = getWorkOrderSignatureState(job.esign_status, job.offline_signed_at);
-  const invoice = job.latestInvoice;
-  const invoiceBusinessStatus = invoice ? getInvoiceBusinessStatus(invoice) : null;
 
   switch (filter) {
     case 'needs_signature':
       return !signatureState.isSignatureSatisfied;
     case 'signed':
       return signatureState.isSignatureSatisfied;
-    case 'draft_invoice':
-      return Boolean(invoice && invoiceBusinessStatus === 'draft');
-    case 'invoiced':
-      return Boolean(
-        invoice &&
-        invoiceBusinessStatus === 'invoiced' &&
-        invoice.payment_status !== 'paid' &&
-        invoice.payment_status !== 'offline'
-      );
-    case 'paid':
-      return Boolean(invoice && (invoice.payment_status === 'paid' || invoice.payment_status === 'offline'));
     default:
       return true;
   }
@@ -157,6 +138,7 @@ function matchesWorkOrderSearch(job: WorkOrderDashboardJob, searchTerm: string):
     job.other_classification,
     formatWorkOrderDashboardRowDate(job),
     formatUsd(job.price),
+    formatUsdContract(job.price),
     Number.isFinite(job.price) ? job.price.toFixed(2) : null,
     signatureState.displayLabel,
     progressTitle,
@@ -195,7 +177,17 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
   return (
     <li
       className={`work-orders-row${isPaidRow ? ' work-orders-row--paid' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${woLabel} for ${job.customer_name}`}
       onClick={handleRowClick}
+      onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenDetail(job);
+        }
+      }}
     >
       <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
@@ -213,7 +205,7 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
         </div>
         <div className="work-orders-row-footer">
           {showCreateInvoiceButton ? (
-            <>
+            <div className="work-orders-create-invoice-slot">
               <button
                 type="button"
                 className="work-orders-create-invoice-btn"
@@ -233,7 +225,7 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
                   Work order must be signed (e-signature or marked signed offline) before invoice can be generated.
                 </p>
               ) : null}
-            </>
+            </div>
           ) : null}
           <span className="work-orders-wo-date">{jobMetaLabel}</span>
         </div>

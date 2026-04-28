@@ -260,6 +260,11 @@ export async function tryHandleInvoiceRoute(req, res, helpers) {
     }
   }
 
+  // POST /api/invoices/:invoiceId/mark-issued
+  if (req.method === 'POST' && /^\/api\/invoices\/[^/]+\/mark-issued$/.test(pathOnly)) {
+    return await handleMarkIssued(req, res, { sendJson });
+  }
+
   // POST /api/invoices/:invoiceId/mark-paid-offline
   if (req.method === 'POST' && /^\/api\/invoices\/[^/]+\/mark-paid-offline$/.test(pathOnly)) {
     return await handleMarkPaidOffline(req, res, { sendJson });
@@ -546,6 +551,116 @@ async function handleInvoiceSend(req, res, { readJsonBody, sendJson }) {
     .maybeSingle();
 
   sendJson(res, 200, { invoice: freshOnly || invoice });
+  return true;
+}
+
+async function handleMarkIssued(req, res, { sendJson }) {
+  const token = getBearerToken(req);
+  if (!token) {
+    sendJson(res, 401, { error: 'Missing authorization' });
+    return true;
+  }
+
+  const supabase = getServiceSupabase();
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) {
+    sendJson(res, 401, { error: 'Invalid session' });
+    return true;
+  }
+  const userId = userData.user.id;
+
+  const invoiceId = invoiceIdFromPath(req, 'mark-issued');
+  if (!invoiceId) {
+    sendJson(res, 400, { error: 'Invalid invoice ID' });
+    return true;
+  }
+
+  const { data: invoice, error: invoiceErr } = await supabase
+    .from('invoices')
+    .select('id, user_id, issued_at, job_id')
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (invoiceErr) {
+    log.error('mark-issued load error', log.errCtx(invoiceErr));
+    sendJson(res, 500, { error: 'Could not load invoice.' });
+    return true;
+  }
+  if (!invoice) {
+    sendJson(res, 404, { error: 'Invoice not found' });
+    return true;
+  }
+
+  // Idempotent: already issued → return fresh row
+  if (invoice.issued_at) {
+    const { data: fresh } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    sendJson(res, 200, { invoice: fresh || invoice });
+    return true;
+  }
+
+  // Enforce same first-issuance gates as send (signature + CO check)
+  const { data: job, error: jobErr } = await supabase
+    .from('jobs')
+    .select('esign_status, offline_signed_at')
+    .eq('id', invoice.job_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (jobErr) {
+    log.error('mark-issued job load error', log.errCtx(jobErr));
+    sendJson(res, 500, { error: 'Could not load work order.' });
+    return true;
+  }
+  if (!job) {
+    sendJson(res, 404, { error: 'Job not found' });
+    return true;
+  }
+
+  if (!workOrderSignatureSatisfied(job)) {
+    sendJson(res, 409, {
+      error:
+        'Cannot issue invoice: the work order must be signed via DocuSeal or marked as signed offline first.',
+    });
+    return true;
+  }
+
+  let pendingCOCount;
+  try {
+    pendingCOCount = await countPendingChangeOrders(supabase, invoice.job_id, userId);
+  } catch (err) {
+    log.error('mark-issued pending-CO check failed', log.errCtx(err));
+    sendJson(res, 500, { error: 'Could not verify change order status.' });
+    return true;
+  }
+  if (pendingCOCount > 0) {
+    sendJson(res, 409, {
+      error: `Cannot issue invoice: ${pendingCOCount} change order${pendingCOCount === 1 ? ' is' : 's are'} still pending. Sign, mark signed offline, or delete them first.`,
+    });
+    return true;
+  }
+
+  const { data: updated, error: updateErr } = await supabase
+    .from('invoices')
+    .update({ issued_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (updateErr) {
+    log.error('mark-issued update error', log.errCtx(updateErr));
+    sendJson(res, 500, { error: 'Could not update invoice.' });
+    return true;
+  }
+
+  log.info('marked invoice issued (download)', { invoiceId, userId });
+  sendJson(res, 200, { invoice: updated });
   return true;
 }
 

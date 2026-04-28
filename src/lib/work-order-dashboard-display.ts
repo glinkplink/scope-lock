@@ -21,6 +21,7 @@ const ROW_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: 'short',
   day: 'numeric',
+  timeZone: 'UTC',
 });
 
 /** Same semantics as the former Work Orders list `formatUsd` (0 fraction digits — used for stat cards). */
@@ -68,7 +69,7 @@ export function compactWorkOrderDashboardStatusLabel(job: WorkOrderDashboardJob)
     if (inv.payment_status === 'paid') return 'Paid';
     if (inv.payment_status === 'offline') return 'Paid';
     if (getInvoiceBusinessStatus(inv) === 'draft') return 'Invoice draft';
-    return 'Invoiced';
+    return 'Pending';
   }
 
   const { displayLabel, isSignatureSatisfied } = getWorkOrderSignatureState(

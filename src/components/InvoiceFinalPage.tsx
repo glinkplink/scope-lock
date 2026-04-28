@@ -4,6 +4,7 @@ import { generateInvoiceHtml } from '../lib/invoice-generator';
 import { getInvoice, getInvoiceBusinessStatus, updateInvoice } from '../lib/db/invoices';
 import { fetchWithSupabaseAuth } from '../lib/fetch-with-supabase-auth';
 import { sendInvoice } from '../lib/invoice-send';
+import { markInvoiceIssued } from '../lib/invoice-mark-issued';
 import { getWorkOrderSignatureState } from '../lib/work-order-signature';
 import { listChangeOrders } from '../lib/db/change-orders';
 import { computeSignedCOLines } from '../lib/invoice-line-items';
@@ -170,16 +171,20 @@ export function InvoiceFinalPage({
   const isPaidOffline = invoiceProp.payment_status === 'offline';
   const isPaidStripe = invoiceProp.payment_status === 'paid';
   const isPaid = isPaidStripe || isPaidOffline;
-  const invoiceStatusLabel = isPaid
-    ? 'Paid'
-    : isReadOnly
-      ? 'Invoiced'
-      : 'Draft';
-  const invoiceStatusClass = isPaid
-    ? ' iw-status-chip--paid'
-    : isReadOnly
-      ? ' iw-status-chip--outstanding'
-      : ' iw-status-chip--draft';
+  const invoiceStatusLabel = isPaidOffline
+    ? 'Paid offline'
+    : isPaidStripe
+      ? 'Paid'
+      : isReadOnly
+        ? 'Pending'
+        : 'Draft';
+  const invoiceStatusClass = isPaidOffline
+    ? ' iw-status-chip--offline'
+    : isPaidStripe
+      ? ' iw-status-chip--paid'
+      : isReadOnly
+        ? ' iw-status-chip--outstanding'
+        : ' iw-status-chip--draft';
 
   const flashPaymentLinkCopied = () => {
     if (paymentLinkCopiedTimeoutRef.current !== null) {
@@ -303,6 +308,20 @@ export function InvoiceFinalPage({
         blob,
         getInvoicePdfFilename(invoiceProp.invoice_number, job.customer_name)
       );
+
+      // Mark invoice as issued after successful download (if not already issued)
+      if (!invoiceProp.issued_at) {
+        const { data: issued, error: issueErr } = await markInvoiceIssued(invoiceProp.id);
+        if (issueErr) {
+          setDownloadError(
+            `Invoice downloaded, but could not update status: ${issueErr.message}. Try sending the invoice to sync status.`
+          );
+          return;
+        }
+        if (issued) {
+          onInvoiceUpdated(issued);
+        }
+      }
     } catch (e) {
       setDownloadError(e instanceof Error ? e.message : 'Download failed.');
     } finally {
@@ -713,7 +732,7 @@ export function InvoiceFinalPage({
             {downloading ? 'Downloading…' : 'Download Invoice'}
           </button>
         </div>
-        {!isReadOnly ? (
+        {!isPaid && !isReadOnly ? (
           <button
             type="button"
             className="btn-primary btn-large invoice-final-download-btn"

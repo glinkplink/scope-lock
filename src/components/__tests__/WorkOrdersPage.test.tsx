@@ -86,19 +86,6 @@ const listJobSignedOffline: WorkOrderDashboardJob = {
   },
 };
 
-function previewCO(
-  id: string,
-  coNumber: number,
-  esignStatus: WorkOrderDashboardJob['changeOrderPreview'][number]['esign_status']
-) {
-  return {
-    id,
-    job_id: 'job-a',
-    co_number: coNumber,
-    esign_status: esignStatus,
-  };
-}
-
 function makePageResult(
   data: WorkOrderDashboardJob[],
   opts?: { hasMore?: boolean; nextCursor?: WorkOrdersDashboardCursor | null }
@@ -239,7 +226,7 @@ describe('WorkOrdersPage', () => {
     expect(within(statGroup).getByText('2')).toBeInTheDocument();
     expect(within(statGroup).getByText('1')).toBeInTheDocument();
     expect(within(statGroup).getByText("WO's signed")).toBeInTheDocument();
-    expect(within(statGroup).queryByText('Invoiced')).not.toBeInTheDocument();
+    expect(within(statGroup).queryByText('Pending')).not.toBeInTheDocument();
     expect(within(statGroup).queryByText('Paid')).not.toBeInTheDocument();
     expect(within(statGroup).queryByText('Pending invoice')).not.toBeInTheDocument();
   });
@@ -336,43 +323,9 @@ describe('WorkOrdersPage', () => {
     const list = latestWorkOrdersListUl();
     expect(within(list).queryByRole('button', { name: /^Invoice$/i })).not.toBeInTheDocument();
     expect(within(list).queryByRole('button', { name: /^Draft$/i })).not.toBeInTheDocument();
-    expect(within(list).queryByRole('button', { name: /^Invoiced$/i })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Pending$/i })).not.toBeInTheDocument();
     expect(within(list).queryByRole('button', { name: /^Paid$/i })).not.toBeInTheDocument();
     expect(within(list).queryByRole('button', { name: /^Paid Offline$/i })).not.toBeInTheDocument();
-  });
-
-  it('shows View & Create Change Orders link when changeOrderCount > 0 and opens change-orders section', async () => {
-    listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        {
-          ...listJobA,
-          changeOrderCount: 4,
-          changeOrderPreview: [previewCO('co-1', 1, 'opened'), previewCO('co-2', 2, 'completed')],
-          hasInFlightChangeOrders: true,
-        },
-      ])
-    );
-
-    const user = userEvent.setup();
-    const { onOpenWorkOrderDetail } = renderPage();
-
-    await screen.findByText('Customer A');
-    const link = screen.getByRole('button', { name: /View & Create Change Orders/i });
-    expect(link).toHaveTextContent('View & Create Change Orders');
-
-    await user.click(link);
-
-    expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a', 'change-orders');
-  });
-
-  it('keeps the change-order CTA visible even when the row has zero change orders', async () => {
-    const user = userEvent.setup();
-    const { onOpenWorkOrderDetail } = renderPage(minimalProfileWithPhone());
-
-    await screen.findByText('Customer A');
-    await user.click(screen.getByRole('button', { name: /View & Create Change Orders/i }));
-
-    expect(onOpenWorkOrderDetail).toHaveBeenCalledWith('job-a', 'change-orders');
   });
 
   it('renders signature chips on work-order rows using the canonical status-chip variants', async () => {
@@ -450,8 +403,7 @@ describe('WorkOrdersPage', () => {
     expect(screen.getByText('WO #0001')).toBeInTheDocument();
     expect(screen.getByText('repair')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
-    // Date may render as Dec 31, 2024 or Jan 1, 2025 depending on timezone (UTC vs local)
-    expect(screen.getByText(/(Jan 1, 2025|Dec 31, 2024)/)).toBeInTheDocument();
+    expect(screen.getByText('Jan 1, 2025')).toBeInTheDocument();
   });
 
   it('clears the success banner after 10 seconds and not before', async () => {
@@ -568,30 +520,16 @@ describe('WorkOrdersPage', () => {
     expect(within(list).queryByText('Alpha Fab')).not.toBeInTheDocument();
 
     await user.clear(search);
-    await user.type(search, 'invoiced');
+    await user.type(search, 'pending');
     list = latestWorkOrdersListUl();
     expect(within(list).getByText('Bravo Fab')).toBeInTheDocument();
     expect(within(list).queryByText('Alpha Fab')).not.toBeInTheDocument();
   });
 
-  it('filters by each chip predicate and keeps signed chip inclusive of offline-signed rows', async () => {
+  it('filters by signature chip predicates and keeps signed chip inclusive of offline-signed rows', async () => {
     const user = userEvent.setup();
     listWorkOrdersDashboardPage.mockResolvedValue(
-      makePageResult([
-        listJobA,
-        {
-          ...listJobB,
-          latestInvoice: {
-            id: 'inv-b',
-            job_id: 'job-b',
-            issued_at: null,
-            invoice_number: 2,
-            created_at: '2025-01-02T00:00:00Z',
-            payment_status: 'unpaid',
-          },
-        },
-        listJobSignedOffline,
-      ])
+      makePageResult([listJobA, listJobB, listJobSignedOffline])
     );
 
     renderPage(minimalProfileWithPhone());
@@ -608,15 +546,6 @@ describe('WorkOrdersPage', () => {
     list = latestWorkOrdersListUl();
     expect(within(list).getByText('Customer C')).toBeInTheDocument();
     expect(within(list).queryByText('Customer A')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('tab', { name: /draft invoice/i }));
-    list = latestWorkOrdersListUl();
-    expect(within(list).getByText('Customer B')).toBeInTheDocument();
-    expect(within(list).queryByText('Customer A')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('tab', { name: /^Paid$/i }));
-    list = latestWorkOrdersListUl();
-    expect(within(list).getByText('Customer C')).toBeInTheDocument();
     expect(within(list).queryByText('Customer B')).not.toBeInTheDocument();
   });
 
@@ -630,7 +559,7 @@ describe('WorkOrdersPage', () => {
     renderPage(minimalProfileWithPhone());
 
     await screen.findByText('Customer A');
-    await user.click(screen.getByRole('tab', { name: /^Paid$/i }));
+    await user.click(screen.getByRole('tab', { name: /^Signed$/i }));
 
     expect(screen.getByText('No loaded work orders match')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /load more/i })).toBeInTheDocument();
@@ -647,41 +576,19 @@ describe('WorkOrdersPage', () => {
     const user = userEvent.setup();
     listWorkOrdersDashboardPage.mockResolvedValue(
       makePageResult([
-        {
-          ...listJobA,
-          customer_name: 'Alpha Fab',
-          latestInvoice: {
-            id: 'inv-a',
-            job_id: 'job-a',
-            issued_at: '2025-01-02T00:00:00Z',
-            invoice_number: 1,
-            created_at: '2025-01-02T00:00:00Z',
-            payment_status: 'paid',
-          },
-        },
-        {
-          ...listJobB,
-          customer_name: 'Bravo Fab',
-          latestInvoice: {
-            id: 'inv-b',
-            job_id: 'job-b',
-            issued_at: '2025-01-02T00:00:00Z',
-            invoice_number: 2,
-            created_at: '2025-01-02T00:00:00Z',
-            payment_status: 'paid',
-          },
-        },
+        { ...listJobA, customer_name: 'Alpha Fab' },
+        { ...listJobSignedOffline, customer_name: 'Bravo Offline' },
       ])
     );
 
     renderPage(minimalProfileWithPhone());
 
-    await screen.findByText('Bravo Fab');
-    await user.click(screen.getByRole('tab', { name: /^Paid$/i }));
+    await screen.findByText('Bravo Offline');
+    await user.click(screen.getByRole('tab', { name: /^Signed$/i }));
     await user.type(screen.getByRole('searchbox', { name: /search loaded work orders/i }), 'Bravo');
 
     const list = latestWorkOrdersListUl();
-    expect(within(list).getByText('Bravo Fab')).toBeInTheDocument();
+    expect(within(list).getByText('Bravo Offline')).toBeInTheDocument();
     expect(within(list).queryByText('Alpha Fab')).not.toBeInTheDocument();
   });
 
@@ -805,7 +712,7 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('Customer B');
 
     const list = latestWorkOrdersListUl();
-    const rows = within(list).getAllByRole('listitem');
+    const rows = Array.from(list.querySelectorAll('li')) as HTMLElement[];
     
     expect(within(rows[0]).queryByRole('button', { name: /create invoice/i })).not.toBeInTheDocument();
     expect(within(rows[1]).queryByRole('button', { name: /create invoice/i })).not.toBeInTheDocument();
@@ -827,7 +734,7 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('Customer A');
 
     const list = latestWorkOrdersListUl();
-    const row = within(list).getByRole('listitem');
+    const row = list.querySelector('li') as HTMLElement;
     const button = within(row).getByRole('button', { name: /create invoice/i });
     
     expect(button).toBeDisabled();
@@ -850,7 +757,7 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('Customer A');
 
     const list = latestWorkOrdersListUl();
-    const row = within(list).getByRole('listitem');
+    const row = list.querySelector('li') as HTMLElement;
     const button = within(row).getByRole('button', { name: /create invoice/i });
     
     expect(button).not.toBeDisabled();
@@ -873,7 +780,7 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('Customer A');
 
     const list = latestWorkOrdersListUl();
-    const row = within(list).getByRole('listitem');
+    const row = list.querySelector('li') as HTMLElement;
     const button = within(row).getByRole('button', { name: /create invoice/i });
     
     expect(button).not.toBeDisabled();
@@ -889,7 +796,7 @@ describe('WorkOrdersPage', () => {
     await screen.findByText('Customer A');
 
     const list = latestWorkOrdersListUl();
-    const row = within(list).getByRole('listitem');
+    const row = list.querySelector('li') as HTMLElement;
     const footer = row.querySelector('.work-orders-row-footer');
     
     expect(footer).toBeInTheDocument();

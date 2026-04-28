@@ -838,7 +838,7 @@ export function HomePage({
             </div>
             <div className="home-stat-card home-stat-card--outstanding">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.invoicedTotal)}</div>
-              <div className="home-stat-label">Outstanding</div>
+              <div className="home-stat-label">Pending</div>
             </div>
             <div className="home-stat-card home-stat-card--paid">
               <div className="home-stat-num">{formatUsd(invoiceSummary?.paidTotal)}</div>
