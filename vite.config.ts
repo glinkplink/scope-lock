@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     modulePreload: {
-      resolveDependencies(filename, deps, context) {
+      resolveDependencies(_filename, deps, context) {
         if (context.hostType === 'html') {
           return deps.filter(
             (dep) =>
@@ -23,19 +23,7 @@ export default defineConfig({
           );
         }
 
-        const isBootLoadingMain =
-          filename.startsWith('assets/main-') || deps.some((dep) => /^assets\/main-.*\.css$/.test(dep));
-        if (!isBootLoadingMain) return deps;
-
-        return deps.filter(
-          (dep) =>
-            dep.includes('rolldown-runtime') ||
-            dep.includes('react-vendor') ||
-            dep.includes('router-vendor') ||
-            dep.includes('icons-vendor') ||
-            dep.includes('supabase-vendor') ||
-            /^assets\/main-.*\.css$/.test(dep)
-        );
+        return deps;
       },
     },
     rollupOptions: {
