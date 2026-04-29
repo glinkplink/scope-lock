@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(git fetch *)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
