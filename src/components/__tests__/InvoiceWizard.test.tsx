@@ -177,8 +177,13 @@ function minimalInvoice(overrides: Partial<Invoice> = {}): Invoice {
   };
 }
 
-function renderWizard(opts?: { changeOrder?: ChangeOrder | null; existingInvoice?: Invoice | null }) {
+function renderWizard(opts?: {
+  changeOrder?: ChangeOrder | null;
+  existingInvoice?: Invoice | null;
+  onCancel?: () => void;
+}) {
   const onSuccess = vi.fn();
+  const onCancel = opts?.onCancel ?? vi.fn();
   render(
     <InvoiceWizard
       userId="u1"
@@ -186,11 +191,11 @@ function renderWizard(opts?: { changeOrder?: ChangeOrder | null; existingInvoice
       changeOrder={opts?.changeOrder ?? null}
       profile={minimalProfile()}
       existingInvoice={opts?.existingInvoice ?? null}
-      onCancel={() => {}}
+      onCancel={onCancel}
       onSuccess={onSuccess}
     />
   );
-  return { onSuccess };
+  return { onCancel, onSuccess };
 }
 
 describe('InvoiceWizard', () => {
@@ -248,6 +253,28 @@ describe('InvoiceWizard', () => {
       expect(screen.getByText(/Change orders on this job/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
+  it('uses Back after step one and lets the stepper return to pricing', async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    renderWizard({ onCancel });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Change orders on this job/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+    expect(screen.getByRole('button', { name: /^back$/i })).toBeInTheDocument();
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /step 1: pricing/i }));
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it('opens the existing job invoice when duplicate creation is rejected', async () => {

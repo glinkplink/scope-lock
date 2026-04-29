@@ -185,17 +185,19 @@
 
 /* ─── Profile nudge ─── */
 .work-orders-profile-nudge {
-  margin: 0 var(--space-md) var(--space-lg);
-  padding: var(--space-md);
+  width: min(100% - (var(--space-md) * 2), 260px);
+  margin: 0 auto var(--space-lg);
+  padding: 11px var(--space-md);
   background: var(--iron-750);
   border: 1px solid var(--iron-600);
   border-radius: var(--shell-radius-sm);
+  text-align: center;
 }
 
 .work-orders-profile-nudge-helper {
-  margin: 0 0 var(--space-md);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  margin: 0 0 9px;
+  font-size: 0.75rem;
+  line-height: 1.42;
   color: var(--iron-300);
   font-weight: 400;
   text-transform: none;
@@ -204,28 +206,31 @@
 
 .work-orders-profile-nudge-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
+  gap: 7px;
 }
 
 .work-orders-complete-profile-btn {
-  background: var(--spark);
-  color: var(--iron-900);
-  padding: 10px var(--space-xl);
-  border: none;
+  background: rgba(255, 140, 0, 0.08);
+  color: var(--spark);
+  padding: 7px var(--space-md);
+  min-width: 142px;
+  border: 1px solid rgba(255, 140, 0, 0.36);
   border-radius: var(--shell-radius-sm);
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
   transition: filter 0.15s;
 }
 
 .work-orders-complete-profile-btn:hover {
-  filter: brightness(1.06);
+  background: rgba(255, 140, 0, 0.14);
+  border-color: rgba(255, 140, 0, 0.55);
 }
 
 .work-orders-complete-profile-btn:focus-visible {
@@ -239,7 +244,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--iron-400);
   text-decoration: underline;

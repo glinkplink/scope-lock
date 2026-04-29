@@ -380,8 +380,7 @@ export function WorkOrdersPage({
       {showProfileNudge ? (
         <div className="work-orders-profile-nudge">
           <p className="work-orders-profile-nudge-helper">
-            Add your business phone so it appears on agreements and PDFs. Defaults you set in your
-            profile (exclusions, customer obligations) apply to new work orders.
+            Add your business phone and default terms for future work orders.
           </p>
           <div className="work-orders-profile-nudge-actions">
             <button
