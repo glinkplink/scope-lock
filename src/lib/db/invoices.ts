@@ -335,9 +335,9 @@ export async function getBlocksNewChangeOrdersForJob(
     const r = row as { issued_at: unknown; line_items: unknown; payment_status: unknown };
     if (isIssuedJobLevelInvoiceRow(r)) {
       blocks = true;
-      if (r.payment_status === 'paid' || r.payment_status === 'offline') {
-        invoicePaid = true;
-      }
+    }
+    if (r.payment_status === 'paid' || r.payment_status === 'offline') {
+      invoicePaid = true;
     }
   }
   return { blocks, invoicePaid, error: null };
