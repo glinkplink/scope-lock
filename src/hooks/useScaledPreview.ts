@@ -11,6 +11,7 @@ export const PREVIEW_DESKTOP_UPSCALE_MQ = '(min-width: 1024px)';
 
 type UseScaledPreviewOptions = {
   fitPageHeightPx?: number;
+  maxVisiblePageCount?: number;
 };
 
 function isUseScaledPreviewOptions(value: unknown): value is UseScaledPreviewOptions {
@@ -35,6 +36,7 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
     : undefined;
   const refreshDeps = options ? heightRefreshDeps.slice(1) : heightRefreshDeps;
   const fitPageHeightPx = options?.fitPageHeightPx;
+  const maxVisiblePageCount = options?.maxVisiblePageCount;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scaleFrameRef = useRef<number | null>(null);
@@ -119,7 +121,15 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller passes refresh triggers (e.g. job, profile)
   }, refreshDeps);
 
-  const spacerHeight = sheetScrollHeight * scale;
+  const maxVisibleSheetHeight =
+    typeof maxVisiblePageCount === 'number' && maxVisiblePageCount > 0
+      ? PREVIEW_LETTER_HEIGHT_PX * maxVisiblePageCount
+      : null;
+  const visibleSheetHeight =
+    maxVisibleSheetHeight == null
+      ? sheetScrollHeight
+      : Math.min(sheetScrollHeight, maxVisibleSheetHeight);
+  const spacerHeight = visibleSheetHeight * scale;
   const spacerWidth = PREVIEW_LETTER_WIDTH_PX * scale;
 
   return {

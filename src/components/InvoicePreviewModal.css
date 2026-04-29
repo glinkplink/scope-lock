@@ -99,6 +99,10 @@
 }
 
 @media (max-width: 639px) {
+  .invoice-preview-modal-overlay {
+    backdrop-filter: none;
+  }
+
   .invoice-preview-modal-toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -110,5 +114,7 @@
 
   .invoice-preview-modal-scroll {
     padding: 1rem;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: contain;
   }
 }

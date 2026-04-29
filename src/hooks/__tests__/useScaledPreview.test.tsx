@@ -5,6 +5,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import React from 'react';
 import {
   useScaledPreview,
+  PREVIEW_LETTER_HEIGHT_PX,
   PREVIEW_LETTER_WIDTH_PX,
   PREVIEW_DESKTOP_UPSCALE_MQ,
 } from '../useScaledPreview';
@@ -78,11 +79,17 @@ const sheetScrollHeight = { current: 100 };
 
 interface HarnessProps {
   refreshKey?: string | number;
+  fitPageHeightPx?: number;
+  maxVisiblePageCount?: number;
 }
 
-function ScaledPreviewHarness({ refreshKey = 'a' }: HarnessProps) {
+function ScaledPreviewHarness({
+  refreshKey = 'a',
+  fitPageHeightPx,
+  maxVisiblePageCount,
+}: HarnessProps) {
   const { viewportRef, sheetRef, scale, spacerWidth, spacerHeight, letterWidthPx } =
-    useScaledPreview(refreshKey);
+    useScaledPreview({ fitPageHeightPx, maxVisiblePageCount }, refreshKey);
 
   return (
     <div
@@ -144,7 +151,14 @@ afterEach(() => {
 // Mount helper
 // ---------------------------------------------------------------------------
 
-function mountHarness(overrides: { matchMedia?: ReturnType<typeof makeMatchMedia>; refreshKey?: string | number } = {}) {
+function mountHarness(
+  overrides: {
+    matchMedia?: ReturnType<typeof makeMatchMedia>;
+    refreshKey?: string | number;
+    fitPageHeightPx?: number;
+    maxVisiblePageCount?: number;
+  } = {}
+) {
   const mm = overrides.matchMedia ?? makeMatchMedia(false);
   vi.stubGlobal('ResizeObserver', MockRO);
   Object.defineProperty(window, 'matchMedia', {
@@ -152,7 +166,13 @@ function mountHarness(overrides: { matchMedia?: ReturnType<typeof makeMatchMedia
     configurable: true,
     value: vi.fn().mockReturnValue(mm),
   });
-  const utils = render(<ScaledPreviewHarness refreshKey={overrides.refreshKey ?? 'a'} />);
+  const utils = render(
+    <ScaledPreviewHarness
+      refreshKey={overrides.refreshKey ?? 'a'}
+      fitPageHeightPx={overrides.fitPageHeightPx}
+      maxVisiblePageCount={overrides.maxVisiblePageCount}
+    />
+  );
   const probe = () => utils.getByTestId('probe');
   const getScale = () => parseFloat(probe().getAttribute('data-scale')!);
   const getSpacerWidth = () => parseFloat(probe().getAttribute('data-spacer-width')!);
@@ -199,6 +219,34 @@ describe('useScaledPreview', () => {
     const scale = getScale();
     expect(scale).toBeCloseTo(0.5, 5);
     expect(getSpacerHeight()).toBeCloseTo(200 * scale, 2);
+  });
+
+  it('caps scale by fitPageHeightPx when provided', () => {
+    viewportWidth.current = 500;
+    sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 2;
+    const { getScale, getSpacerHeight } = mountHarness({
+      matchMedia: makeMatchMedia(false),
+      fitPageHeightPx: 280,
+    });
+
+    expect(getScale()).toBeCloseTo(280 / PREVIEW_LETTER_HEIGHT_PX, 5);
+    expect(getSpacerHeight()).toBeCloseTo(
+      sheetScrollHeight.current * (280 / PREVIEW_LETTER_HEIGHT_PX),
+      2
+    );
+  });
+
+  it('clips spacerHeight to the requested visible page count', () => {
+    viewportWidth.current = 500;
+    sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 3;
+    const { getScale, getSpacerHeight } = mountHarness({
+      matchMedia: makeMatchMedia(false),
+      fitPageHeightPx: 280,
+      maxVisiblePageCount: 1,
+    });
+
+    expect(getScale()).toBeCloseTo(280 / PREVIEW_LETTER_HEIGHT_PX, 5);
+    expect(getSpacerHeight()).toBeCloseTo(280, 2);
   });
 
   it('deps change causes height effect to re-run and spacerHeight updates', () => {
