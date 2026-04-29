@@ -45,7 +45,7 @@ import { computeCOTotal, listChangeOrders } from '../lib/db/change-orders';
 import { getBlocksNewChangeOrdersForJob } from '../lib/db/invoices';
 import { markJobDownloaded } from '../lib/job-mark-downloaded';
 import { getChangeOrderSignatureState } from '../lib/change-order-signature';
-import { PREVIEW_LETTER_HEIGHT_PX, useScaledPreview } from '../hooks/useScaledPreview';
+import { useScaledPreview } from '../hooks/useScaledPreview';
 import { InvoicePreviewModal } from './InvoicePreviewModal';
 import { StaleContactBanner } from './StaleContactBanner';
 import './EsignTimeline.css';
@@ -871,7 +871,7 @@ export function WorkOrderDetailPage({
               className="agreement-preview-scale-spacer"
               style={{
                 width: woPreviewSpacerWidth,
-                height: woPreviewFirstPageHeight,
+                height: woPreviewSpacerHeight,
               }}
             >
               <div
