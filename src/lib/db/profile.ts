@@ -16,7 +16,7 @@ export const getProfile = async (userId: string): Promise<BusinessProfile | null
     .from('business_profiles')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error fetching profile:', error);

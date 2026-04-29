@@ -245,7 +245,7 @@ export function WorkOrderDetailPage({
     spacerHeight: woPreviewSpacerHeight,
     spacerWidth: woPreviewSpacerWidth,
     letterWidthPx: woLetterWidthPx,
-  } = useScaledPreview({ fitPageHeightPx: 320 }, sections);
+  } = useScaledPreview(sections);
 
   const woPreviewHtml = useMemo(
     () =>
@@ -254,6 +254,7 @@ export function WorkOrderDetailPage({
         : '',
     [sections]
   );
+
 
   const woLabel =
     job?.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
