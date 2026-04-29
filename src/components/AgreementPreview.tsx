@@ -20,6 +20,7 @@ import {
   buildDocusealHtmlHeader,
 } from '../lib/docuseal-header-footer';
 import { sendWorkOrderForSignature } from '../lib/esign-api';
+import { markJobDownloaded } from '../lib/job-mark-downloaded';
 import { buildGuestPreviewProfile } from '../lib/guest-agreement-profile';
 import { buildDocusealProviderSignatureImage } from '../lib/docuseal-signature-image';
 import { AgreementDocumentSections } from './AgreementDocumentSections';
@@ -382,6 +383,7 @@ export function AgreementPreview({
     try {
       const blob = await fetchAgreementPdfBlob(job, profile, documentRef.current);
       downloadAgreementPdfBlob(blob, job);
+      if (savedJobId) await markJobDownloaded(savedJobId).catch(() => {});
       setConfirmationMessage(
         wroteToDb
           ? `WO #${String(job.wo_number).padStart(4, '0')} saved. PDF downloaded.`

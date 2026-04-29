@@ -86,7 +86,7 @@ A contractor can **start a work order without signing in**. They fill the job fo
 
 ### Observability (app server)
 
-- **Optional `SENTRY_DSN`:** **Production stance:** external error tracking is **intentionally omitted**—leave `SENTRY_DSN` unset unless you explicitly adopt Sentry later. When set, `@sentry/node` is initialized in `server/app-server.mjs` after dotenv loads. Uncaught exceptions flush the Sentry client then exit the process; unhandled promise rejections are reported without exiting. The main HTTP listener callback is wrapped in try/catch so unexpected errors still log and can be sent to Sentry before a generic **500** response (when headers are not yet sent).
+- **Optional `SENTRY_DSN`:** `@sentry/node` is initialized in `server/app-server.mjs` after dotenv loads when `SENTRY_DSN` is set. Uncaught exceptions flush the Sentry client then exit the process; unhandled promise rejections are reported without exiting. The main HTTP listener callback is wrapped in try/catch so unexpected errors still log and can be sent to Sentry before a generic **500** response (when headers are not yet sent).
 - **Uptime:** External monitors should probe **`GET /api/pdf/health`** (returns **`{ "ok": true }`**) on the public origin; the app does not ship a separate heartbeat endpoint. **Runbook** (Better Stack MCP verification, optional Render logs/metrics): **[PRODUCTION.md](./PRODUCTION.md)** → *Human Intervention* → **Better Stack** / **Render**.
 
 ### Design system tokens (`src/App.css :root`)

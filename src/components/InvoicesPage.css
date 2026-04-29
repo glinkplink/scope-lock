@@ -41,8 +41,25 @@
 }
 
 .invoices-page.work-orders-dashboard-page .work-orders-row-right {
+  flex: 0 0 126px;
+  width: 126px;
+  min-width: 126px;
   justify-content: center;
   gap: 3px;
+}
+
+.invoices-page.work-orders-dashboard-page .invoices-row-kicker {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.invoices-page.work-orders-dashboard-page .invoices-row-kicker .work-orders-wo,
+.invoices-page.work-orders-dashboard-page .invoices-row-kicker .iw-status-chip {
+  flex: 0 0 auto;
 }
 
 .invoices-page.work-orders-dashboard-page .invoices-row-wo-below-price {
@@ -67,4 +84,36 @@
 
 .invoices-page.work-orders-page .work-orders-row--busy {
   opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .invoices-page.work-orders-dashboard-page .work-orders-row-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 126px;
+    align-items: center;
+  }
+
+  .invoices-page.work-orders-dashboard-page .work-orders-row-right {
+    width: 126px;
+    min-width: 126px;
+  }
+
+  .invoices-page.work-orders-dashboard-page .work-orders-row-amount {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .invoices-page.work-orders-dashboard-page .work-orders-row-body {
+    grid-template-columns: minmax(0, 1fr) 112px;
+  }
+
+  .invoices-page.work-orders-dashboard-page .work-orders-row-right {
+    width: 112px;
+    min-width: 112px;
+  }
+
+  .invoices-page.work-orders-dashboard-page .work-orders-row-amount {
+    font-size: 0.95rem;
+  }
 }

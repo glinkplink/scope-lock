@@ -46,7 +46,7 @@ Everything in this section requires action outside the codebase — Stripe dashb
   DOCUSEAL_WEBHOOK_HEADER_NAME=...             # exact header name from DocuSeal webhook settings
   DOCUSEAL_WEBHOOK_HEADER_VALUE=...            # raw secret, not hashed
   VITE_GEOAPIFY_API_KEY=...                    # optional — job site autocomplete
-  # SENTRY_DSN — do not set for current production; error tracking (Sentry) intentionally out of scope
+  SENTRY_DSN=https://your-sentry-dsn
   ```
 - [x] **Set `VITE_*` vars as build-time args** (Render: Environment → add to Build env vars) — these are baked into the client bundle at build time, not runtime
 - [x] **Verify the health check** after first deploy: `curl https://[your-domain]/api/pdf/health` → `{"ok":true}`
@@ -94,7 +94,7 @@ IronWork does **not** embed Better Stack in code; use Better Stack (or any provi
 
 ### Known Gaps
 
-- [x] **Error tracking (Sentry)** — **Intentionally not pursued** for production: leave **`SENTRY_DSN` unset** on the web service. `@sentry/node` remains in the codebase only for optional future use if you adopt it later.
+- [x] **Error tracking (Sentry)** — Optional but supported. Set `SENTRY_DSN` on the web service to report server-side request failures, uncaught exceptions, and unhandled promise rejections.
 - [x] **Uptime** — External HTTP monitor (e.g. Better Stack) against `GET /api/pdf/health` at a few-minute interval with email alerts. **Operational detail:** Human Intervention → **Better Stack** and optional Render Log Streams / Metrics Stream above.
 - [x] **No structured logging on Stripe webhook** — payment events (paid, failed, amount mismatch) now logged with event IDs
 - [x] **Stripe webhook idempotency audit trail** — duplicate events now logged with event ID

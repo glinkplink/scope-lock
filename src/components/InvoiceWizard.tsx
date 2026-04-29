@@ -385,6 +385,31 @@ export function InvoiceWizard({
     goStep2();
   };
 
+  const goBackToPricing = () => {
+    setError('');
+    setStep(1);
+    if (job.price_type !== 'fixed') {
+      setPricingSubStep('materials');
+    }
+  };
+
+  const goBackToDueDate = () => {
+    setError('');
+    setStep(2);
+  };
+
+  const handleToolbarBack = () => {
+    if (step === 1) {
+      onCancel();
+      return;
+    }
+    if (step === 2) {
+      goBackToPricing();
+      return;
+    }
+    goBackToDueDate();
+  };
+
   const handleDueDateContinue = () => {
     if (!dueDate || !String(dueDate).trim()) {
       setError('Choose a due date.');
@@ -517,14 +542,14 @@ export function InvoiceWizard({
   return (
     <div className="invoice-wizard">
       <div className="invoice-wizard-toolbar">
-        <button type="button" className="home-work-orders-link invoice-wizard-toolbar-cancel" onClick={onCancel}>
-          Cancel
+        <button type="button" className="home-work-orders-link invoice-wizard-toolbar-cancel" onClick={handleToolbarBack}>
+          {step === 1 ? 'Cancel' : 'Back'}
         </button>
         <span className="invoice-wizard-toolbar-title" aria-hidden="true" />
         <span className="invoice-wizard-toolbar-balance" aria-hidden="true" />
       </div>
 
-      <div className="invoice-wizard-stepper" role="list" aria-label="Invoice progress">
+      <div className="invoice-wizard-stepper" role="group" aria-label="Invoice progress">
         {INVOICE_WIZARD_STEPS.map((label, index) => {
           const stepNumber = (index + 1) as 1 | 2 | 3;
           const stateClass =
@@ -533,13 +558,27 @@ export function InvoiceWizard({
               : stepNumber < step
                 ? ' invoice-wizard-stepper-item--complete'
                 : '';
+          const isClickable = stepNumber <= step;
+          const handleStepClick = () => {
+            if (!isClickable || stepNumber === step) return;
+            setError('');
+            if (stepNumber === 1) {
+              if (job.price_type !== 'fixed') setPricingSubStep('materials');
+              setStep(1);
+              return;
+            }
+            setStep(stepNumber);
+          };
 
           return (
-            <div
+            <button
               key={label}
-              role="listitem"
+              type="button"
+              aria-label={`Step ${stepNumber}: ${label}`}
               aria-current={stepNumber === step ? 'step' : undefined}
+              disabled={!isClickable}
               className={`invoice-wizard-stepper-item${stateClass}`}
+              onClick={handleStepClick}
             >
               <span className="invoice-wizard-stepper-index" aria-hidden="true">
                 {stepNumber}
@@ -548,7 +587,7 @@ export function InvoiceWizard({
                 <span className="invoice-wizard-stepper-kicker">{`Step ${stepNumber}`}</span>
                 <span className="invoice-wizard-stepper-label">{label}</span>
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -787,19 +826,6 @@ export function InvoiceWizard({
       {step === 2 ? (
         <section className="invoice-wizard-step">
           <InvoiceWizardStepHeader stepNumber={2} title="Due date" />
-          <button
-            type="button"
-            className="invoice-flow-back-link"
-            onClick={() => {
-              setError('');
-              setStep(1);
-              if (job.price_type !== 'fixed') {
-                setPricingSubStep('materials');
-              }
-            }}
-          >
-            Back
-          </button>
           <div className="form-group">
             <label htmlFor="due-date">Due date</label>
             <input
@@ -822,16 +848,6 @@ export function InvoiceWizard({
           <div id="invoice-wizard-payment-methods-heading">
             <InvoiceWizardStepHeader stepNumber={3} title="Payment methods" />
           </div>
-          <button
-            type="button"
-            className="invoice-flow-back-link"
-            onClick={() => {
-              setError('');
-              setStep(2);
-            }}
-          >
-            Back
-          </button>
           <div
             className="invoice-payment-methods-group"
             role="group"

@@ -181,7 +181,7 @@ function InvoiceRow({ invoice, busy, onOpen, onPrefetchInvoiceFinal }: InvoiceRo
       <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
           <div className="work-orders-row-left">
-            <span className="work-orders-row-kicker">
+            <span className="work-orders-row-kicker invoices-row-kicker">
               <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
               {pill ? <span className={pill.className}>{pill.label}</span> : null}
             </span>

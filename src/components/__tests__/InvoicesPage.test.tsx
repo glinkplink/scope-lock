@@ -323,6 +323,10 @@ describe('InvoicesPage', () => {
       'iw-status-chip',
       'iw-status-chip--draft'
     );
+    const downloadedRow = within(list).getByText('Downloaded Customer').closest('li') as HTMLElement;
+    const downloadedKicker = downloadedRow.querySelector('.invoices-row-kicker') as HTMLElement;
+    expect(downloadedKicker).toContainElement(within(downloadedRow).getByText('INV #0005'));
+    expect(downloadedKicker).toContainElement(within(downloadedRow).getByText('Downloaded'));
     expect(within(list).getByText('WO #0005')).toBeInTheDocument();
     expect(within(list).getByText('Pending')).toHaveClass(
       'iw-status-chip',
