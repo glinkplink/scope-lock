@@ -765,4 +765,26 @@
   .work-orders-dashboard-page .work-orders-row-amount {
     font-size: 1.05rem;
   }
+
+  /* Mobile: drop the create-invoice action to its own row beneath the body */
+  .work-orders-dashboard-page .work-orders-row--with-invoice-action,
+  .work-orders-dashboard-page .work-orders-row--with-invoice-action .work-orders-row-shell,
+  .work-orders-dashboard-page .work-orders-row--with-invoice-action .work-orders-row-body {
+    min-height: 0;
+  }
+
+  .work-orders-dashboard-page .work-orders-row--with-invoice-action .work-orders-row-body {
+    flex-wrap: wrap;
+    padding-bottom: 14px;
+  }
+
+  .work-orders-dashboard-page .work-orders-row--with-invoice-action .work-orders-create-invoice-slot {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--iron-700);
+  }
 }
