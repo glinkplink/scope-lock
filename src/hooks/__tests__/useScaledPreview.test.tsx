@@ -44,6 +44,14 @@ function fireResize(target: Element) {
   });
 }
 
+async function flushAnimationFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // matchMedia stub factory
 // ---------------------------------------------------------------------------
@@ -208,7 +216,7 @@ describe('useScaledPreview', () => {
     expect(spacerHeight).toBeCloseTo(200, 1);
   });
 
-  it('resize event updates scale', () => {
+  it('resize event updates scale', async () => {
     viewportWidth.current = 400;
     mountHarness({ matchMedia: makeMatchMedia(false) });
 
@@ -216,13 +224,14 @@ describe('useScaledPreview', () => {
     act(() => {
       window.dispatchEvent(new Event('resize'));
     });
+    await flushAnimationFrame();
 
     const probe = document.querySelector('[data-testid="probe"]')!;
     const scale = parseFloat(probe.getAttribute('data-scale')!);
     expect(scale).toBeCloseTo(1, 5);
   });
 
-  it('ResizeObserver fires via viewport RO callback and updates scale', () => {
+  it('ResizeObserver fires via viewport RO callback and updates scale', async () => {
     viewportWidth.current = 400;
     const { getScale } = mountHarness({ matchMedia: makeMatchMedia(false) });
     expect(getScale()).toBeCloseTo(400 / 816, 5);
@@ -232,6 +241,7 @@ describe('useScaledPreview', () => {
     const probe = document.querySelector('[data-testid="probe"]')!;
     const viewport = probe.parentElement!;
     fireResize(viewport);
+    await flushAnimationFrame();
 
     expect(getScale()).toBeCloseTo(1, 5);
   });

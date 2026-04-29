@@ -1,3 +1,5 @@
+import './main';
+
 const CACHE_RECOVERY_KEY = 'ironwork-cache-recovery-2026-04-24';
 const APP_SHELL_CACHE_PREFIX = 'ironwork-app-shell-';
 
@@ -29,5 +31,4 @@ async function clearLegacyAppShellCaches() {
   }
 }
 
-await clearLegacyAppShellCaches();
-await import('./main');
+void clearLegacyAppShellCaches();

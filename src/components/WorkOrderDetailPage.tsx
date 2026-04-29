@@ -103,6 +103,9 @@ interface WorkOrderDetailPageProps {
   onJobUpdated?: (job: Job) => void;
   onBack: () => void;
   onEditClient?: () => void;
+  onPrefetchEditClient?: () => void;
+  onPrefetchChangeOrderDetail?: () => void;
+  onPrefetchChangeOrderWizard?: () => void;
   onStartChangeOrder: () => void;
   onStartChangeOrderInvoice?: () => void;
   onOpenCODetail: (co: ChangeOrder) => void;
@@ -119,6 +122,9 @@ export function WorkOrderDetailPage({
   onJobUpdated,
   onBack,
   onEditClient = () => {},
+  onPrefetchEditClient,
+  onPrefetchChangeOrderDetail,
+  onPrefetchChangeOrderWizard,
   onStartChangeOrder,
   onOpenCODetail,
 }: WorkOrderDetailPageProps) {
@@ -684,6 +690,7 @@ export function WorkOrderDetailPage({
           clientLoading={linkedClientLoading}
           onJobBackfilled={handleJobBackfilled}
           onEditClient={onEditClient}
+          onPrefetchEditClient={onPrefetchEditClient}
         />
       ) : null}
 
@@ -917,6 +924,8 @@ export function WorkOrderDetailPage({
                     <button
                       type="button"
                       className="work-orders-row-detail-hit"
+                      onPointerEnter={onPrefetchChangeOrderDetail}
+                      onFocus={onPrefetchChangeOrderDetail}
                       onClick={() => onOpenCODetail(co)}
                     >
                       <span className="co-list-heading-line">
@@ -943,6 +952,8 @@ export function WorkOrderDetailPage({
           className="btn-secondary btn-large work-order-detail-download"
           data-testid="wo-detail-create-change-order"
           disabled={createChangeOrderDisabled}
+          onPointerEnter={onPrefetchChangeOrderWizard}
+          onFocus={onPrefetchChangeOrderWizard}
           title={
             coNewCoBlockLoading
               ? 'Loading…'

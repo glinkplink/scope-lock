@@ -15,6 +15,7 @@ interface InvoicesPageProps {
   userId: string;
   onOpenInvoice: (job: Job, invoice: Invoice) => void;
   onOpenCoInvoice?: () => void;
+  onPrefetchInvoiceFinal?: () => void;
 }
 
 const INVOICE_FILTER_OPTIONS = [
@@ -147,10 +148,11 @@ interface InvoiceRowProps {
   invoice: InvoiceWithCustomerName;
   busy: boolean;
   onOpen: (invoice: InvoiceWithCustomerName) => void;
+  onPrefetchInvoiceFinal?: () => void;
 }
 
 /** Row uses shared work-orders list classes so `WorkOrdersPage.css` applies. */
-function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
+function InvoiceRow({ invoice, busy, onOpen, onPrefetchInvoiceFinal }: InvoiceRowProps) {
   const pill = invoiceRowStatusPill(invoice);
   const accentClass = invoiceRowAccentClass(invoice);
   const isPaidRow = invoice.payment_status === 'paid' || invoice.payment_status === 'offline';
@@ -166,6 +168,8 @@ function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
       role="button"
       tabIndex={busy ? -1 : 0}
       aria-label={`Open invoice ${formatInvoiceLabel(invoice.invoice_number)}`}
+      onPointerEnter={onPrefetchInvoiceFinal}
+      onFocus={onPrefetchInvoiceFinal}
       onClick={activate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -197,7 +201,7 @@ function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
   );
 }
 
-export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
+export function InvoicesPage({ userId, onOpenInvoice, onPrefetchInvoiceFinal }: InvoicesPageProps) {
   const [invoices, setInvoices] = useState<InvoiceWithCustomerName[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -339,6 +343,7 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
               invoice={inv}
               busy={busyId === inv.id}
               onOpen={handleRowOpen}
+              onPrefetchInvoiceFinal={onPrefetchInvoiceFinal}
             />
           ))}
         </ul>

@@ -127,9 +127,17 @@ type WorkOrderRowProps = {
   job: WorkOrderDashboardJob;
   onOpenDetail: (job: WorkOrderDashboardJob) => void;
   onStartInvoice: (job: WorkOrderDashboardJob) => void;
+  onPrefetchWorkOrderDetail?: () => void;
+  onPrefetchInvoiceWizard?: () => void;
 };
 
-const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvoice }: WorkOrderRowProps) {
+const WorkOrderRow = memo(function WorkOrderRow({
+  job,
+  onOpenDetail,
+  onStartInvoice,
+  onPrefetchWorkOrderDetail,
+  onPrefetchInvoiceWizard,
+}: WorkOrderRowProps) {
   const woLabel = formatWorkOrderDashboardWoLabel(job);
   const jobMetaLabel = formatWorkOrderDashboardRowDate(job);
   const statusChip = getWorkOrderRowStatusChip(job);
@@ -155,6 +163,8 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
       role="button"
       tabIndex={0}
       aria-label={`Open ${woLabel} for ${job.customer_name}`}
+      onPointerEnter={onPrefetchWorkOrderDetail}
+      onFocus={onPrefetchWorkOrderDetail}
       onClick={handleRowClick}
       onKeyDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return;
@@ -184,6 +194,8 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
                 type="button"
                 className="work-orders-create-invoice-btn"
                 disabled={isButtonDisabled}
+                onPointerEnter={onPrefetchInvoiceWizard}
+                onFocus={onPrefetchInvoiceWizard}
                 onClick={(e) => {
                   if (!isButtonDisabled) {
                     e.stopPropagation();
@@ -216,6 +228,8 @@ interface WorkOrdersPageProps {
   onCompleteProfileClick: () => void;
   onOpenWorkOrderDetail: (jobId: string, targetSection?: 'top' | 'change-orders') => void;
   onStartInvoice: (jobId: string) => void;
+  onPrefetchWorkOrderDetail?: () => void;
+  onPrefetchInvoiceWizard?: () => void;
 }
 
 export function WorkOrdersPage({
@@ -227,6 +241,8 @@ export function WorkOrdersPage({
   onCompleteProfileClick,
   onOpenWorkOrderDetail,
   onStartInvoice,
+  onPrefetchWorkOrderDetail,
+  onPrefetchInvoiceWizard,
 }: WorkOrdersPageProps) {
   const [jobs, setJobs] = useState<WorkOrderDashboardJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -506,6 +522,8 @@ export function WorkOrdersPage({
                     job={job}
                     onOpenDetail={handleOpenDetail}
                     onStartInvoice={handleStartInvoice}
+                    onPrefetchWorkOrderDetail={onPrefetchWorkOrderDetail}
+                    onPrefetchInvoiceWizard={onPrefetchInvoiceWizard}
                   />
                 ))}
               </ul>

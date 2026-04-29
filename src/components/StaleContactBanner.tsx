@@ -9,6 +9,7 @@ interface StaleContactBannerProps {
   clientLoading?: boolean;
   onJobBackfilled: (job: Job) => void;
   onEditClient: () => void;
+  onPrefetchEditClient?: () => void;
 }
 
 /**
@@ -21,6 +22,7 @@ export function StaleContactBanner({
   clientLoading = false,
   onJobBackfilled,
   onEditClient,
+  onPrefetchEditClient,
 }: StaleContactBannerProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -91,6 +93,8 @@ export function StaleContactBanner({
       <button
         type="button"
         className="btn-secondary btn-action stale-contact-banner-action"
+        onPointerEnter={onPrefetchEditClient}
+        onFocus={onPrefetchEditClient}
         onClick={onEditClient}
       >
         Edit client

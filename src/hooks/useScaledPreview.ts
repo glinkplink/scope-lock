@@ -37,6 +37,8 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
   const fitPageHeightPx = options?.fitPageHeightPx;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
+  const scaleFrameRef = useRef<number | null>(null);
+  const heightFrameRef = useRef<number | null>(null);
   const [sheetScrollHeight, setSheetScrollHeight] = useState(0);
   const [scale, setScale] = useState(1);
 
@@ -56,17 +58,30 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
       return Math.min(widthScale, pageHeightScale, maxScale);
     };
 
-    const updateScale = () => {
+    const measureScale = () => {
       setScale(computeScale());
     };
 
-    updateScale();
+    const updateScale = () => {
+      if (scaleFrameRef.current != null) return;
+      scaleFrameRef.current = window.requestAnimationFrame(() => {
+        scaleFrameRef.current = null;
+        const nextScale = computeScale();
+        setScale((current) => (Math.abs(current - nextScale) > 0.001 ? nextScale : current));
+      });
+    };
+
+    measureScale();
     const ro = new ResizeObserver(updateScale);
     ro.observe(viewport);
     const mq = window.matchMedia(PREVIEW_DESKTOP_UPSCALE_MQ);
     mq.addEventListener('change', updateScale);
     window.addEventListener('resize', updateScale);
     return () => {
+      if (scaleFrameRef.current != null) {
+        window.cancelAnimationFrame(scaleFrameRef.current);
+        scaleFrameRef.current = null;
+      }
       ro.disconnect();
       mq.removeEventListener('change', updateScale);
       window.removeEventListener('resize', updateScale);
@@ -78,14 +93,29 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
     const sheet = sheetRef.current;
     if (!sheet) return;
 
-    const updateHeight = () => {
-      setSheetScrollHeight(sheet.scrollHeight);
+    const measureHeight = () => {
+      const nextHeight = sheet.scrollHeight;
+      setSheetScrollHeight((current) => (current !== nextHeight ? nextHeight : current));
     };
 
-    updateHeight();
+    const updateHeight = () => {
+      if (heightFrameRef.current != null) return;
+      heightFrameRef.current = window.requestAnimationFrame(() => {
+        heightFrameRef.current = null;
+        measureHeight();
+      });
+    };
+
+    measureHeight();
     const ro = new ResizeObserver(updateHeight);
     ro.observe(sheet);
-    return () => ro.disconnect();
+    return () => {
+      if (heightFrameRef.current != null) {
+        window.cancelAnimationFrame(heightFrameRef.current);
+        heightFrameRef.current = null;
+      }
+      ro.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller passes refresh triggers (e.g. job, profile)
   }, refreshDeps);
 

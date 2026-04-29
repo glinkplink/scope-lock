@@ -1,15 +1,22 @@
 import type { WelderJob } from '../types';
 import type { BusinessProfile } from '../types/db';
 import { esc } from './html-escape';
-import { getPdfFooterBusinessName, getPdfFooterPhone } from './agreement-pdf';
+
+function getProviderBusinessName(profile: BusinessProfile | null, job: WelderJob): string {
+  return profile?.business_name?.trim() || job.contractor_name?.trim() || '';
+}
+
+function getProviderPhone(profile: BusinessProfile | null, job: WelderJob): string {
+  return profile?.phone || job.contractor_phone || '';
+}
 
 /** Footer provider line for DocuSeal header/footer (matches PDF footer intent). */
 export function buildDocusealEsignFooterLine(
   profile: BusinessProfile | null,
   welderJob: WelderJob
 ): string {
-  const name = getPdfFooterBusinessName(profile, welderJob).trim();
-  const phone = getPdfFooterPhone(profile, welderJob).trim();
+  const name = getProviderBusinessName(profile, welderJob).trim();
+  const phone = getProviderPhone(profile, welderJob).trim();
   if (name && phone) return `Service Provider - ${name} | ${phone}`;
   if (name) return `Service Provider - ${name}`;
   if (phone) return `Service Provider | ${phone}`;

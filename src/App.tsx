@@ -49,6 +49,18 @@ const loadInvoicesPage = () =>
 const loadClientsPage = () =>
   import('./components/ClientsPage').then((module) => ({ default: module.ClientsPage }));
 
+type LazyPageLoader = () => Promise<unknown>;
+const prefetchedLazyPages = new Set<LazyPageLoader>();
+
+function prefetchLazyPage(loader: LazyPageLoader) {
+  if (prefetchedLazyPages.has(loader)) return;
+  prefetchedLazyPages.add(loader);
+  void loader().catch((error) => {
+    prefetchedLazyPages.delete(loader);
+    console.error('[LazyPagePrefetch] Failed to prefetch page:', error);
+  });
+}
+
 const AgreementPreview = lazy(loadAgreementPreview);
 const WorkOrdersPage = lazy(loadWorkOrdersPage);
 const InvoiceWizard = lazy(loadInvoiceWizard);
@@ -166,6 +178,16 @@ function App() {
   const routeInvoiceId = routeParams.invoiceId ?? null;
   const routeStartSection = routeParams.startSection ?? 'top';
 
+  const prefetchAgreementPreview = useCallback(() => prefetchLazyPage(loadAgreementPreview), []);
+  const prefetchWorkOrders = useCallback(() => prefetchLazyPage(loadWorkOrdersPage), []);
+  const prefetchWorkOrderDetail = useCallback(() => prefetchLazyPage(loadWorkOrderDetailPage), []);
+  const prefetchChangeOrderDetail = useCallback(() => prefetchLazyPage(loadChangeOrderDetailPage), []);
+  const prefetchChangeOrderWizard = useCallback(() => prefetchLazyPage(loadChangeOrderWizard), []);
+  const prefetchInvoiceWizard = useCallback(() => prefetchLazyPage(loadInvoiceWizard), []);
+  const prefetchInvoiceFinal = useCallback(() => prefetchLazyPage(loadInvoiceFinalPage), []);
+  const prefetchInvoices = useCallback(() => prefetchLazyPage(loadInvoicesPage), []);
+  const prefetchClients = useCallback(() => prefetchLazyPage(loadClientsPage), []);
+
   const clearProfileStripeScrollIntent = useCallback(() => {
     profileScrollToStripeRef.current = false;
   }, []);
@@ -260,11 +282,11 @@ function App() {
   useEffect(() => {
     if (!user) return;
     return scheduleIdleTask(() => {
-      void loadWorkOrdersPage();
-      void loadInvoicesPage();
-      void loadClientsPage();
+      prefetchWorkOrders();
+      prefetchInvoices();
+      prefetchClients();
     });
-  }, [user]);
+  }, [prefetchClients, prefetchInvoices, prefetchWorkOrders, user]);
 
   const restorePendingAgreement = draftFlow.restorePendingAgreement;
 
@@ -584,6 +606,8 @@ function App() {
             navigateTo('profile');
           }}
           onOpenWorkOrderDetail={handleOpenWorkOrderDetail}
+          onPrefetchWorkOrderDetail={prefetchWorkOrderDetail}
+          onPrefetchInvoiceWizard={prefetchInvoiceWizard}
           onStartInvoice={(jobId: string) => {
             navigateTo('invoice-wizard', { jobId });
           }}
@@ -610,6 +634,9 @@ function App() {
           }}
           onBack={handleBackFromWorkOrderDetail}
           onEditClient={() => navigateTo('clients')}
+          onPrefetchEditClient={prefetchClients}
+          onPrefetchChangeOrderDetail={prefetchChangeOrderDetail}
+          onPrefetchChangeOrderWizard={prefetchChangeOrderWizard}
           onStartChangeOrder={changeOrderFlow.handleStartChangeOrderFromDetail}
           onOpenCODetail={changeOrderFlow.handleOpenCODetail}
         />
@@ -696,6 +723,7 @@ function App() {
           onOpenInvoice={(job, inv) =>
             invoiceFlow.handleOpenPendingInvoice(job, inv, 'invoices')
           }
+          onPrefetchInvoiceFinal={prefetchInvoiceFinal}
         />
       );
     }
@@ -790,6 +818,8 @@ function App() {
               <button
                 type="button"
                 className="header-work-orders-link"
+                onPointerEnter={prefetchWorkOrders}
+                onFocus={prefetchWorkOrders}
                 onClick={openWorkOrders}
               >
                 Work Orders
@@ -847,6 +877,8 @@ function App() {
           </button>
           <button
             className={`tab-button ${view === 'preview' ? 'active' : ''}`}
+            onPointerEnter={prefetchAgreementPreview}
+            onFocus={prefetchAgreementPreview}
             onClick={() => navigateTo('preview')}
           >
             Preview
@@ -875,6 +907,8 @@ function App() {
           <button
             type="button"
             className={`app-bottom-nav-item ${view === 'work-orders' ? 'active' : ''}`}
+            onPointerEnter={prefetchWorkOrders}
+            onFocus={prefetchWorkOrders}
             onClick={openWorkOrders}
           >
             <ClipboardList className="app-bottom-nav-icon" aria-hidden="true" />
@@ -893,6 +927,8 @@ function App() {
           <button
             type="button"
             className={`app-bottom-nav-item ${view === 'invoices' ? 'active' : ''}`}
+            onPointerEnter={prefetchInvoices}
+            onFocus={prefetchInvoices}
             onClick={() => navigateTo('invoices')}
           >
             <FileText className="app-bottom-nav-icon" aria-hidden="true" />
@@ -901,6 +937,8 @@ function App() {
           <button
             type="button"
             className={`app-bottom-nav-item ${view === 'clients' ? 'active' : ''}`}
+            onPointerEnter={prefetchClients}
+            onFocus={prefetchClients}
             onClick={() => navigateTo('clients')}
           >
             <Users className="app-bottom-nav-icon" aria-hidden="true" />
