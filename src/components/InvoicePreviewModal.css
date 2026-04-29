@@ -88,9 +88,8 @@
 }
 
 .invoice-preview-modal-sheet {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
+  display: block;
   background: #fff;
   border-radius: 6px;
   overflow: hidden;

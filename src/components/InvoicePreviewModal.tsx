@@ -12,11 +12,10 @@ interface InvoicePreviewModalProps {
   ariaLabel?: string;
 }
 
-/** Letter width at 96dpi — must match the PDF viewport so text does not reflow. */
-const LETTER_WIDTH_PX = 816;
-
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const LETTER_WIDTH_PX = 816;
+const LETTER_HEIGHT_PX = 1056;
 
 function tabbableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => {
@@ -39,8 +38,9 @@ export function InvoicePreviewModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const layoutFrameRef = useRef<number | null>(null);
   const [scale, setScale] = useState(1);
-  const [sheetHeight, setSheetHeight] = useState(0);
+  const [sheetHeight, setSheetHeight] = useState(LETTER_HEIGHT_PX);
 
   useEffect(() => {
     if (!open) return;
@@ -53,42 +53,48 @@ export function InvoicePreviewModal({
 
   useLayoutEffect(() => {
     if (!open) return;
-    const scroll = scrollRef.current;
-    if (!scroll) return;
 
-    const computeScale = () => {
+    const updateLayout = () => {
+      const scroll = scrollRef.current;
+      const sheet = sheetRef.current;
+      if (!scroll || !sheet) return;
+
       const style = window.getComputedStyle(scroll);
       const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-      const available = scroll.clientWidth - padX;
-      if (available <= 0) return 1;
-      return Math.min(1, available / LETTER_WIDTH_PX);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const availableWidth = scroll.clientWidth - padX;
+      const availableHeight = scroll.clientHeight - padY;
+      const widthScale =
+        availableWidth > 0 ? availableWidth / LETTER_WIDTH_PX : 1;
+      const firstPageScale =
+        availableHeight > 0 ? availableHeight / LETTER_HEIGHT_PX : 1;
+      const nextScale = Math.min(1, widthScale, firstPageScale);
+      const nextSheetHeight = Math.max(sheet.scrollHeight, LETTER_HEIGHT_PX);
+
+      setScale((current) => (Math.abs(current - nextScale) > 0.001 ? nextScale : current));
+      setSheetHeight((current) => (current !== nextSheetHeight ? nextSheetHeight : current));
     };
 
-    const updateScale = () => setScale(computeScale());
+    const scheduleLayout = () => {
+      if (layoutFrameRef.current != null) return;
+      layoutFrameRef.current = window.requestAnimationFrame(() => {
+        layoutFrameRef.current = null;
+        updateLayout();
+      });
+    };
 
-    updateScale();
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateScale) : null;
-    ro?.observe(scroll);
-    window.addEventListener('resize', updateScale);
+    scheduleLayout();
+    window.addEventListener('resize', scheduleLayout);
+    if ('fonts' in document && document.fonts?.ready) {
+      void document.fonts.ready.then(scheduleLayout).catch(() => {});
+    }
     return () => {
-      ro?.disconnect();
-      window.removeEventListener('resize', updateScale);
+      if (layoutFrameRef.current != null) {
+        window.cancelAnimationFrame(layoutFrameRef.current);
+        layoutFrameRef.current = null;
+      }
+      window.removeEventListener('resize', scheduleLayout);
     };
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-
-    const updateHeight = () => setSheetHeight(sheet.scrollHeight);
-
-    updateHeight();
-    const ro =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateHeight) : null;
-    ro?.observe(sheet);
-    return () => ro?.disconnect();
   }, [open, htmlMarkup]);
 
   if (!open) return null;
