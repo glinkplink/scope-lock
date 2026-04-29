@@ -23,10 +23,17 @@ type PricingSubStep = 'labor' | 'materials';
 
 const INVOICE_WIZARD_STEPS = ['Pricing', 'Due date', 'Payment methods'] as const;
 
+function toLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function defaultDueDateYmd(): string {
   const d = new Date();
   d.setDate(d.getDate() + 14);
-  return d.toISOString().split('T')[0];
+  return toLocalYmd(d);
 }
 
 function defaultPaymentSelection(profile: BusinessProfile): string[] {
@@ -400,7 +407,7 @@ export function InvoiceWizard({
     const normalizedTaxRate = normalizeTaxRate(percentValueToTaxRate(taxPercent));
     const ta = Math.round(subtotal * normalizedTaxRate * 100) / 100;
     const tot = Math.round((subtotal + ta) * 100) / 100;
-    const invoice_date = new Date().toISOString().split('T')[0];
+    const invoice_date = toLocalYmd(new Date());
 
     setSubmitting(true);
     try {

@@ -26,7 +26,6 @@ function formatTimestampDate(iso: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-    timeZone: 'UTC',
   });
 }
 
