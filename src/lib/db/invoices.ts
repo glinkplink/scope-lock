@@ -304,12 +304,15 @@ export function isIssuedJobLevelInvoiceRow(row: {
 export type GetBlocksNewChangeOrdersForJobResult = {
   /** When true, new change orders must be disabled (business rule or fail-closed load error). */
   blocks: boolean;
+  /** True when the job-level invoice has been paid (Stripe or offline). */
+  invoicePaid: boolean;
   error: Error | null;
 };
 
 /**
  * Whether new change orders are blocked for this job (issued job-level invoice exists).
- * On query failure, returns `{ blocks: true, error }` (fail-closed).
+ * Also returns invoicePaid so callers can gate footer actions on job completion.
+ * On query failure, returns `{ blocks: true, invoicePaid: false, error }` (fail-closed).
  */
 export async function getBlocksNewChangeOrdersForJob(
   userId: string,
@@ -317,21 +320,27 @@ export async function getBlocksNewChangeOrdersForJob(
 ): Promise<GetBlocksNewChangeOrdersForJobResult> {
   const { data, error } = await supabase
     .from('invoices')
-    .select('issued_at, line_items')
+    .select('issued_at, line_items, payment_status')
     .eq('user_id', userId)
     .eq('job_id', jobId);
 
   if (error) {
     console.error('getBlocksNewChangeOrdersForJob:', error);
-    return { blocks: true, error: new Error(error.message) };
+    return { blocks: true, invoicePaid: false, error: new Error(error.message) };
   }
 
+  let blocks = false;
+  let invoicePaid = false;
   for (const row of data ?? []) {
-    if (isIssuedJobLevelInvoiceRow(row as { issued_at: unknown; line_items: unknown })) {
-      return { blocks: true, error: null };
+    const r = row as { issued_at: unknown; line_items: unknown; payment_status: unknown };
+    if (isIssuedJobLevelInvoiceRow(r)) {
+      blocks = true;
+      if (r.payment_status === 'paid' || r.payment_status === 'offline') {
+        invoicePaid = true;
+      }
     }
   }
-  return { blocks: false, error: null };
+  return { blocks, invoicePaid, error: null };
 }
 
 function parseChangeOrderInvoiceStatusRow(
