@@ -245,7 +245,7 @@ export function WorkOrderDetailPage({
     spacerHeight: woPreviewSpacerHeight,
     spacerWidth: woPreviewSpacerWidth,
     letterWidthPx: woLetterWidthPx,
-  } = useScaledPreview({ fitPageHeightPx: 320 }, sections);
+  } = useScaledPreview({ fitPageHeightPx: 280 }, sections);
 
   const woPreviewHtml = useMemo(
     () =>
@@ -254,6 +254,7 @@ export function WorkOrderDetailPage({
         : '',
     [sections]
   );
+
 
   const woPreviewFirstPageHeight = Math.min(
     woPreviewSpacerHeight,
