@@ -21,6 +21,7 @@ import {
   validatePaymentTermsDays,
 } from '../lib/payment-terms';
 import { normalizeOwnerFullName, splitFullNameForForm } from '../lib/owner-name';
+import { parseCurrencyInput } from '../lib/currency';
 import './JobForm.css';
 
 function formatLocalDateForDateInput(date: Date): string {
@@ -640,14 +641,14 @@ export function JobForm({
     const raw = e.target.value;
     setRawPrice(raw);
     skipSyncRef.current = true;
-    updateField('price', parseFloat(raw) || 0);
+    updateField('price', Math.max(0, parseCurrencyInput(raw)));
   };
 
   const handleDepositChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setRawDeposit(raw);
     skipSyncRef.current = true;
-    updateField('deposit_amount', parseFloat(raw) || 0);
+    updateField('deposit_amount', Math.max(0, parseCurrencyInput(raw)));
   };
 
   const handleWarrantyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1252,12 +1253,12 @@ export function JobForm({
             <label htmlFor="price">Total Price ($) *</label>
             <input
               id="price"
-              type="number"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               value={rawPrice}
               onChange={handlePriceChange}
               required
-              min="0.01"
-              step="0.01"
               placeholder="0.00"
             />
           </div>
@@ -1265,11 +1266,11 @@ export function JobForm({
             <label htmlFor="deposit_amount">Deposit Amount ($)</label>
             <input
               id="deposit_amount"
-              type="number"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               value={rawDeposit}
               onChange={handleDepositChange}
-              min="0"
-              step="0.01"
               placeholder="0.00"
             />
           </div>

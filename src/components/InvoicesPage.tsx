@@ -7,7 +7,7 @@ import {
   summarizeInvoiceDashboardRows,
 } from '../lib/db/invoices';
 import { getJobById } from '../lib/db/jobs';
-import { formatUsd } from '../lib/work-order-dashboard-display';
+import { formatUsd, formatUsdContract } from '../lib/work-order-dashboard-display';
 import './WorkOrdersPage.css';
 import './InvoicesPage.css';
 
@@ -96,6 +96,23 @@ function invoiceRowStatusPill(invoice: InvoiceWithCustomerName): { className: st
   return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Pending' };
 }
 
+function invoiceRowAccentClass(invoice: InvoiceWithCustomerName): string {
+  if (invoice.payment_status === 'paid' || invoice.payment_status === 'offline') {
+    return 'invoices-row--accent-paid';
+  }
+  const pill = invoiceRowStatusPill(invoice);
+  if (!pill) {
+    return 'invoices-row--accent-draft';
+  }
+  if (pill.label === 'Downloaded') {
+    return 'invoices-row--accent-draft';
+  }
+  if (pill.label === 'Pending') {
+    return 'invoices-row--accent-pending';
+  }
+  return 'invoices-row--accent-draft';
+}
+
 function invoiceSearchStatusLabel(invoice: InvoiceWithCustomerName): string {
   const pill = invoiceRowStatusPill(invoice);
   if (pill) return pill.label;
@@ -135,6 +152,7 @@ interface InvoiceRowProps {
 /** Row uses shared work-orders list classes so `WorkOrdersPage.css` applies. */
 function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
   const pill = invoiceRowStatusPill(invoice);
+  const accentClass = invoiceRowAccentClass(invoice);
   const isPaidRow = invoice.payment_status === 'paid' || invoice.payment_status === 'offline';
   const activate = () => {
     if (!busy) onOpen(invoice);
@@ -142,8 +160,8 @@ function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
 
   return (
     <li
-      className={`work-orders-row${busy ? ' work-orders-row--busy' : ''}${
-        isPaidRow ? ' work-orders-row--paid' : ''
+      className={`work-orders-row ${accentClass}${isPaidRow ? ' work-orders-row--paid' : ''}${
+        busy ? ' work-orders-row--busy' : ''
       }`}
       role="button"
       tabIndex={busy ? -1 : 0}
@@ -159,22 +177,20 @@ function InvoiceRow({ invoice, busy, onOpen }: InvoiceRowProps) {
       <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
           <div className="work-orders-row-left">
-            <span className="invoices-row-id-line">
+            <span className="work-orders-row-kicker">
               <span className="work-orders-wo">{formatInvoiceLabel(invoice.invoice_number)}</span>
-              <span className="invoices-row-wo-meta">{formatWoLabel(invoice.wo_number)}</span>
+              {pill ? <span className={pill.className}>{pill.label}</span> : null}
             </span>
             <span className="work-orders-customer">{invoice.customer_name ?? '—'}</span>
-            <span className="work-orders-job-type">{formatJobType(invoice.job_type, invoice.other_classification)}</span>
-            <span className="work-orders-row-amount invoices-row-amount">{formatUsd(invoice.total)}</span>
+            <span className="work-orders-job-type">
+              {formatJobType(invoice.job_type, invoice.other_classification)}
+            </span>
+            <span className="work-orders-row-date-inline">{formatInvoiceDate(invoice.invoice_date)}</span>
           </div>
           <div className="work-orders-row-right">
-            <div className="work-orders-row-status-slot">
-              {pill ? <span className={pill.className}>{pill.label}</span> : null}
-            </div>
+            <span className="work-orders-row-amount">{formatUsdContract(invoice.total)}</span>
+            <span className="invoices-row-wo-below-price">{formatWoLabel(invoice.wo_number)}</span>
           </div>
-        </div>
-        <div className="work-orders-row-footer">
-          <span className="work-orders-wo-date">{formatInvoiceDate(invoice.invoice_date)}</span>
         </div>
       </div>
     </li>
@@ -241,7 +257,7 @@ export function InvoicesPage({ userId, onOpenInvoice }: InvoicesPageProps) {
   const totalsSummary = summarizeInvoiceDashboardRows(invoices);
 
   return (
-    <div className="invoices-page work-orders-page">
+    <div className="invoices-page work-orders-page work-orders-dashboard-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Invoices</h1>
       </div>

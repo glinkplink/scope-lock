@@ -159,7 +159,7 @@ describe('InvoicesPage', () => {
     const firstRow = screen.getByText('Customer A').closest('li') as HTMLElement;
     expect(within(firstRow).getByText('INV #0001')).toBeInTheDocument();
     expect(within(firstRow).getByText('Customer A')).toBeInTheDocument();
-    expect(within(firstRow).getByText('$100')).toBeInTheDocument();
+    expect(within(firstRow).getByText('$100.00')).toBeInTheDocument();
     expect(within(firstRow).getByText('Jan 15, 2025')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });

@@ -344,6 +344,7 @@ describe('HomePage', () => {
   it('paid invoice tints the dashboard card (100%-done visual anchor)', async () => {
     const jobPaid: WorkOrderDashboardJob = {
       ...listJob,
+      esign_status: 'completed',
       latestInvoice: {
         id: 'inv-paid',
         job_id: 'job-1',
@@ -363,9 +364,9 @@ describe('HomePage', () => {
 
     render(<HomePage {...signedInProps()} />);
 
-    const card = await screen.findByRole('button', { name: /Open work order WO #0001/i });
-    expect(card).toHaveClass('home-dash-card--paid');
-    expect(within(card).getByText('Completed')).toBeInTheDocument();
+    const card = await screen.findByRole('button', { name: /Open WO #0001 for Customer Alpha/i });
+    expect(card).toHaveClass('work-orders-row--paid');
+    expect(within(card).getByText('Signed')).toBeInTheDocument();
   });
 
   it('offline-signed unpaid rows collapse to Signed on the homepage', async () => {
@@ -389,9 +390,10 @@ describe('HomePage', () => {
     });
   });
 
-  it('offline-paid jobs show Completed on the homepage', async () => {
+  it('offline-paid jobs show Signed chip with work-orders row styling', async () => {
     const jobCompletedOffline: WorkOrderDashboardJob = {
       ...listJob,
+      esign_status: 'completed',
       latestInvoice: {
         id: 'inv-1',
         job_id: 'job-1',
@@ -412,8 +414,8 @@ describe('HomePage', () => {
     render(<HomePage {...signedInProps()} />);
 
     await waitFor(() => {
-      const recentRow = screen.getByRole('button', { name: /WO #0001/i });
-      expect(within(recentRow).getByText('Completed')).toBeInTheDocument();
+      const recentRow = screen.getByRole('button', { name: /Open WO #0001 for Customer Alpha/i });
+      expect(within(recentRow).getByText('Signed')).toBeInTheDocument();
     });
   });
 

@@ -14,12 +14,14 @@ import {
   formatUsdContract,
   formatWorkOrderDashboardRowDate,
   formatWorkOrderDashboardWoLabel,
+  getWorkOrderRowAccentClass,
+  getWorkOrderRowStatusChip,
   isWorkOrderDashboardJobComplete,
 } from '../lib/work-order-dashboard-display';
-import { getWorkOrderSignatureState } from '../lib/work-order-signature';
 import { supabase } from '../lib/supabase';
 import { LandingPreviewModal } from './LandingPreviewModal';
 import './HomePage.css';
+import './WorkOrdersPage.css';
 
 const HOME_RECENT_LIMIT = 5;
 
@@ -365,35 +367,6 @@ function DocThumbnail({ htmlMarkup, onClick, ariaLabel }: { htmlMarkup: string; 
       </div>
     </button>
   );
-}
-
-function getHomeRecentStatusChip(job: WorkOrderDashboardJob): { className: string; label: string } | null {
-  if (isWorkOrderDashboardJobComplete(job)) {
-    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Completed' };
-  }
-
-  const signatureState = getWorkOrderSignatureState(job.esign_status, job.offline_signed_at);
-  if (signatureState.isSignatureSatisfied) {
-    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
-  }
-
-  if (job.esign_status === 'sent') {
-    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
-  }
-
-  if (job.esign_status === 'opened') {
-    return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Opened' };
-  }
-
-  if (job.esign_status === 'declined') {
-    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Declined' };
-  }
-
-  if (job.esign_status === 'expired') {
-    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Expired' };
-  }
-
-  return null;
 }
 
 export interface HomePageProps {
@@ -860,18 +833,21 @@ export function HomePage({
           {recentJobs.length === 0 ? (
             <p className="home-dash-empty">No work orders yet.</p>
           ) : (
-            <ul className="home-recent-list">
-              {recentJobs.map((job) => {
-                const statusChip = getHomeRecentStatusChip(job);
-                const isPaidCard = isWorkOrderDashboardJobComplete(job);
+            <div className="home-recent-work-orders work-orders-page work-orders-dashboard-page">
+              <ul className="work-orders-list">
+                {recentJobs.map((job) => {
+                  const woLabel = formatWorkOrderDashboardWoLabel(job);
+                  const statusChip = getWorkOrderRowStatusChip(job);
+                  const accentClass = getWorkOrderRowAccentClass(job);
+                  const isPaidRow = isWorkOrderDashboardJobComplete(job);
 
-                return (
-                  <li key={job.id}>
-                    <div
+                  return (
+                    <li
+                      key={job.id}
+                      className={`work-orders-row ${accentClass}${isPaidRow ? ' work-orders-row--paid' : ''}`}
                       role="button"
                       tabIndex={0}
-                      className={`home-dash-card${isPaidCard ? ' home-dash-card--paid' : ''}`}
-                      aria-label={`Open work order ${formatWorkOrderDashboardWoLabel(job)}`}
+                      aria-label={`Open ${woLabel} for ${job.customer_name}`}
                       onClick={() => onOpenWorkOrderDetail(job.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -880,33 +856,31 @@ export function HomePage({
                         }
                       }}
                     >
-                      <div className="home-dash-card-body">
-                        <div className="home-dash-card-left">
-                          <span className="home-dash-card-wo">{formatWorkOrderDashboardWoLabel(job)}</span>
-                          <span className="home-dash-card-client">{job.customer_name}</span>
-                          <span className="home-dash-card-title">
-                            {formatWorkOrderDashboardJobType(job)}
-                          </span>
-                          <span className="home-dash-card-amount">{formatUsdContract(job.price)}</span>
-                        </div>
-                        <div className="home-dash-card-right">
-                          <div className="home-dash-card-status-slot">
-                            {statusChip ? (
-                              <span className={statusChip.className}>{statusChip.label}</span>
-                            ) : null}
+                      <div className="work-orders-row-shell">
+                        <div className="work-orders-row-body">
+                          <div className="work-orders-row-left">
+                            <span className="work-orders-row-kicker">
+                              <span className="work-orders-wo">{woLabel}</span>
+                              {statusChip ? <span className={statusChip.className}>{statusChip.label}</span> : null}
+                            </span>
+                            <span className="work-orders-customer">{job.customer_name}</span>
+                            <span className="work-orders-job-type">
+                              {formatWorkOrderDashboardJobType(job)}
+                            </span>
+                            <span className="work-orders-row-date-inline">
+                              {formatWorkOrderDashboardRowDate(job)}
+                            </span>
+                          </div>
+                          <div className="work-orders-row-right">
+                            <span className="work-orders-row-amount">{formatUsdContract(job.price)}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="home-dash-card-footer">
-                        <span className="home-dash-card-date">
-                          {formatWorkOrderDashboardRowDate(job)}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </>
       )}

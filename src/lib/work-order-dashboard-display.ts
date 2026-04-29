@@ -60,6 +60,54 @@ export function isWorkOrderDashboardJobComplete(job: WorkOrderDashboardJob): boo
   return job.latestInvoice?.payment_status === 'paid' || job.latestInvoice?.payment_status === 'offline';
 }
 
+/** Status chip for Work Orders dashboard rows (and Home recent list when matching that layout). */
+export function getWorkOrderRowStatusChip(
+  job: WorkOrderDashboardJob
+): { className: string; label: string } | null {
+  if (job.esign_status === 'completed') {
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
+  }
+
+  if (job.offline_signed_at) {
+    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
+  }
+
+  if (job.esign_status === 'sent') {
+    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
+  }
+
+  if (job.esign_status === 'opened') {
+    return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Opened' };
+  }
+
+  if (job.esign_status === 'not_sent' && job.last_downloaded_at) {
+    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Downloaded' };
+  }
+
+  if (job.esign_status === 'declined') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Declined' };
+  }
+
+  if (job.esign_status === 'expired') {
+    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Expired' };
+  }
+
+  return null;
+}
+
+/** Left accent strip class for Work Orders dashboard rows. */
+export function getWorkOrderRowAccentClass(job: WorkOrderDashboardJob): string {
+  if (job.esign_status === 'declined' || job.esign_status === 'expired') {
+    return 'work-orders-row--signature-negative';
+  }
+
+  const signatureState = getWorkOrderSignatureState(job.esign_status, job.offline_signed_at);
+
+  return signatureState.isSignatureSatisfied
+    ? 'work-orders-row--signature-satisfied'
+    : 'work-orders-row--signature-needed';
+}
+
 /**
  * Single badge for Home recent rows: invoice-first (matches list action column + detail paid pills),
  * else primary e-sign label (matches list strip visibility and text).

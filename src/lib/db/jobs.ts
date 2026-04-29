@@ -545,7 +545,7 @@ export const saveWorkOrder = async (
     removal_or_disassembly_included: job.removal_or_disassembly_included,
     hidden_damage_possible: job.hidden_damage_possible,
     price_type: job.price_type,
-    price: roundCurrency(Number(job.price) || 0),
+    price: roundCurrency(Math.max(0, Number(job.price) || 0)),
     target_completion_date: job.target_completion_date || null,
     target_start: job.target_start || null,
     exclusions: Array.isArray(job.exclusions) ? job.exclusions : [],
@@ -556,7 +556,7 @@ export const saveWorkOrder = async (
     contractor_email: job.contractor_email || null,
     deposit_amount:
       typeof job.deposit_amount === 'number'
-        ? roundCurrency(job.deposit_amount)
+        ? roundCurrency(Math.max(0, job.deposit_amount))
         : 0,
     payment_terms_days: job.payment_terms_days,
     late_fee_rate: job.late_fee_rate,

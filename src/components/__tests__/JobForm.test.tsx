@@ -79,6 +79,26 @@ async function clickAgreementPreview(
 }
 
 describe('JobForm payment terms', () => {
+  it('uses text currency fields so wheel scrolling cannot step the work-order price down a penny', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<JobForm job={{ ...baseJob, price: 0, deposit_amount: 0 }} onChange={onChange} />);
+
+    const priceInput = screen.getByLabelText(/Total Price/i);
+    const depositInput = screen.getByLabelText(/Deposit Amount/i);
+
+    expect(priceInput).toHaveAttribute('type', 'text');
+    expect(priceInput).toHaveAttribute('inputmode', 'decimal');
+    expect(priceInput).not.toHaveAttribute('step');
+    expect(depositInput).toHaveAttribute('type', 'text');
+    expect(depositInput).not.toHaveAttribute('step');
+
+    await user.type(priceInput, '$2,000.00');
+
+    const last = onChange.mock.calls.at(-1)?.[0] as WelderJob;
+    expect(last.price).toBe(2000);
+  });
+
   it('uses the local calendar day for date input minimums', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-28T00:30:00.000Z'));

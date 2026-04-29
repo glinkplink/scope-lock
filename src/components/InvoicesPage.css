@@ -27,28 +27,39 @@
   margin-bottom: var(--space-md);
 }
 
-.invoices-page.work-orders-page .invoices-row-id-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 10px;
+/* Left-edge accent: align with Work Orders dashboard strip semantics */
+.invoices-page.work-orders-dashboard-page .invoices-row--accent-paid {
+  --work-order-row-accent: var(--iw-status-paid-border);
 }
 
-.invoices-page.work-orders-page .invoices-row-wo-meta {
-  font-family: 'Chakra Petch', var(--font-app);
-  font-size: 0.75rem;
+.invoices-page.work-orders-dashboard-page .invoices-row--accent-pending {
+  --work-order-row-accent: var(--iw-status-outstanding-border);
+}
+
+.invoices-page.work-orders-dashboard-page .invoices-row--accent-draft {
+  --work-order-row-accent: var(--iw-status-draft-border);
+}
+
+.invoices-page.work-orders-dashboard-page .work-orders-row-right {
+  justify-content: center;
+  gap: 3px;
+}
+
+.invoices-page.work-orders-dashboard-page .invoices-row-wo-below-price {
+  margin: 0;
+  padding: 0;
+  font-family: 'Chakra Petch', ui-monospace, monospace;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+  line-height: 1.2;
   text-transform: uppercase;
-  color: var(--iron-350);
-}
-
-.invoices-page.work-orders-page .invoices-row-amount {
-  color: var(--iron-50);
+  color: var(--iron-400);
+  white-space: nowrap;
 }
 
 /* Status chips on invoice rows are non-interactive (row itself is clickable). */
-.invoices-page.work-orders-page .work-orders-row-status-slot span.iw-status-chip {
+.invoices-page.work-orders-page .work-orders-row-kicker span.iw-status-chip {
   cursor: default;
   pointer-events: none;
   user-select: none;

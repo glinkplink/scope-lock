@@ -166,7 +166,7 @@ scope-lock/
 │   │   ├── CaptureModal.tsx          # Anonymous first Download & Save / Send: account + optional defaults opt-in
 │   │   ├── ClientsPage.tsx           # Saved clients list with inline contact editing + work-order activity context
 │   │   ├── EditProfilePage.tsx       # Edit profile + agreement defaults
-│   │   ├── HomePage.tsx              # Guest marketing landing + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page`; recent rows show rolled-up WO progress)
+│   │   ├── HomePage.tsx              # Guest marketing landing + signed-in dashboard (`get_work_orders_dashboard_summary` + first page of `list_work_orders_dashboard_page`; recent WO rows share Work Orders dashboard card layout + chips via `work-order-dashboard-display`, without the create-invoice CTA)
 │   │   ├── LandingPreviewModal.tsx   # Full-document lightbox for landing PDF placeholders (WO / invoice)
 │   │   ├── WorkOrdersPage.tsx        # Work-order list + signature/invoice filters; row opens detail, row footer opens change-orders section
 │   │   ├── WorkOrderDetailPage.tsx   # Saved job → agreement + change orders + PDFs + e-sign / offline-sign actions
@@ -295,7 +295,7 @@ First Download & Save → CaptureModal → signUp + upsertProfile (+ optional WO
       ↓
 [Signed in, no profile row] → BusinessProfileForm (rare edge case)
       ↓
-[Signed in + profile] → HomePage (dashboard summary + recent WOs; rows stay status-only and open WO detail; **Back** from detail opened here still returns to Work Orders until a `backTarget` stack exists)
+[Signed in + profile] → HomePage (dashboard summary + recent WOs; rows match Work Orders list layout/chips, no invoice button on row; open WO detail; **Back** from detail opened here still returns to Work Orders until a `backTarget` stack exists)
       ↓
 Clients → ClientsPage (saved clients; real-time search on name/phone/email/address; inline edit for phone/email/address only)
       ↓

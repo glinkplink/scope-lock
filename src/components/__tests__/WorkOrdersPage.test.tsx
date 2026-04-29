@@ -753,7 +753,7 @@ describe('WorkOrdersPage', () => {
     const button = within(row).getByRole('button', { name: /create invoice/i });
     
     expect(button).toBeDisabled();
-    expect(within(row).getByText(/work order must be signed/i)).toBeInTheDocument();
+    expect(within(row).getByText('Signature required before invoicing.')).toBeInTheDocument();
   });
 
   it('enables Create Invoice button when WO is signed (e-sign completed)', async () => {
@@ -776,7 +776,7 @@ describe('WorkOrdersPage', () => {
     const button = within(row).getByRole('button', { name: /create invoice/i });
     
     expect(button).not.toBeDisabled();
-    expect(within(row).queryByText(/work order must be signed/i)).not.toBeInTheDocument();
+    expect(within(row).queryByText('Signature required before invoicing.')).not.toBeInTheDocument();
   });
 
   it('enables Create Invoice button when WO is marked signed offline', async () => {
@@ -801,7 +801,7 @@ describe('WorkOrdersPage', () => {
     expect(button).not.toBeDisabled();
   });
 
-  it('renders work order date in footer at bottom-right of row', async () => {
+  it('renders work order date in the left row details', async () => {
     listWorkOrdersDashboardPage.mockResolvedValue(
       makePageResult([listJobA])
     );
@@ -812,9 +812,7 @@ describe('WorkOrdersPage', () => {
 
     const list = latestWorkOrdersListUl();
     const row = list.querySelector('li') as HTMLElement;
-    const footer = row.querySelector('.work-orders-row-footer');
     
-    expect(footer).toBeInTheDocument();
-    expect(footer?.querySelector('.work-orders-wo-date')).toBeInTheDocument();
+    expect(row.querySelector('.work-orders-row-date-inline')).toBeInTheDocument();
   });
 });

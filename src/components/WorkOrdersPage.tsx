@@ -10,6 +10,8 @@ import {
   formatUsdContract,
   formatWorkOrderDashboardRowDate,
   formatWorkOrderDashboardWoLabel,
+  getWorkOrderRowAccentClass,
+  getWorkOrderRowStatusChip,
   isWorkOrderDashboardJobComplete,
 } from '../lib/work-order-dashboard-display';
 import './WorkOrdersPage.css';
@@ -46,40 +48,6 @@ function readProfileNudgeDismissedActive(userId: string): boolean {
 
 function hasBusinessPhone(profile: BusinessProfile | null): boolean {
   return Boolean(profile?.phone?.replace(/\D/g, '').length);
-}
-
-function getWorkOrderRowStatusChip(
-  job: WorkOrderDashboardJob
-): { className: string; label: string } | null {
-  if (job.esign_status === 'completed') {
-    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
-  }
-
-  if (job.offline_signed_at) {
-    return { className: 'iw-status-chip iw-status-chip--paid', label: 'Signed' };
-  }
-
-  if (job.esign_status === 'sent') {
-    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Sent' };
-  }
-
-  if (job.esign_status === 'opened') {
-    return { className: 'iw-status-chip iw-status-chip--outstanding', label: 'Opened' };
-  }
-
-  if (job.esign_status === 'not_sent' && job.last_downloaded_at) {
-    return { className: 'iw-status-chip iw-status-chip--draft', label: 'Downloaded' };
-  }
-
-  if (job.esign_status === 'declined') {
-    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Declined' };
-  }
-
-  if (job.esign_status === 'expired') {
-    return { className: 'iw-status-chip iw-status-chip--negative', label: 'Expired' };
-  }
-
-  return null;
 }
 
 function appendDashboardRows(
@@ -166,6 +134,7 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
   const jobMetaLabel = formatWorkOrderDashboardRowDate(job);
   const statusChip = getWorkOrderRowStatusChip(job);
   const isPaidRow = isWorkOrderDashboardJobComplete(job);
+  const accentClass = getWorkOrderRowAccentClass(job);
   const signatureState = getWorkOrderSignatureState(job.esign_status, job.offline_signed_at);
   const hasInvoice = job.latestInvoice != null;
   const isSignatureSatisfied = signatureState.isSignatureSatisfied;
@@ -180,7 +149,9 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
 
   return (
     <li
-      className={`work-orders-row${isPaidRow ? ' work-orders-row--paid' : ''}`}
+      className={`work-orders-row ${accentClass}${isPaidRow ? ' work-orders-row--paid' : ''}${
+        showCreateInvoiceButton ? ' work-orders-row--with-invoice-action' : ''
+      }`}
       role="button"
       tabIndex={0}
       aria-label={`Open ${woLabel} for ${job.customer_name}`}
@@ -196,18 +167,17 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
       <div className="work-orders-row-shell">
         <div className="work-orders-row-body">
           <div className="work-orders-row-left">
-            <span className="work-orders-wo">{woLabel}</span>
+            <span className="work-orders-row-kicker">
+              <span className="work-orders-wo">{woLabel}</span>
+              {statusChip ? <span className={statusChip.className}>{statusChip.label}</span> : null}
+            </span>
             <span className="work-orders-customer">{job.customer_name}</span>
             <span className="work-orders-job-type">{formatWorkOrderDashboardJobType(job)}</span>
-            <span className="work-orders-row-amount">{formatUsdContract(job.price)}</span>
+            <span className="work-orders-row-date-inline">{jobMetaLabel}</span>
           </div>
           <div className="work-orders-row-right">
-            <div className="work-orders-row-status-slot">
-              {statusChip ? <span className={statusChip.className}>{statusChip.label}</span> : null}
-            </div>
+            <span className="work-orders-row-amount">{formatUsdContract(job.price)}</span>
           </div>
-        </div>
-        <div className="work-orders-row-footer">
           {showCreateInvoiceButton ? (
             <div className="work-orders-create-invoice-slot">
               <button
@@ -222,16 +192,15 @@ const WorkOrderRow = memo(function WorkOrderRow({ job, onOpenDetail, onStartInvo
                 }}
                 title={isButtonDisabled ? 'Work order must be e-signed or marked signed offline' : ''}
               >
-                Create Invoice
+                Create invoice
               </button>
               {isButtonDisabled ? (
                 <p className="work-orders-create-invoice-hint">
-                  Work order must be signed (e-signature or marked signed offline) before invoice can be generated.
+                  Signature required before invoicing.
                 </p>
               ) : null}
             </div>
           ) : null}
-          <span className="work-orders-wo-date">{jobMetaLabel}</span>
         </div>
       </div>
     </li>
@@ -384,7 +353,7 @@ export function WorkOrdersPage({
   const hasActiveFilters = activeFilter !== 'all' || searchTerm.trim().length > 0;
 
   return (
-    <div className="work-orders-page">
+    <div className="work-orders-page work-orders-dashboard-page">
       <div className="work-orders-toolbar">
         <h1 className="work-orders-title">Work Orders</h1>
         <button type="button" className="btn-primary work-orders-toolbar-cta" onClick={onCreateWorkOrder}>

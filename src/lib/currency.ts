@@ -10,3 +10,13 @@ export function parseCurrency(value: unknown): number {
   const numeric = typeof value === 'number' ? value : Number(value);
   return roundCurrency(numeric);
 }
+
+export function parseCurrencyInput(value: string): number {
+  const normalized = value.replace(/[$,\s]/g, '').toLowerCase();
+  if (normalized === '') return 0;
+  const shorthandThousands = normalized.match(/^(-?(?:\d+|\d*\.\d+))k$/);
+  if (shorthandThousands) {
+    return parseCurrency(Number(shorthandThousands[1]) * 1000);
+  }
+  return parseCurrency(normalized);
+}
