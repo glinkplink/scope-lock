@@ -432,6 +432,13 @@
   --work-order-row-accent: var(--iw-status-negative-fg);
 }
 
+/* Homepage-only: fully-complete job (signed + invoice paid) gets green tint */
+.home-recent-work-orders .work-orders-row--completed {
+  --work-order-row-accent: var(--iw-status-paid-border);
+  background: linear-gradient(180deg, rgba(46, 153, 104, 0.1), rgba(46, 153, 104, 0.04));
+  border-color: rgba(46, 153, 104, 0.35);
+}
+
 .work-orders-dashboard-page .work-orders-row::before,
 .work-orders-dashboard-page .work-orders-row--paid::before {
   content: '';

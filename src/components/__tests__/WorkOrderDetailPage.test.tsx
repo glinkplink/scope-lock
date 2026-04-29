@@ -803,4 +803,27 @@ it('renders change-order rows with date, amount, description, and shared e-sign 
       screen.getByText(/Could not verify whether new change orders are allowed \(network\)/i)
     ).toBeInTheDocument();
   });
+
+  it('hides Mark signed offline and Undo offline mark when an invoice has been issued', async () => {
+    mockFns.setCoBlockResult({ blocks: true, error: null });
+    render(
+      <WorkOrderDetailPage
+        userId="u1"
+        jobId="job-1"
+        job={minimalJob()}
+        profile={minimalProfile()}
+        onBack={() => {}}
+        onStartChangeOrder={() => {}}
+        onStartChangeOrderInvoice={() => {}}
+        onOpenCODetail={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockFns.getBlocksNewChangeOrdersForJob).toHaveBeenCalledWith('u1', 'job-1');
+    });
+
+    expect(screen.queryByRole('button', { name: /mark signed offline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /undo offline mark/i })).not.toBeInTheDocument();
+  });
 });

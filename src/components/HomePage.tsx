@@ -837,9 +837,14 @@ export function HomePage({
               <ul className="work-orders-list">
                 {recentJobs.map((job) => {
                   const woLabel = formatWorkOrderDashboardWoLabel(job);
-                  const statusChip = getWorkOrderRowStatusChip(job);
-                  const accentClass = getWorkOrderRowAccentClass(job);
-                  const isPaidRow = isWorkOrderDashboardJobComplete(job);
+                  const isComplete = isWorkOrderDashboardJobComplete(job);
+                  const statusChip = isComplete
+                    ? { className: 'iw-status-chip iw-status-chip--paid', label: 'Completed' }
+                    : getWorkOrderRowStatusChip(job);
+                  const accentClass = isComplete
+                    ? 'work-orders-row--completed'
+                    : getWorkOrderRowAccentClass(job);
+                  const isPaidRow = isComplete;
 
                   return (
                     <li
