@@ -41,6 +41,7 @@ import {
 import { getChangeOrderSignatureState } from '../lib/change-order-signature';
 import { useScaledPreview } from '../hooks/useScaledPreview';
 import { InvoicePreviewModal } from './InvoicePreviewModal';
+import './EsignTimeline.css';
 import './ChangeOrderDetailPage.css';
 
 const CHANGE_ORDER_STATUS_META: Record<

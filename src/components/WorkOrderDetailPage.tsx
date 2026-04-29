@@ -48,6 +48,7 @@ import { getChangeOrderSignatureState } from '../lib/change-order-signature';
 import { useScaledPreview } from '../hooks/useScaledPreview';
 import { InvoicePreviewModal } from './InvoicePreviewModal';
 import { StaleContactBanner } from './StaleContactBanner';
+import './EsignTimeline.css';
 import './WorkOrderDetailPage.css';
 
 const ROW_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
