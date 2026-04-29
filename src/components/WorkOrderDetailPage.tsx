@@ -45,7 +45,7 @@ import { computeCOTotal, listChangeOrders } from '../lib/db/change-orders';
 import { getBlocksNewChangeOrdersForJob } from '../lib/db/invoices';
 import { markJobDownloaded } from '../lib/job-mark-downloaded';
 import { getChangeOrderSignatureState } from '../lib/change-order-signature';
-import { useScaledPreview } from '../hooks/useScaledPreview';
+import { PREVIEW_LETTER_HEIGHT_PX, useScaledPreview } from '../hooks/useScaledPreview';
 import { InvoicePreviewModal } from './InvoicePreviewModal';
 import { StaleContactBanner } from './StaleContactBanner';
 import './EsignTimeline.css';
@@ -253,6 +253,11 @@ export function WorkOrderDetailPage({
         ? `<div class="agreement-document">${agreementSectionsToHtml(sections)}</div>`
         : '',
     [sections]
+  );
+
+  const woPreviewFirstPageHeight = Math.min(
+    woPreviewSpacerHeight,
+    PREVIEW_LETTER_HEIGHT_PX * woPreviewScale
   );
 
   const woLabel =
@@ -865,7 +870,7 @@ export function WorkOrderDetailPage({
               className="agreement-preview-scale-spacer"
               style={{
                 width: woPreviewSpacerWidth,
-                height: woPreviewSpacerHeight,
+                height: woPreviewFirstPageHeight,
               }}
             >
               <div
