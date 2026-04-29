@@ -245,7 +245,7 @@ export function WorkOrderDetailPage({
     spacerHeight: woPreviewSpacerHeight,
     spacerWidth: woPreviewSpacerWidth,
     letterWidthPx: woLetterWidthPx,
-  } = useScaledPreview({ fitPageHeightPx: 320 }, sections);
+  } = useScaledPreview({ fitPageHeightPx: 280 }, sections);
 
   const woPreviewHtml = useMemo(
     () =>
@@ -255,10 +255,6 @@ export function WorkOrderDetailPage({
     [sections]
   );
 
-  const woPreviewFirstPageHeight = Math.min(
-    woPreviewSpacerHeight,
-    PREVIEW_LETTER_HEIGHT_PX * woPreviewScale
-  );
 
   const woLabel =
     job?.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
@@ -870,7 +866,7 @@ export function WorkOrderDetailPage({
               className="agreement-preview-scale-spacer"
               style={{
                 width: woPreviewSpacerWidth,
-                height: woPreviewFirstPageHeight,
+                height: Math.min(woPreviewSpacerHeight, PREVIEW_LETTER_HEIGHT_PX * woPreviewScale),
               }}
             >
               <div
