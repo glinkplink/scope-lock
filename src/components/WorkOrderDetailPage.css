@@ -229,6 +229,10 @@
   padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-lg));
 }
 
+.app-main--bottom-nav .work-order-detail-page:not(:has(.work-order-detail-footer)) {
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + var(--space-lg));
+}
+
 .work-order-detail-download {
   width: 100%;
   min-width: 0;
