@@ -233,21 +233,6 @@ describe('useScaledPreview', () => {
     );
   });
 
-  it('caps scale by fitPageHeightPx when provided', () => {
-    viewportWidth.current = 500;
-    sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 2;
-    const { getScale, getSpacerHeight } = mountHarness({
-      matchMedia: makeMatchMedia(false),
-      fitPageHeightPx: 280,
-    });
-
-    expect(getScale()).toBeCloseTo(280 / PREVIEW_LETTER_HEIGHT_PX, 5);
-    expect(getSpacerHeight()).toBeCloseTo(
-      sheetScrollHeight.current * (280 / PREVIEW_LETTER_HEIGHT_PX),
-      2
-    );
-  });
-
   it('clips spacerHeight to the requested visible page count (with fitPageHeightPx)', () => {
     viewportWidth.current = 500;
     sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 3;

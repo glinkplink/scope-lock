@@ -127,6 +127,17 @@ export const createInvoice = async (
     };
   }
 
+  const { data: existingDraft } = await supabase
+    .from('invoices')
+    .select('*')
+    .eq('user_id', input.user_id)
+    .eq('job_id', input.job_id)
+    .maybeSingle();
+
+  if (existingDraft) {
+    return { data: mapInvoiceRow(existingDraft as Record<string, unknown>), error: null };
+  }
+
   const row = {
     user_id: input.user_id,
     job_id: input.job_id,
@@ -540,25 +551,75 @@ export const listInvoicesWithCustomerName = async (
   const mapped = (data ?? [])
     .filter((row) => isStandardInvoiceUiRow(row as { line_items: unknown }))
     .map((row) => {
-    const inv = mapInvoiceRow(row as Record<string, unknown>);
-    const jobRelation = (row as Record<string, unknown>).jobs as Record<string, unknown> | null;
-    const customer_name =
-      jobRelation && typeof jobRelation.customer_name === 'string'
-        ? (jobRelation.customer_name as string)
-        : null;
-    const rawWo = jobRelation?.wo_number;
-    const n = rawWo != null ? Number(rawWo) : NaN;
-    const wo_number = Number.isFinite(n) ? n : null;
-    const job_type =
-      jobRelation && typeof jobRelation.job_type === 'string'
-        ? (jobRelation.job_type as string)
-        : null;
-    const other_classification =
-      jobRelation && typeof jobRelation.other_classification === 'string'
-        ? (jobRelation.other_classification as string)
-        : null;
+      const inv = mapInvoiceRow(row as Record<string, unknown>);
+      const jobRelation = (row as Record<string, unknown>).jobs as Record<string, unknown> | null;
+      const customer_name =
+        jobRelation && typeof jobRelation.customer_name === 'string'
+          ? (jobRelation.customer_name as string)
+          : null;
+      const rawWo = jobRelation?.wo_number;
+      const n = rawWo != null ? Number(rawWo) : NaN;
+      const wo_number = Number.isFinite(n) ? n : null;
+      const job_type =
+        jobRelation && typeof jobRelation.job_type === 'string'
+          ? (jobRelation.job_type as string)
+          : null;
+      const other_classification =
+        jobRelation && typeof jobRelation.other_classification === 'string'
+          ? (jobRelation.other_classification as string)
+          : null;
       return { ...inv, customer_name, wo_number, job_type, other_classification };
     });
+
+  const idsNeedingFallback = Array.from(
+    new Set(
+      mapped
+        .filter((invoice) => !invoice.customer_name || invoice.wo_number == null || !invoice.job_type)
+        .map((invoice) => invoice.job_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  if (idsNeedingFallback.length > 0) {
+    const { data: fallbackJobs, error: fallbackError } = await supabase
+      .from('jobs')
+      .select('id, customer_name, wo_number, job_type, other_classification')
+      .in('id', idsNeedingFallback);
+
+    if (!fallbackError && Array.isArray(fallbackJobs)) {
+      const jobById = new Map(
+        fallbackJobs.map((job) => [
+          String((job as Record<string, unknown>).id ?? ''),
+          job as Record<string, unknown>,
+        ])
+      );
+
+      for (const invoice of mapped) {
+        const fallback = jobById.get(invoice.job_id);
+        if (!fallback) continue;
+        if (!invoice.customer_name && typeof fallback.customer_name === 'string') {
+          invoice.customer_name = fallback.customer_name;
+        }
+        if (invoice.wo_number == null) {
+          const woRaw = fallback.wo_number;
+          const wo = woRaw != null ? Number(woRaw) : NaN;
+          if (Number.isFinite(wo)) {
+            invoice.wo_number = wo;
+          }
+        }
+        if (!invoice.job_type && typeof fallback.job_type === 'string') {
+          invoice.job_type = fallback.job_type;
+        }
+        if (
+          !invoice.other_classification &&
+          typeof fallback.other_classification === 'string'
+        ) {
+          invoice.other_classification = fallback.other_classification;
+        }
+      }
+    }
+  }
+
   return { data: mapped, error: null };
 };
 

@@ -16,6 +16,9 @@ vi.mock('../../hooks/useScaledPreview', () => ({
     spacerWidth: 816,
     letterWidthPx: 816,
   }),
+  PREVIEW_LETTER_HEIGHT_PX: 1056,
+  PREVIEW_LETTER_WIDTH_PX: 816,
+  PREVIEW_DESKTOP_UPSCALE_MQ: '(min-width: 1024px)',
 }));
 
 const mockFns = vi.hoisted(() => {

@@ -170,34 +170,53 @@ export function InvoiceFinalPage({
   }, [invoiceProp.id, invoiceProp.notes]);
 
   useEffect(() => {
-    void getInvoice(invoiceProp.id).then((row) => {
-      if (row) onInvoiceUpdatedRef.current(row);
-    });
+    let cancelled = false;
+    void getInvoice(invoiceProp.id)
+      .then((row) => {
+        if (!cancelled && row) onInvoiceUpdatedRef.current(row);
+      })
+      .catch(() => {
+        // Best-effort refresh only; ignore transient errors here.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [invoiceProp.id]);
 
   // Recompute CO lines on open for drafts — keeps invoice current if COs were signed after draft was created.
   // Also tracks unsigned COs so we can block invoice send/download until they're resolved.
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const allCOs = await listChangeOrders(invoiceProp.job_id);
-      const unsigned = allCOs.filter(
-        (co) => !isChangeOrderSignatureSatisfied(co.esign_status, co.offline_signed_at)
-      );
-      setPendingCOCount(unsigned.length);
+      try {
+        const allCOs = await listChangeOrders(invoiceProp.job_id);
+        if (cancelled) return;
 
-      if (invoiceProp.issued_at) return;
-      const signedCOs = allCOs.filter((co) =>
-        isChangeOrderSignatureSatisfied(co.esign_status, co.offline_signed_at)
-      );
-      const { lines, changed } = computeSignedCOLines(invoiceProp, signedCOs);
-      if (!changed) return;
-      const subtotal = lines.reduce((s, l) => s + l.total, 0);
-      const tax_amount = Math.round((subtotal * invoiceProp.tax_rate + Number.EPSILON) * 100) / 100;
-      const total = Math.round((subtotal + tax_amount + Number.EPSILON) * 100) / 100;
-      const updated = { ...invoiceProp, line_items: lines, subtotal, tax_amount, total };
-      const { data } = await updateInvoice(updated);
-      if (data) onInvoiceUpdatedRef.current(data);
+        const unsigned = allCOs.filter(
+          (co) => !isChangeOrderSignatureSatisfied(co.esign_status, co.offline_signed_at)
+        );
+        setPendingCOCount(unsigned.length);
+
+        if (invoiceProp.issued_at) return;
+        const signedCOs = allCOs.filter((co) =>
+          isChangeOrderSignatureSatisfied(co.esign_status, co.offline_signed_at)
+        );
+        const { lines, changed } = computeSignedCOLines(invoiceProp, signedCOs);
+        if (!changed) return;
+        const subtotal = lines.reduce((s, l) => s + l.total, 0);
+        const tax_amount =
+          Math.round((subtotal * invoiceProp.tax_rate + Number.EPSILON) * 100) / 100;
+        const total = Math.round((subtotal + tax_amount + Number.EPSILON) * 100) / 100;
+        const updated = { ...invoiceProp, line_items: lines, subtotal, tax_amount, total };
+        const { data } = await updateInvoice(updated);
+        if (!cancelled && data) onInvoiceUpdatedRef.current(data);
+      } catch {
+        if (!cancelled) setPendingCOCount(0);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceProp.id]);
 

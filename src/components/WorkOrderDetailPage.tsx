@@ -256,6 +256,7 @@ export function WorkOrderDetailPage({
     [sections]
   );
 
+
   const woLabel =
     job?.wo_number != null ? `WO #${String(job.wo_number).padStart(4, '0')}` : 'WO (no #)';
   const customerTitle = job?.customer_name.trim() || 'Customer';
