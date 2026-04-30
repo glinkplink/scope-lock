@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /** Letter width at 96dpi — preview layout matches PDF viewport. */
 export const PREVIEW_LETTER_WIDTH_PX = 816;
@@ -19,7 +19,7 @@ function isUseScaledPreviewOptions(value: unknown): value is UseScaledPreviewOpt
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
-    'fitPageHeightPx' in value
+    ('fitPageHeightPx' in value || 'maxVisiblePageCount' in value)
   );
 }
 
@@ -37,15 +37,21 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
   const refreshDeps = options ? heightRefreshDeps.slice(1) : heightRefreshDeps;
   const fitPageHeightPx = options?.fitPageHeightPx;
   const maxVisiblePageCount = options?.maxVisiblePageCount;
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const [viewportNode, setViewportNode] = useState<HTMLDivElement | null>(null);
+  const [sheetNode, setSheetNode] = useState<HTMLDivElement | null>(null);
+  const viewportRef = useCallback((node: HTMLDivElement | null) => {
+    setViewportNode(node);
+  }, []);
+  const sheetRef = useCallback((node: HTMLDivElement | null) => {
+    setSheetNode(node);
+  }, []);
   const scaleFrameRef = useRef<number | null>(null);
   const heightFrameRef = useRef<number | null>(null);
   const [sheetScrollHeight, setSheetScrollHeight] = useState(0);
   const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
-    const viewport = viewportRef.current;
+    const viewport = viewportNode;
     if (!viewport) return;
 
     const computeScale = () => {
@@ -88,11 +94,11 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
       mq.removeEventListener('change', updateScale);
       window.removeEventListener('resize', updateScale);
     };
-  }, [fitPageHeightPx]);
+  }, [fitPageHeightPx, viewportNode]);
 
   /* Spacer height: sheet content only — ResizeObserver here does not track scroll container size. */
   useLayoutEffect(() => {
-    const sheet = sheetRef.current;
+    const sheet = sheetNode;
     if (!sheet) return;
 
     const measureHeight = () => {
@@ -119,7 +125,7 @@ export function useScaledPreview(...heightRefreshDeps: unknown[]) {
       ro.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller passes refresh triggers (e.g. job, profile)
-  }, refreshDeps);
+  }, [sheetNode, ...refreshDeps]);
 
   const maxVisibleSheetHeight =
     typeof maxVisiblePageCount === 'number' && maxVisiblePageCount > 0

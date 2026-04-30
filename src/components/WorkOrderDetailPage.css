@@ -86,7 +86,8 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 .wo-detail-mini-preview-hitbox {
@@ -98,7 +99,6 @@
   background: transparent;
   cursor: zoom-in;
   text-align: center;
-  overflow: hidden;
 }
 
 .wo-detail-mini-preview-hitbox:focus {

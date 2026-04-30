@@ -105,8 +105,7 @@ function ScaledPreviewHarness({
             return { width: viewportWidth.current } as DOMRect;
           });
         }
-        // eslint-disable-next-line react-hooks/immutability
-        (viewportRef as React.RefObject<HTMLDivElement | null>).current = el;
+        (viewportRef as (node: HTMLDivElement | null) => void)(el);
       }}
     >
       <div
@@ -119,8 +118,7 @@ function ScaledPreviewHarness({
               },
             });
           }
-          // eslint-disable-next-line react-hooks/immutability
-          (sheetRef as React.RefObject<HTMLDivElement | null>).current = el;
+          (sheetRef as (node: HTMLDivElement | null) => void)(el);
         }}
       />
       <div
@@ -236,7 +234,22 @@ describe('useScaledPreview', () => {
     );
   });
 
-  it('clips spacerHeight to the requested visible page count', () => {
+  it('caps scale by fitPageHeightPx when provided', () => {
+    viewportWidth.current = 500;
+    sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 2;
+    const { getScale, getSpacerHeight } = mountHarness({
+      matchMedia: makeMatchMedia(false),
+      fitPageHeightPx: 280,
+    });
+
+    expect(getScale()).toBeCloseTo(280 / PREVIEW_LETTER_HEIGHT_PX, 5);
+    expect(getSpacerHeight()).toBeCloseTo(
+      sheetScrollHeight.current * (280 / PREVIEW_LETTER_HEIGHT_PX),
+      2
+    );
+  });
+
+  it('clips spacerHeight to the requested visible page count (with fitPageHeightPx)', () => {
     viewportWidth.current = 500;
     sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 3;
     const { getScale, getSpacerHeight } = mountHarness({
@@ -247,6 +260,20 @@ describe('useScaledPreview', () => {
 
     expect(getScale()).toBeCloseTo(280 / PREVIEW_LETTER_HEIGHT_PX, 5);
     expect(getSpacerHeight()).toBeCloseTo(280, 2);
+  });
+
+  it('clips spacerHeight to the requested visible page count (maxVisiblePageCount only)', () => {
+    viewportWidth.current = 500;
+    sheetScrollHeight.current = PREVIEW_LETTER_HEIGHT_PX * 3;
+    const { getScale, getSpacerHeight } = mountHarness({
+      matchMedia: makeMatchMedia(false),
+      maxVisiblePageCount: 1,
+    });
+
+    // No fitPageHeightPx, so scale is width-only
+    expect(getScale()).toBeCloseTo(500 / 816, 5);
+    // spacerHeight = min(sheetScrollHeight, 1 page) * scale = 1056 * scale
+    expect(getSpacerHeight()).toBeCloseTo(PREVIEW_LETTER_HEIGHT_PX * getScale(), 2);
   });
 
   it('deps change causes height effect to re-run and spacerHeight updates', () => {

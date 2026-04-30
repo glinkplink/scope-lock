@@ -557,10 +557,12 @@
 .work-orders-dashboard-page .work-orders-row-kicker {
   display: flex;
   min-width: 0;
+  max-width: 100%;
   min-height: 1.25rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px 8px;
+  white-space: nowrap;
 }
 
 .work-orders-dashboard-page .work-orders-row-kicker .iw-status-chip {
@@ -569,6 +571,17 @@
   font-size: 0.64rem;
   letter-spacing: 0.03em;
   text-transform: none;
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-orders-dashboard-page .work-orders-row-kicker .work-orders-wo {
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .work-orders-page .work-orders-wo {
