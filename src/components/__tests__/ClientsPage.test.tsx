@@ -136,7 +136,7 @@ describe('ClientsPage', () => {
     });
     const savedClient = {
       ...missingClient,
-      phone: '5559990000',
+      phone: '(555) 999-0000',
       email: 'client@example.com',
       address: '5 Main St',
     };
@@ -168,7 +168,7 @@ describe('ClientsPage', () => {
       expect(upsertClient).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'client-missing',
-          phone: '5559990000',
+          phone: '(555) 999-0000',
           email: 'client@example.com',
           address: '5 Main St',
         })
@@ -176,7 +176,7 @@ describe('ClientsPage', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('5559990000')).toBeInTheDocument();
+      expect(screen.getByText('(555) 999-0000')).toBeInTheDocument();
     });
     expect(screen.getByText('client@example.com')).toBeInTheDocument();
     expect(screen.getByText('5 Main St')).toBeInTheDocument();

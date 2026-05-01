@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ClientListItem } from '../types/db';
 import { listClientItems, upsertClient } from '../lib/db/clients';
+import { propagateClientContactToUnsignedJobs } from '../lib/db/jobs';
+import { formatUsPhoneInput } from '../lib/us-phone-input';
 import './ClientsPage.css';
 
 interface ClientsPageProps {
@@ -17,7 +19,7 @@ type ClientEditDraft = {
 
 function buildEditDraft(client: ClientListItem): ClientEditDraft {
   return {
-    phone: client.phone ?? '',
+    phone: formatUsPhoneInput(client.phone ?? ''),
     email: client.email ?? '',
     address: client.address ?? '',
   };
@@ -122,6 +124,9 @@ export function ClientsPage({ userId }: ClientsPageProps) {
     const trimmedEmail = editDraft.email.trim();
     const trimmedAddress = editDraft.address.trim();
 
+    const emailChanged = (trimmedEmail || null) !== (client.email?.trim() || null);
+    const phoneChanged = (trimmedPhone || null) !== (client.phone?.trim() || null);
+
     const result = await upsertClient({
       id: client.id,
       user_id: client.user_id,
@@ -138,6 +143,14 @@ export function ClientsPage({ userId }: ClientsPageProps) {
     if (result.error || !result.data) {
       setEditError(result.error?.message || 'Failed to save client.');
       return;
+    }
+
+    if (emailChanged || phoneChanged) {
+      await propagateClientContactToUnsignedJobs(
+        client.id,
+        emailChanged ? (trimmedEmail || null) : undefined,
+        phoneChanged ? (trimmedPhone || null) : undefined
+      );
     }
 
     setClients((current) =>
@@ -273,7 +286,7 @@ export function ClientsPage({ userId }: ClientsPageProps) {
                             current
                               ? {
                                   ...current,
-                                  phone: event.target.value,
+                                  phone: formatUsPhoneInput(event.target.value),
                                 }
                               : current
                           )
