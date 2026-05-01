@@ -456,6 +456,31 @@ export const deleteJob = async (id: string) => {
   return { error };
 };
 
+/**
+ * Propagates updated client email/phone to all unsigned jobs for that client.
+ * "Unsigned" means esign_status != 'completed' AND offline_signed_at IS NULL.
+ * Called after a client contact edit so the PDF reflects the new address before signature.
+ */
+export const propagateClientContactToUnsignedJobs = async (
+  clientId: string,
+  email: string | null | undefined,
+  phone: string | null | undefined
+): Promise<{ error: Error | null }> => {
+  const patch: Record<string, string | null> = {};
+  if (email !== undefined) patch.customer_email = email;
+  if (phone !== undefined) patch.customer_phone = phone;
+  if (Object.keys(patch).length === 0) return { error: null };
+
+  const { error } = await supabase
+    .from('jobs')
+    .update(patch)
+    .eq('client_id', clientId)
+    .neq('esign_status', 'completed')
+    .is('offline_signed_at', null);
+
+  return { error: error ? new Error(error.message) : null };
+};
+
 function normalizeClientNameKey(name: string): string {
   return name.trim().toLowerCase();
 }
